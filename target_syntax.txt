@@ -1,0 +1,15 @@
+
+mesh(sphere(), material).translateX(osc(30)).translateY(45).render()
+sphere().texture(material).translateX...
+
+model("Willy").animate("xyz", time).translateX(osc(30))...
+
+//by default do geometry stuff on the gpu?
+
+sphere.position(p, i => p.add(sphere.normal(i.mul(2))))
+points(600000).position((p, i) => vec3(i).mul(2).step(1))
+
+geometry attributes are available as buffers on gpu
+
+changing things should keep the existing ones where possible
+
