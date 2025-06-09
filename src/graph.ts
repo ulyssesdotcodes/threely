@@ -7,16 +7,21 @@
    */
   export interface Node<T = any> {
     id: string;
-    data?: T | ((...args: any[]) => void);
+    data?: T | ((...args: any[]) => any) | CurriedFunction;
     inputs: Map<string, Node<T>>;
     outputs: Map<string, Node<T>>;
   }
 
   /**
+   * Type definition for a curried function
+   */
+  export type CurriedFunction = (...args: any[]) => CurriedFunction | any;
+
+  /**
    * Interface for a FunctionNode that has a function as its data
    */
   export interface FunctionNode<T = any> extends Node<T> {
-    data: (...args: any[]) => void;
+    data: ((...args: any[]) => any) | CurriedFunction;
   }
 
   /**
@@ -52,7 +57,7 @@
      * @param data - Optional data to associate with the node
      * @returns The created node
      */
-    createNode(data?: T | (() => void)): Node<T> {
+    createNode(data?: T | (() => void) | CurriedFunction): Node<T> {
       const id = this.generateUniqueId();
       const node: Node<T> = { id, data, inputs: new Map(), outputs: new Map() };
       this.nodes.set(id, node);
@@ -141,7 +146,14 @@
 
       // Execute the root node's data function if it exists and is a function
       if (isFunctionNode(root) && typeof root.data === 'function') {
-        return root.data(...args);
+        let result = root.data(...args);
+
+        // If the result is a curried function, return it for further argument application
+        if (typeof result === 'function' && result.length > 0) {
+          return result;
+        }
+
+        return result;
       }
 
       return undefined;

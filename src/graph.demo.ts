@@ -48,3 +48,32 @@
   // Run the chain and get the result from zNode
   const finalResult = graph.run(zNode);
   console.log(`Final result of z node: ${finalResult}`); // Should be (3*2)+5 = 11
+
+  // Test currying functionality
+  console.log("\n--- Testing Currying Functionality ---");
+
+  // Create a function that demonstrates the currying pattern x.y(2).z(w())
+  const xFunc = () => 3;
+  const yFunc = (input: number, param: number) => input * param;
+  const zFunc = (input: number, wResult: number) => input + wResult;
+  const wFunc = () => 5;
+
+  // Create nodes for each function
+  const xNodeCurry = graph.createNode(xFunc);
+  const yNodeCurry = graph.createNode((input: number) => {
+    return (param: number) => yFunc(input, param);
+  });
+  const zNodeCurry = graph.createNode((input: Function) => {
+    const param2 = 2; // This is the '2' in x.y(2).z(w())
+    const intermediateResult = input(param2); // Equivalent to y(x(), 2)
+    return (wResultFunc: Function) => zFunc(intermediateResult, wResultFunc());
+  });
+  const wNodeCurry = graph.createNode(wFunc);
+
+  // Connect the nodes
+  graph.connect(xNodeCurry, yNodeCurry, 'next');
+  graph.connect(yNodeCurry, zNodeCurry, 'next');
+
+  // Run the curried chain: x.y(2).z(w())
+  const curryingResult = (graph.run(zNodeCurry) as Function)(wNodeCurry.data as Function);
+  console.log(`Currying result: ${curryingResult}`); // Should be z(y(x(), 2), w()) = z(6, 5) = 11
