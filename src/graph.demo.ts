@@ -1,39 +1,25 @@
-// graph.demo.ts - Demonstration of the Graph implementation
+// Graph Demo
+import { createGraphNodeWrapper, Graph } from './graph';
 
-import { Graph, createGraphNodeWrapper } from './graph';
+// Create some functions that will be used in the graph
+const function1 = (input: number) => {
+  console.log(`Function 1 received: ${input}`);
+  return input * 2;
+};
 
-// Create a new graph
-const myGraph = new Graph<number>();
+const function2 = (input: number) => {
+  console.log(`Function 2 received: ${input}`);
+  return input + 5;
+};
 
-// Create nodes with data
-const node1 = myGraph.createNode(10);
-const node2 = myGraph.createNode(20);
-const node3 = myGraph.createNode(30);
+// Create a graph instance
+const graph = new Graph();
 
-console.log(`Created node1 with ID: ${node1.id}`);
-console.log(`Created node2 with ID: ${node2.id}`);
-console.log(`Created node3 with ID: ${node3.id}`);
+// Create wrapped functions that create graph nodes using the same graph instance
+const wrappedFunction1 = createGraphNodeWrapper(function1, graph);
+const wrappedFunction2 = createGraphNodeWrapper(function2, graph);
 
-// Connect nodes via named inputs
-myGraph.connect(node1, node2, 'inputA');
-myGraph.connect(node1, node3, 'inputB');
+// Run the chain of functions with an initial value of 3
+const result = wrappedFunction2(wrappedFunction1(3));
 
-// Verify connections
-console.log(`Node2 is connected to node1 via inputA: ${node2.inputs.has('inputA')}`);
-console.log(`Node3 is connected to node1 via inputB: ${node3.inputs.has('inputB')}`);
-
-// Demonstrate the decorator function
-class Example {
-  exampleMethod = createGraphNodeWrapper(function() {
-    console.log('This is an example method');
-  }).bind(this);
-}
-
-const example = new Example();
-example.exampleMethod();
-
-// Output all nodes in the graph
-console.log('All nodes in the graph:');
-myGraph.getAllNodes().forEach(node => {
-  console.log(`- Node ID: ${node.id}, Data: ${node.data}`);
-});
+console.log(`Final result: ${result}`); // Should be (3*2)+5 = 11
