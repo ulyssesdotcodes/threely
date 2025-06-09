@@ -7,7 +7,7 @@
    */
   export interface Node<T = any> {
     id: string;
-    data?: T | (() => void);
+    data?: T | ((...args: any[]) => void);
     inputs: Map<string, Node<T>>;
     outputs: Map<string, Node<T>>;
   }
@@ -16,14 +16,14 @@
    * Interface for a FunctionNode that has a function as its data
    */
   export interface FunctionNode<T = any> extends Node<T> {
-    data: () => void;
+    data: (...args: any[]) => void;
   }
 
   /**
    * Type guard to check if a node is a FunctionNode
    */
   export function isFunctionNode<T>(node: Node<T>): node is FunctionNode<T> {
-    return typeof node.data === 'function';
+    return typeof node.data === 'function' && node.data.length >= 0;
   }
 
   /**
@@ -110,21 +110,38 @@
     }
 
     /**
+     * Helper function to recursively run input nodes and collect their results
+     * @param node - The node whose inputs should be executed
+     * @returns An array of results from executing the input nodes' data functions
+     */
+    private executeInputs(node: Node<T>): any[] {
+      const results = [];
+      for (const [inputName, inputNode] of node.inputs) {
+        if (isFunctionNode(inputNode)) {
+          // Recursively run inputs and get their results
+          const inputResults = this.executeInputs(inputNode);
+          // Execute the input node's data function with its input results
+          const result = inputNode.data ? inputNode.data(...inputResults) : undefined;
+          results.push(result);
+        } else {
+          results.push(undefined);
+        }
+      }
+      return results;
+    }
+
+    /**
      * Run the graph starting from a root node
      * @param root - The root node to start execution from
      * @returns The result of executing the root node's data function
      */
     run(root: Node<T>): any {
-      // If the root has inputs, execute them first if they have functions
-      for (const [inputName, inputNode] of root.inputs) {
-        if (isFunctionNode(inputNode)) {
-          inputNode.data();
-        }
-      }
+      // Get input values by recursively running all inputs
+      const args = this.executeInputs(root);
 
       // Execute the root node's data function if it exists and is a function
-      if (isFunctionNode(root)) {
-        return root.data();
+      if (isFunctionNode(root) && typeof root.data === 'function') {
+        return root.data(...args);
       }
 
       return undefined;
