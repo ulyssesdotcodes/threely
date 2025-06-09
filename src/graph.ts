@@ -32,6 +32,38 @@
   }
 
   /**
+   * Utility function to create a curried version of any regular function
+   *
+   * @param fn - The original function to be curried
+   * @returns A new curried function that accepts arguments one at a time
+   */
+  export function createCurriedFunction(fn: (...args: any[]) => any): CurriedFunction {
+    const arity = fn.length;
+
+    // Create a closure to store collected arguments and the original function
+    return function curried(this: any, ...collectedArgs: any[]): any {
+      if (collectedArgs.length === 0) {
+        // If no args provided, just return this function for chaining
+        return curried;
+      }
+
+      // If we've collected enough arguments, execute the original function
+      if (collectedArgs.length >= arity) {
+        return fn.apply(this, collectedArgs);
+      }
+
+      // Otherwise, return another function that collects more arguments
+      const newCurried = ((...nextArgs: any[]) =>
+        curried.call(this, ...collectedArgs.concat(nextArgs))) as CurriedFunction;
+
+      // Set the length property to indicate how many args are still needed
+      Object.defineProperty(newCurried, 'length', { value: arity - collectedArgs.length });
+
+      return newCurried;
+    };
+  }
+
+  /**
    * Generic Graph class that manages nodes and their connections.
    *
    * @template T - The type of data associated with the graph's nodes
@@ -58,6 +90,17 @@
      * @returns The created node
      */
     createNode(data?: T | (() => void) | CurriedFunction): Node<T> {
+      // Check if data is a regular function and not already curried
+      if (typeof data === 'function' && !(data as any).curried) {
+        // Mark the original function as curried to avoid double-currying
+        (data as any).curried = true;
+
+        const id = this.generateUniqueId();
+        const node: Node<T> = { id, data, inputs: new Map(), outputs: new Map() };
+        this.nodes.set(id, node);
+        return node;
+      }
+
       const id = this.generateUniqueId();
       const node: Node<T> = { id, data, inputs: new Map(), outputs: new Map() };
       this.nodes.set(id, node);
@@ -146,14 +189,7 @@
 
       // Execute the root node's data function if it exists and is a function
       if (isFunctionNode(root) && typeof root.data === 'function') {
-        let result = root.data(...args);
-
-        // If the result is a curried function, return it for further argument application
-        if (typeof result === 'function' && result.length > 0) {
-          return result;
-        }
-
-        return result;
+        return root.data(...args);
       }
 
       return undefined;
