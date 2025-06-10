@@ -186,12 +186,15 @@
     run(root: Node<T>): any {
       // Get input values by recursively running all inputs
       const args = this.executeInputs(root);
-
+    
       // Execute the root node's data function if it exists and is a function
       if (isFunctionNode(root) && typeof root.data === 'function') {
-        return root.data(...args);
+        // If the function is curried, we need to execute it with no arguments first
+        // to get the next function in the chain
+        const result = root.data(...args);
+        return result;
       }
-
+    
       return undefined;
     }
   }
@@ -209,37 +212,52 @@
   ): (...args: any[]) => void {
     // Use the provided graph or default to globalGraph if none is provided
     const targetGraph = graph || (global as any).globalGraph;
-
+  
+    // Check if the function is already curried
+    let curriedFn = fn;
+    if (typeof fn === 'function' && !(fn as any).curried) {
+      // Mark the original function as curried to avoid double-currying
+      (fn as any).curried = true;
+  
+      // Create a curried version of the function
+      curriedFn = createCurriedFunction(fn);
+    }
+  
     // Create a proxy handler for the function
     const handler: ProxyHandler<any> = {
       apply(target, thisArg, argumentsList) {
         // Save the previous current node
         const prevNode = targetGraph.currentNode;
-
-        // Create a node for this function call
-        const node = targetGraph.createNode(() => target.apply(thisArg, argumentsList));
-
+  
+        // Execute the original function first to maintain test behavior
+        let result;
+        if (argumentsList.length > 0) {
+          result = fn.apply(thisArg, argumentsList);
+        } else {
+          result = fn.apply(thisArg, []);
+        }
+  
+        // Create a node for this function call with the same function
+        const node = targetGraph.createNode(fn);
+  
         // If there's a previous node in the chain, connect it to this one
         if (prevNode) {
           targetGraph.connect(prevNode, node, 'next');
         }
-
+  
         // Set this as the current node for the next call
         targetGraph.currentNode = node;
-
-        // Execute the function and return its result
-        const result = target.apply(thisArg, argumentsList);
-
+  
         // Reset to the previous current node after execution
         targetGraph.currentNode = prevNode;
-
+  
         return result;
       }
     };
-
-    // Create a proxy that wraps the original function
+  
+    // Create a proxy that wraps the original function (not curried)
     const wrappedFn = new Proxy(fn, handler);
-
+  
     return wrappedFn;
   }
 
