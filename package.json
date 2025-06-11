@@ -13,6 +13,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.37.1",
     "@solidjs/signals": "^0.3.2",
+    "@types/three": "^0.177.0",
     "codemirror": "^6.0.1",
     "three": "^0.177.0",
     "uuid": "^11.1.0"
