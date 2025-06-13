@@ -1,16 +1,34 @@
-import { EditorState } from "@codemirror/state";
+import { EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { getTextBlockAtPosition } from './text_utils';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { setScene, executeDSL } from './dsl';
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
 // Custom command for Ctrl-Enter
 const handleCtrlEnter = (view: EditorView): boolean => {
-  console.log("Ctrl-Enter pressed", getBlockAtCursor(view));
-  // Add your custom behavior here
+  const blockInfo = getBlockAtCursor(view);
+  console.log("Ctrl-Enter pressed", blockInfo);
+  
+  if (blockInfo && blockInfo.block) {
+    const code = blockInfo.block.trim();
+    console.log("Executing DSL code:", code);
+    
+    try {
+      const result = executeDSL(code);
+      if (result) {
+        console.log("DSL execution successful, object added to scene:", result);
+      } else {
+        console.log("DSL execution returned no result");
+      }
+    } catch (error) {
+      console.error("Error executing DSL code:", error);
+    }
+  }
+  
   // Prevent the default new line behavior by returning true
   return true;
 };
@@ -27,12 +45,18 @@ export const getBlockAtCursor = (view: EditorView): { block: string } | null => 
   };
 };
 
-// Function to initialize the background Three.js scene
+// Global scene reference for DSL
+let globalScene: THREE.Scene | null = null;
+
+// Function to initialize the background Three.js scene  
 function initBackgroundScene() {
   // Create scene, camera, and renderer
   const scene = new THREE.Scene();
+  globalScene = scene; // Store global reference
+  setScene(scene); // Set scene for DSL
+  
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const renderer = new THREE.WebGPURenderer({ antialias: true, alpha: true });
   
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setClearColor(0x000000, 0.1); // Dark background with low opacity
@@ -69,7 +93,7 @@ function initBackgroundScene() {
     cube.rotation.x += 0.005;
     cube.rotation.y += 0.01;
     
-    renderer.render(scene, camera);
+    renderer.renderAsync(scene, camera);
   }
   
   // Handle window resize
@@ -84,19 +108,17 @@ function initBackgroundScene() {
 
 // Function to initialize the editor
 export function startEditor() {
-  const defaultContent = `
-mesh(sphere(), material).translateX(osc(30)).translateY(45).render()
-sphere().texture(material).translateX...
-model("Willy").animate("xyz", time).translateX(osc(30))...
+  const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render()
 
-//by default do geometry stuff on the gpu?
+// Try pressing Ctrl+Enter on the line above!
+// This will create a sphere mesh, translate it, rotate it, and add it to the scene
 
-sphere.position(p, i => p.add(sphere.normal(i.mul(2))))
-points(600000).position((p, i) => vec3(i).mul(2).step(1))
+mesh(box(2, 1, 1), material({color: 0xff0000})).translateX(-3).render()
 
-geometry attributes are available as buffers on gpu
+mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).render()
 
-changing things should keep the existing ones where possible
+// More examples:
+// mesh(sphere(0.5), material({color: 0xffffff})).translateY(2).render()
 `;
 
   const state = EditorState.create({
@@ -104,7 +126,7 @@ changing things should keep the existing ones where possible
       extensions: [
         basicSetup,
         javascript(),
-        keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }]),
+        Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
       ],
     });
 
