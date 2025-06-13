@@ -1,2 +1,4 @@
 node_modules/
 .continue
+qdrant
+CLAUDE.local.md
