@@ -4,28 +4,33 @@ import { Vector3 } from "three";
 import { Euler } from "three";
 import { Object3D, Raycaster, Intersection } from "three";
 
-export function applyMatrix4(object: Object3D, matrix: Matrix4): void {
+export function applyMatrix4(object: Object3D, matrix: Matrix4): Object3D {
   object.applyMatrix4(matrix);
+  return object;
 }
 
 export function applyQuaternion(object: Object3D, quaternion: Quaternion): Object3D {
   return object.applyQuaternion(quaternion);
 }
 
-export function setRotationFromAxisAngle(object: Object3D, axis: Vector3, angle: number): void {
+export function setRotationFromAxisAngle(object: Object3D, axis: Vector3, angle: number): Object3D {
   object.setRotationFromAxisAngle(axis, angle);
+  return object;
 }
 
-export function setRotationFromEuler(object: Object3D, euler: Euler): void {
+export function setRotationFromEuler(object: Object3D, euler: Euler): Object3D {
   object.setRotationFromEuler(euler);
+  return object;
 }
 
-export function setRotationFromMatrix(object: Object3D, m: Matrix4): void {
+export function setRotationFromMatrix(object: Object3D, m: Matrix4): Object3D {
   object.setRotationFromMatrix(m);
+  return object;
 }
 
-export function setRotationFromQuaternion(object: Object3D, q: Quaternion): void {
+export function setRotationFromQuaternion(object: Object3D, q: Quaternion): Object3D {
   object.setRotationFromQuaternion(q);
+  return object;
 }
 
 export function rotateOnAxis(object: Object3D, axis: Vector3, angle: number): Object3D {
@@ -74,12 +79,13 @@ export function worldToLocal(object: Object3D, vector: Vector3): Vector3 {
 
 export function lookAt(object: Object3D, vector: Vector3): void;
 export function lookAt(object: Object3D, x: number, y: number, z: number): void;
-export function lookAt(object: Object3D, ...args: any[]): void {
+export function lookAt(object: Object3D, ...args: any[]): Object3D {
   if (args.length === 1 && args[0] instanceof Vector3) {
     object.lookAt(args[0]);
   } else if (args.length === 3) {
     object.lookAt(args[0], args[1], args[2]);
   }
+  return object;
 }
 
 export function add(object: Object3D, ...objects: Object3D[]): Object3D {
@@ -136,8 +142,9 @@ export function getWorldDirection(object: Object3D, target: Vector3): Vector3 {
   return object.getWorldDirection(target);
 }
 
-export function raycast(object: Object3D, raycaster: Raycaster, intersects: Intersection[]): void {
+export function raycast(object: Object3D, raycaster: Raycaster, intersects: Intersection[]): Object3D {
   object.raycast(raycaster, intersects);
+  return object;
 }
 
 export function traverse(object: Object3D, callback: (object: Object3D) => any): void {
@@ -152,26 +159,32 @@ export function traverseAncestors(object: Object3D, callback: (object: Object3D)
   object.traverseAncestors(callback);
 }
 
-export function updateMatrix(object: Object3D): void {
+export function updateMatrix(object: Object3D): Object3D {
   object.updateMatrix();
+  return object;
 }
 
-export function updateMatrixWorld(object: Object3D, force?: boolean): void {
+export function updateMatrixWorld(object: Object3D, force?: boolean): Object3D {
   object.updateMatrixWorld(force);
+  return object;
 }
 
-export function updateWorldMatrix(object: Object3D, updateParents: boolean, updateChildren: boolean): void {
+export function updateWorldMatrix(object: Object3D, updateParents: boolean, updateChildren: boolean): Object3D {
   object.updateWorldMatrix(updateParents, updateChildren);
+  return object;
 }
 
-export function toJSON(object: Object3D): any {
-  return object.toJSON();
+export function toJSON(object: Object3D): Object3D {
+  object.toJSON();
+  return object;
 }
 
 export function clone(object: Object3D, recursive?: boolean): Object3D {
-  return object.clone(recursive);
+  const cloned = object.clone(recursive);
+  return cloned;
 }
 
 export function copy(object: Object3D, source: Object3D, recursive?: boolean): Object3D {
-  return object.copy(source, recursive);
+  const copied = object.copy(source, recursive);
+  return copied;
 }

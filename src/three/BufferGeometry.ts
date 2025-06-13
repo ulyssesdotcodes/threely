@@ -27,8 +27,9 @@ export interface GeometryGroup {
 /**
  * Functions corresponding to BufferGeometry methods
  */
-export function getIndex(geometry: any): BufferAttribute | null {
-  return geometry.index;
+export function getIndex(geometry: any): any {
+  const index = geometry.index;
+  return geometry;
 }
 
 export function setIndex(geometry: any, index: BufferAttribute | number[] | null): any {
@@ -45,8 +46,9 @@ export function setIndirect(geometry: any, indirect: any | null): any {
   return geometry;
 }
 
-export function getIndirect(geometry: any): any | null {
-  return geometry.indirect;
+export function getIndirect(geometry: any): any {
+  const indirect = geometry.indirect;
+  return geometry;
 }
 
 export function setAttribute<K extends keyof any>(geometry: any, name: K, attribute: any): any {
@@ -55,7 +57,8 @@ export function setAttribute<K extends keyof any>(geometry: any, name: K, attrib
 }
 
 export function getAttribute<K extends keyof any>(geometry: any, name: K): any {
-  return geometry.attributes[name];
+  const attribute = geometry.attributes[name];
+  return geometry;
 }
 
 export function deleteAttribute(geometry: any, name: string): any {
@@ -63,16 +66,19 @@ export function deleteAttribute(geometry: any, name: string): any {
   return geometry;
 }
 
-export function hasAttribute(geometry: any, name: string): boolean {
-  return name in geometry.attributes;
+export function hasAttribute(geometry: any, name: string): any {
+  const result = name in geometry.attributes;
+  return geometry;
 }
 
-export function addGroup(geometry: any, start: number, count: number, materialIndex?: number): void {
+export function addGroup(geometry: any, start: number, count: number, materialIndex?: number): any {
   geometry.groups.push({ start, count, materialIndex });
+  return geometry;
 }
 
-export function clearGroups(geometry: any): void {
+export function clearGroups(geometry: any): any {
   geometry.groups = [];
+  return geometry;
 }
 
 export function setDrawRange(geometry: any, start: number, count: number): void {
@@ -511,6 +517,7 @@ export function copy(source: any, target?: any): any {
   return target;
 }
 
-export function dispose(geometry: any): void {
+export function dispose(geometry: any): any {
   geometry.dispose();
+  return geometry;
 }
