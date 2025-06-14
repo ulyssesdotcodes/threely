@@ -93,6 +93,12 @@ export class ExternalNodeHandler {
       );
     }
 
+    if (refNode.ref === "@graph.functional") {
+      return this.handleGraphFunctionalNode(
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, extraNodeGraphId, useExisting
+      );
+    }
+
     // Default case - handle as graph
     return this.handleGraphNode(
       refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, calculateInputs, extraNodeGraphId, useExisting
@@ -447,6 +453,59 @@ export class ExternalNodeHandler {
         }
         
         return innerClosure[argname];
+      },
+      undefined,
+      nodeGraphId,
+      useExisting,
+    );
+  }
+
+  private handleGraphFunctionalNode(
+    refNode: RefNode,
+    node: any,
+    edgesIn: Edge[],
+    nodeGraphId: string,
+    calculateInputs: () => any,
+    extraNodeGraphId: string,
+    useExisting: boolean
+  ): any {
+    if (extraNodeGraphId === "metadata") {
+      return this.runtime.constNode({
+        dataLabel: "functional node",
+        codeEditor: { language: "javascript", editorText: refNode.value },
+      }, nodeGraphId, useExisting);
+    } else if (extraNodeGraphId === "display") {
+      return this.runtime.constNode({ dom_type: "text_value", text: "" }, nodeGraphId, useExisting);
+    }
+
+    let computeFn: any;
+    const inputs = edgesIn.map((e) => e.as);
+    
+    try {
+      // Create function from stored compute function string
+      // The original function expects dependency results as arguments in order
+      computeFn = new Function(
+        ...inputs.sort(), // Sort to ensure consistent parameter order (arg0, arg1, arg2, etc.)
+        `return (${refNode.value || "() => undefined"}).apply(this, arguments);`
+      ) as (...args: any[]) => any;
+    } catch (e: any) {
+      handleError(e, nodeGraphId);
+      if (this.runtime.scope.has(nodeGraphId)) return this.runtime.scope.get(nodeGraphId);
+      computeFn = () => undefined;
+    }
+
+    return this.runtime.mapNode(
+      calculateInputs(),
+      (args: any) => {
+        try {
+          // Extract dependency values in correct order based on edge 'as' names
+          const sortedInputs = inputs.sort();
+          const orderedArgs = sortedInputs.map((inputName: string) => args[inputName]);
+          return computeFn(...orderedArgs);
+        } catch (e: any) {
+          handleError(e, nodeGraphId);
+          return undefined;
+        }
       },
       undefined,
       nodeGraphId,
