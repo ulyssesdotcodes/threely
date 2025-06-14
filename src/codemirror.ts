@@ -3,8 +3,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { getTextBlockAtPosition } from './text_utils';
-import * as THREE from 'three/webgpu';
-import { setScene, executeDSL } from './dsl';
+import { executeDSL } from './dsl';
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
@@ -45,80 +44,25 @@ export const getBlockAtCursor = (view: EditorView): { block: string } | null => 
   };
 };
 
-// Global scene reference for DSL
-let globalScene: THREE.Scene | null = null;
-
-// Function to initialize the background Three.js scene  
-function initBackgroundScene() {
-  // Create scene, camera, and renderer
-  const scene = new THREE.Scene();
-  globalScene = scene; // Store global reference
-  setScene(scene); // Set scene for DSL
-  
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  const renderer = new THREE.WebGPURenderer({ antialias: true, alpha: true });
-  
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x000000, 0.1); // Dark background with low opacity
-  
-  // Position canvas behind editor
-  const canvas = renderer.domElement;
-  canvas.style.position = 'fixed';
-  canvas.style.top = '0';
-  canvas.style.left = '0';
-  canvas.style.zIndex = '-1';
-  canvas.style.pointerEvents = 'none';
-  
-  document.body.insertBefore(canvas, document.body.firstChild);
-  
-  // Create a simple wireframe cube
-  const geometry = new THREE.BoxGeometry(2, 2, 2);
-  const material = new THREE.MeshBasicMaterial({ 
-    color: 0x444444, 
-    wireframe: true,
-    transparent: true,
-    opacity: 0.3
-  });
-  const cube = new THREE.Mesh(geometry, material);
-  scene.add(cube);
-  
-  // Position camera
-  camera.position.z = 5;
-  
-  // Animation loop
-  function animate() {
-    requestAnimationFrame(animate);
-    
-    // Rotate cube slowly
-    cube.rotation.x += 0.005;
-    cube.rotation.y += 0.01;
-    
-    renderer.renderAsync(scene, camera);
-  }
-  
-  // Handle window resize
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-  
-  animate();
-}
 
 // Function to initialize the editor
 export function startEditor() {
-  const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render()
+  const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
 
 // Try pressing Ctrl+Enter on the line above!
-// This will create a sphere mesh, translate it, rotate it, and add it to the scene
+// This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene
+// Running it again will update the existing object instead of creating a new one!
 
-mesh(box(2, 1, 1), material({color: 0xff0000})).translateX(-3).render()
+mesh(box(2, 1, 1), material({color: 0xff0000})).translateX(-3).render("redBox")
 
-mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).render()
+mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).render("blueCylinder")
 
-// More examples:
-// mesh(sphere(0.5), material({color: 0xffffff})).translateY(2).render()
+// Try modifying the values and re-running to see objects update:
+// mesh(sphere(0.5), material({color: 0xffffff})).translateY(2).rotateX(90).render("mySphere")
+// mesh(box(1, 3, 1), material({color: 0x00ff00})).translateX(-2).render("redBox")
+
+// Use clearAll() to remove all objects:
+// clearAll()
 `;
 
   const state = EditorState.create({
@@ -143,9 +87,3 @@ mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).ren
   view.dom.style.display = 'block';
   view.dom.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent background
 }
-
-// Initialize both the background scene and editor when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-  initBackgroundScene();
-  startEditor();
-});

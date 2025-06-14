@@ -1,6 +1,5 @@
 // DSL implementation for Three.js live coding environment
 import * as THREE from 'three';
-import { Graph, createGraphNodeWrapper } from './graph';
 import { 
   translateX, 
   translateY, 
@@ -10,14 +9,38 @@ import {
   rotateZ 
 } from './three/Object3D';
 
-// Global graph instance for the DSL
-export const dslGraph = new Graph<THREE.Object3D>();
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
 
+// Object registry to track named objects for updates
+const objectRegistry = new Map<string, THREE.Object3D>();
+
 export function setScene(scene: THREE.Scene) {
   currentScene = scene;
+}
+
+export function getObjectRegistry() {
+  return objectRegistry;
+}
+
+// Utility function to clear all objects from the scene and registry
+export function clearAll() {
+  if (currentScene) {
+    for (const [, object] of objectRegistry) {
+      currentScene.remove(object);
+      
+      // Clean up geometry and materials
+      if (object instanceof THREE.Mesh) {
+        object.geometry.dispose();
+        if (object.material instanceof THREE.Material) {
+          object.material.dispose();
+        }
+      }
+    }
+  }
+  objectRegistry.clear();
+  console.log('Cleared all objects from scene and registry');
 }
 
 // Basic geometry creation functions
@@ -56,7 +79,7 @@ export interface ChainableThreeObject {
   rotateX: (angle: number) => ChainableThreeObject;
   rotateY: (angle: number) => ChainableThreeObject;
   rotateZ: (angle: number) => ChainableThreeObject;
-  render: () => THREE.Object3D;
+  render: (objectName: string) => THREE.Object3D;
 }
 
 // Create a chainable wrapper for Three.js objects
@@ -94,11 +117,41 @@ export function createChainableObject(obj: THREE.Object3D): ChainableThreeObject
       return this;
     },
     
-    render: function() {
-      if (currentScene) {
-        currentScene.add(this.object);
+    render: function(objectName: string) {
+      if (!currentScene) {
+        console.warn('No scene available for rendering');
+        return this.object;
       }
-      return this.object;
+
+      // Check if object with this name already exists
+      const existingObject = objectRegistry.get(objectName);
+      
+      if (existingObject) {
+        // Update existing object's properties
+        existingObject.position.copy(this.object.position);
+        existingObject.rotation.copy(this.object.rotation);
+        existingObject.scale.copy(this.object.scale);
+        
+        // Update geometry and material if it's a mesh
+        if (existingObject instanceof THREE.Mesh && this.object instanceof THREE.Mesh) {
+          existingObject.geometry.dispose(); // Clean up old geometry
+          existingObject.geometry = this.object.geometry;
+          
+          if (existingObject.material instanceof THREE.Material) {
+            existingObject.material.dispose(); // Clean up old material
+          }
+          existingObject.material = this.object.material;
+        }
+        
+        console.log(`Updated existing object: ${objectName}`);
+        return existingObject;
+      } else {
+        // Add new object to scene and registry
+        currentScene.add(this.object);
+        objectRegistry.set(objectName, this.object);
+        console.log(`Created new object: ${objectName}`);
+        return this.object;
+      }
     }
   };
 }
@@ -116,6 +169,7 @@ export const dslContext = {
   cylinder,
   material,
   mesh: meshChainable,
+  clearAll,
   Math,
   console
 };
