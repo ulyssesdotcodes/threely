@@ -1,20 +1,26 @@
 // DSL implementation for Three.js live coding environment
 import * as THREE from 'three';
-import { 
-  translateX, 
-  translateY, 
-  translateZ, 
-  rotateX, 
-  rotateY, 
-  rotateZ 
+import {
+  translateX as translateXObj,
+  translateY as translateYObj,
+  translateZ as translateZObj,
+  rotateX as rotateXObj,
+  rotateY as rotateYObj,
+  rotateZ as rotateZObj
 } from './three/Object3D';
-
+import { Graph, Node, map } from './graph';
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
 
 // Object registry to track named objects for updates
 const objectRegistry = new Map<string, THREE.Object3D>();
+
+// Helper function to generate unique node IDs
+let nodeIdCounter = 0;
+function generateNodeId(): string {
+  return `dsl-node-${++nodeIdCounter}`;
+}
 
 export function setScene(scene: THREE.Scene) {
   currentScene = scene;
@@ -29,7 +35,7 @@ export function clearAll() {
   if (currentScene) {
     for (const [, object] of objectRegistry) {
       currentScene.remove(object);
-      
+
       // Clean up geometry and materials
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
@@ -43,142 +49,197 @@ export function clearAll() {
   console.log('Cleared all objects from scene and registry');
 }
 
-// Basic geometry creation functions
-export function sphere(radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): THREE.SphereGeometry {
-  return new THREE.SphereGeometry(radius, widthSegments, heightSegments);
-}
-
-export function box(width: number = 1, height: number = 1, depth: number = 1): THREE.BoxGeometry {
-  return new THREE.BoxGeometry(width, height, depth);
-}
-
-export function cylinder(radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): THREE.CylinderGeometry {
-  return new THREE.CylinderGeometry(radiusTop, radiusBottom, height);
-}
-
-// Basic material creation function
-export function material(options: any = {}): THREE.MeshBasicMaterial {
-  const defaultOptions = {
-    color: 0x00ff00,
-    wireframe: false
-  };
-  return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
-}
-
-// Mesh creation function
-export function mesh(geometry: THREE.BufferGeometry, materialObj: THREE.Material): THREE.Mesh {
-  return new THREE.Mesh(geometry, materialObj);
-}
-
-// Chainable wrapper for Three.js objects
-export interface ChainableThreeObject {
-  object: THREE.Object3D;
-  translateX: (distance: number) => ChainableThreeObject;
-  translateY: (distance: number) => ChainableThreeObject;
-  translateZ: (distance: number) => ChainableThreeObject;
-  rotateX: (angle: number) => ChainableThreeObject;
-  rotateY: (angle: number) => ChainableThreeObject;
-  rotateZ: (angle: number) => ChainableThreeObject;
-  render: (objectName: string) => THREE.Object3D;
-}
-
-// Create a chainable wrapper for Three.js objects
-export function createChainableObject(obj: THREE.Object3D): ChainableThreeObject {
+// Functional geometry creation functions that return Node<T>
+export function sphere(radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<THREE.SphereGeometry> {
   return {
-    object: obj,
-    
-    translateX: function(distance: number) {
-      translateX(this.object, distance);
-      return this;
+    id: generateNodeId(),
+    compute: () => new THREE.SphereGeometry(radius, widthSegments, heightSegments),
+    dependencies: []
+  };
+}
+
+export function box(width: number = 1, height: number = 1, depth: number = 1): Node<THREE.BoxGeometry> {
+  return {
+    id: generateNodeId(),
+    compute: () => new THREE.BoxGeometry(width, height, depth),
+    dependencies: []
+  };
+}
+
+export function cylinder(radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<THREE.CylinderGeometry> {
+  return {
+    id: generateNodeId(),
+    compute: () => new THREE.CylinderGeometry(radiusTop, radiusBottom, height),
+    dependencies: []
+  };
+}
+
+// Functional material creation function that returns Node<T>
+export function material(options: any = {}): Node<THREE.MeshBasicMaterial> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const defaultOptions = {
+        color: 0x00ff00,
+        wireframe: false
+      };
+      return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
     },
-    
-    translateY: function(distance: number) {
-      translateY(this.object, distance);
-      return this;
+    dependencies: []
+  };
+}
+
+// Functional mesh creation function that returns Node<T>
+export function mesh(geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> {
+  return {
+    id: generateNodeId(),
+    compute: () => new THREE.Mesh(Graph.run(geometryNode), Graph.run(materialNode)),
+    dependencies: [geometryNode, materialNode]
+  };
+}
+
+// Transform functions that work with Node<Object3D>
+export function translateX<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const obj = Graph.run(node);
+      translateXObj(obj, distance);
+      return obj;
     },
-    
-    translateZ: function(distance: number) {
-      translateZ(this.object, distance);
-      return this;
+    dependencies: [node]
+  };
+}
+
+export function translateY<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const obj = Graph.run(node);
+      translateYObj(obj, distance);
+      return obj;
     },
-    
-    rotateX: function(angle: number) {
-      rotateX(this.object, angle * Math.PI / 180); // Convert degrees to radians
-      return this;
+    dependencies: [node]
+  };
+}
+
+export function translateZ<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const obj = Graph.run(node);
+      translateZObj(obj, distance);
+      return obj;
     },
-    
-    rotateY: function(angle: number) {
-      rotateY(this.object, angle * Math.PI / 180); // Convert degrees to radians
-      return this;
+    dependencies: [node]
+  };
+}
+
+export function rotateX<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const obj = Graph.run(node);
+      rotateXObj(obj, angle);
+      return obj;
     },
-    
-    rotateZ: function(angle: number) {
-      rotateZ(this.object, angle * Math.PI / 180); // Convert degrees to radians
-      return this;
+    dependencies: [node]
+  };
+}
+
+export function rotateY<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const obj = Graph.run(node);
+      rotateYObj(obj, angle);
+      return obj;
     },
-    
-    render: function(objectName: string) {
+    dependencies: [node]
+  };
+}
+
+export function rotateZ<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const obj = Graph.run(node);
+      rotateZObj(obj, angle);
+      return obj;
+    },
+    dependencies: [node]
+  };
+}
+
+// Functional render function that works with Node<Object3D>
+export function render<T extends THREE.Object3D>(node: Node<T>, objectName: string): Node<T> {
+  return {
+    id: generateNodeId(),
+    compute: () => {
+      const object = Graph.run(node);
+      
       if (!currentScene) {
         console.warn('No scene available for rendering');
-        return this.object;
+        return object;
       }
 
-      // Check if object with this name already exists
       const existingObject = objectRegistry.get(objectName);
-      
+
       if (existingObject) {
-        // Update existing object's properties
-        existingObject.position.copy(this.object.position);
-        existingObject.rotation.copy(this.object.rotation);
-        existingObject.scale.copy(this.object.scale);
-        
-        // Update geometry and material if it's a mesh
-        if (existingObject instanceof THREE.Mesh && this.object instanceof THREE.Mesh) {
-          existingObject.geometry.dispose(); // Clean up old geometry
-          existingObject.geometry = this.object.geometry;
-          
+        existingObject.position.copy(object.position);
+        existingObject.rotation.copy(object.rotation);
+        existingObject.scale.copy(object.scale);
+
+        if (existingObject instanceof THREE.Mesh && object instanceof THREE.Mesh) {
+          existingObject.geometry.dispose();
+          existingObject.geometry = object.geometry;
+
           if (existingObject.material instanceof THREE.Material) {
-            existingObject.material.dispose(); // Clean up old material
+            existingObject.material.dispose();
           }
-          existingObject.material = this.object.material;
+          existingObject.material = object.material;
         }
-        
+
         console.log(`Updated existing object: ${objectName}`);
-        return existingObject;
+        return existingObject as T;
       } else {
-        // Add new object to scene and registry
-        currentScene.add(this.object);
-        objectRegistry.set(objectName, this.object);
+        currentScene.add(object);
+        objectRegistry.set(objectName, object);
         console.log(`Created new object: ${objectName}`);
-        return this.object;
+        return object;
       }
-    }
+    },
+    dependencies: [node]
   };
 }
 
-// Enhanced mesh function that returns a chainable object
-export function meshChainable(geometry: THREE.BufferGeometry, materialObj: THREE.Material): ChainableThreeObject {
-  const meshObj = new THREE.Mesh(geometry, materialObj);
-  return createChainableObject(meshObj);
-}
-
-// Create a DSL context with all the functions available
+// Create a DSL context with all the functional versions
 export const dslContext = {
   sphere,
   box,
   cylinder,
   material,
-  mesh: meshChainable,
+  mesh,
+  translateX,
+  translateY,
+  translateZ,
+  rotateX,
+  rotateY,
+  rotateZ,
+  render,
   clearAll,
+  Graph,
   Math,
   console
 };
 
-// Simple DSL parser and executor
+// Simple DSL parser that evaluates code with functional context
 export function parseDSL(code: string): any {
   try {
     // Create a function that has access to the DSL context
     const func = new Function(...Object.keys(dslContext), `return ${code}`);
+    
+    // Execute the function and return the result (which could be a Node<T>)
     return func(...Object.values(dslContext));
   } catch (error) {
     console.error('DSL parsing error:', error);
@@ -186,10 +247,18 @@ export function parseDSL(code: string): any {
   }
 }
 
-// Execute DSL code and return the result
+// Execute DSL code and run the graph if the result is a Node
 export function executeDSL(code: string): THREE.Object3D | null {
   try {
     const result = parseDSL(code);
+    
+    // If the result is a Node, execute it using Graph.run
+    if (result && typeof result === 'object' && 'compute' in result) {
+      const computed = Graph.run(result);
+      return computed instanceof THREE.Object3D ? computed : null;
+    }
+    
+    // Otherwise return the result if it's already an Object3D
     return result instanceof THREE.Object3D ? result : null;
   } catch (error) {
     console.error('DSL execution error:', error);

@@ -1,278 +1,193 @@
-// graph.ts - Implementation of a node-based graph system with TypeScript
+// graph.ts - Implementation of a functional node-based graph system with TypeScript
 
   /**
    * Interface representing a Node in the graph.
    *
-   * @template T - The type of data associated with this node
+   * @template T - The type of value this node computes
    */
-  export interface Node<T = any> {
+  export interface Node<T> {
     id: string;
-    data?: T | ((...args: any[]) => any) | CurriedFunction;
-    inputs: Map<string, Node<T>>;
-    outputs: Map<string, Node<T>>;
+    compute: () => T;
+    dependencies: Node<any>[];
   }
 
   /**
-   * Type definition for a curried function
+   * Type definition for a curried function (kept for backward compatibility)
    */
-  export type CurriedFunction = (...args: any[]) => CurriedFunction | any;
+  export type CurriedFunction<T> = (...args: any[]) => CurriedFunction<T> | T;
+
+  let nodeIdCounter = 0;
 
   /**
-   * Interface for a FunctionNode that has a function as its data
+   * Generate a unique ID for nodes
    */
-  export interface FunctionNode<T = any> extends Node<T> {
-    data: ((...args: any[]) => any) | CurriedFunction;
+  function generateUniqueId(): string {
+    return `node-${++nodeIdCounter}`;
   }
 
   /**
-   * Type guard to check if a node is a FunctionNode
+   * The map function with type (A => B) => Node<A> => Node<B>
+   * 
+   * @param fn - Function to transform value A to value B
+   * @returns A function that transforms Node<A> to Node<B>
    */
-  export function isFunctionNode<T>(node: Node<T>): node is FunctionNode<T> {
-    return typeof node.data === 'function' && node.data.length >= 0;
+  export function map<A, B>(fn: (a: A) => B): (node: Node<A>) => Node<B> {
+    return (node: Node<A>) => ({
+      id: generateUniqueId(),
+      compute: () => fn(Graph.run(node)),
+      dependencies: [node]
+    });
   }
 
   /**
-   * Utility function to create a curried version of any regular function
-   *
-   * @param fn - The original function to be curried
-   * @returns A new curried function that accepts arguments one at a time
+   * Options for pretty printing the graph
    */
-  export function createCurriedFunction(fn: (...args: any[]) => any): CurriedFunction {
-    const arity = fn.length;
-
-    // Create a closure to store collected arguments and the original function
-    return function curried(this: any, ...collectedArgs: any[]): any {
-      if (collectedArgs.length === 0) {
-        // If no args provided, just return this function for chaining
-        return curried;
-      }
-
-      // If we've collected enough arguments, execute the original function
-      if (collectedArgs.length >= arity) {
-        return fn.apply(this, collectedArgs);
-      }
-
-      // Otherwise, return another function that collects more arguments
-      const newCurried = ((...nextArgs: any[]) =>
-        curried.call(this, ...collectedArgs.concat(nextArgs))) as CurriedFunction;
-
-      // Set the length property to indicate how many args are still needed
-      Object.defineProperty(newCurried, 'length', { value: arity - collectedArgs.length });
-
-      return newCurried;
-    };
+  export interface PrettyPrintOptions {
+    /** Show node IDs in the output */
+    showIds?: boolean;
+    /** Maximum depth to traverse (prevents infinite loops) */
+    maxDepth?: number;
+    /** Custom node label function */
+    nodeLabel?: (node: Node<any>) => string;
+    /** Include dependency count */
+    showDependencyCount?: boolean;
   }
 
   /**
-   * Generic Graph class that manages nodes and their connections.
-   *
-   * @template T - The type of data associated with the graph's nodes
+   * Pretty printer for graph visualization
    */
-  export class Graph<T = any> {
-    private nodes: Map<string, Node<T>>;
-    // Make currentNode accessible from outside the class but read-only
-    private _currentNode?: Node<T>;
-    get currentNode(): Node<T> | undefined {
-      return this._currentNode;
-    }
-    set currentNode(node: Node<T> | undefined) {
-      this._currentNode = node;
-    }
+  export class GraphPrettyPrinter {
+    private visited = new Set<string>();
+    private options: Required<PrettyPrintOptions>;
 
-    constructor() {
-      this.nodes = new Map();
-      this.currentNode = undefined;
+    constructor(options: PrettyPrintOptions = {}) {
+      this.options = {
+        showIds: options.showIds ?? true,
+        maxDepth: options.maxDepth ?? 10,
+        nodeLabel: options.nodeLabel ?? this.defaultNodeLabel.bind(this),
+        showDependencyCount: options.showDependencyCount ?? true
+      };
     }
 
     /**
-     * Create a new node with unique ID
-     * @param data - Optional data to associate with the node
-     * @returns The created node
+     * Default node label generator
      */
-    createNode(data?: T | (() => void) | CurriedFunction): Node<T> {
-      // Check if data is a regular function and not already curried
-      if (typeof data === 'function' && !(data as any).curried) {
-        // Mark the original function as curried to avoid double-currying
-        (data as any).curried = true;
+    private defaultNodeLabel(node: Node<any>): string {
+      const computeStr = node.compute.toString();
+      
+      // Try to extract meaningful info from the compute function
+      if (computeStr.includes('SphereGeometry')) return 'sphere';
+      if (computeStr.includes('BoxGeometry')) return 'box';
+      if (computeStr.includes('CylinderGeometry')) return 'cylinder';
+      if (computeStr.includes('MeshBasicMaterial')) return 'material';
+      if (computeStr.includes('THREE.Mesh')) return 'mesh';
+      if (computeStr.includes('translateXObj')) return 'translateX';
+      if (computeStr.includes('translateYObj')) return 'translateY';
+      if (computeStr.includes('translateZObj')) return 'translateZ';
+      if (computeStr.includes('rotateXObj')) return 'rotateX';
+      if (computeStr.includes('rotateYObj')) return 'rotateY';
+      if (computeStr.includes('rotateZObj')) return 'rotateZ';
+      if (computeStr.includes('currentScene.add')) return 'render';
+      if (computeStr.includes('Graph.run')) return 'map';
+      
+      return 'node';
+    }
 
-        const id = this.generateUniqueId();
-        const node: Node<T> = { id, data, inputs: new Map(), outputs: new Map() };
-        this.nodes.set(id, node);
-        return node;
+    /**
+     * Pretty print a single node with its dependencies
+     */
+    print(node: Node<any>, depth: number = 0): string {
+      const indent = '  '.repeat(depth);
+      const nodeId = this.options.showIds ? ` (${node.id})` : '';
+      const depCount = this.options.showDependencyCount ? ` [deps: ${node.dependencies.length}]` : '';
+      const label = this.options.nodeLabel(node);
+      
+      let result = `${indent}${label}${nodeId}${depCount}\n`;
+
+      // Prevent infinite recursion
+      if (depth >= this.options.maxDepth) {
+        return result + `${indent}  ...(max depth reached)\n`;
       }
 
-      const id = this.generateUniqueId();
-      const node: Node<T> = { id, data, inputs: new Map(), outputs: new Map() };
-      this.nodes.set(id, node);
-      return node;
-    }
-
-    /**
-     * Connect two nodes via named inputs
-     * @param source - The source node to connect from
-     * @param target - The target node to connect to
-     * @param inputName - The name of the input on the target node
-     */
-    connect(source: Node<T>, target: Node<T>, inputName: string): void {
-      if (!target.inputs.has(inputName)) {
-        target.inputs.set(inputName, source);
-      } else {
-        console.warn(`Input "${inputName}" already has a connection`);
+      // Prevent cycles
+      if (this.visited.has(node.id)) {
+        return result + `${indent}  ...(already visited)\n`;
       }
 
-      source.outputs.set(inputName, target);
-    }
+      this.visited.add(node.id);
 
-    /**
-     * Generate a UUID for nodes (RFC4122 version 4 compliant)
-     * @returns A unique string ID in UUID format
-     */
-    private generateUniqueId(): string {
-      // RFC4122, version 4 compliant UUID generator
-      let d = new Date().getTime();
-      if (typeof performance !== 'undefined' && typeof performance.now === 'function'){
-        d += performance.now(); //use high-precision timer if available
+      // Print dependencies
+      for (let i = 0; i < node.dependencies.length; i++) {
+        const dep = node.dependencies[i];
+        const isLast = i === node.dependencies.length - 1;
+        const connector = isLast ? '└─ ' : '├─ ';
+        
+        result += `${indent}${connector}`;
+        result += this.print(dep, depth + 1).slice(indent.length + connector.length);
       }
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = (d + Math.random()*16)%16 | 0;
-        d = Math.floor(d/16);
-        return (c=='x' ? r : (r&0x3|0x8)).toString(16);
-      });
+
+      return result;
     }
 
     /**
-     * Get a node by its ID
-     * @param id - The ID of the node to retrieve
-     * @returns The node with the specified ID, or undefined if not found
+     * Print multiple nodes as a forest
      */
-    getNode(id: string): Node<T> | undefined {
-      return this.nodes.get(id);
-    }
-
-    /**
-     * Get all nodes in the graph (for demonstration purposes)
-     * @returns An array of all nodes
-     */
-    getAllNodes(): Node<T>[] {
-      return Array.from(this.nodes.values());
-    }
-
-    /**
-     * Helper function to recursively run input nodes and collect their results
-     * @param node - The node whose inputs should be executed
-     * @returns An array of results from executing the input nodes' data functions
-     */
-    private executeInputs(node: Node<T>): any[] {
-      const results = [];
-      for (const [inputName, inputNode] of node.inputs) {
-        if (isFunctionNode(inputNode)) {
-          // Recursively run inputs and get their results
-          const inputResults = this.executeInputs(inputNode);
-          // Execute the input node's data function with its input results
-          const result = inputNode.data ? inputNode.data(...inputResults) : undefined;
-          results.push(result);
-        } else {
-          results.push(undefined);
-        }
+    printForest(nodes: Node<any>[]): string {
+      this.visited.clear();
+      let result = '';
+      
+      for (let i = 0; i < nodes.length; i++) {
+        if (i > 0) result += '\n';
+        result += `Root ${i + 1}:\n`;
+        result += this.print(nodes[i]);
       }
-      return results;
+      
+      return result;
     }
 
     /**
-     * Run the graph starting from a root node
-     * @param root - The root node to start execution from
-     * @returns The result of executing the root node's data function
+     * Create a compact one-line representation
      */
-    run(root: Node<T>): any {
-      // Get input values by recursively running all inputs
-      const args = this.executeInputs(root);
-    
-      // Execute the root node's data function if it exists and is a function
-      if (isFunctionNode(root) && typeof root.data === 'function') {
-        // If the function is curried, we need to execute it with no arguments first
-        // to get the next function in the chain
-        const result = root.data(...args);
-        return result;
+    compact(node: Node<any>): string {
+      const label = this.options.nodeLabel(node);
+      const deps = node.dependencies.map(dep => this.compact(dep)).join(', ');
+      
+      if (deps) {
+        return `${label}(${deps})`;
       }
-    
-      return undefined;
+      return label;
     }
   }
 
   /**
-   * Function to wrap regular functions into graph nodes
-   *
-   * @param fn - The function to wrap
-   * @param graph - The graph instance to use for node creation
-   * @returns A wrapped function that creates a node when called
+   * Simplified Graph class for functional execution
    */
-  export function createGraphNodeWrapper<T>(
-    fn: (...args: any[]) => void,
-    graph?: Graph<T>
-  ): (...args: any[]) => void {
-    // Use the provided graph or default to globalGraph if none is provided
-    const targetGraph = graph || (global as any).globalGraph;
-  
-    // Check if the function is already curried
-    let curriedFn = fn;
-    if (typeof fn === 'function' && !(fn as any).curried) {
-      // Mark the original function as curried to avoid double-currying
-      (fn as any).curried = true;
-  
-      // Create a curried version of the function
-      curriedFn = createCurriedFunction(fn);
+  export class Graph {
+    /**
+     * Execute a node and return its computed value
+     * @param node - The node to execute
+     * @returns The computed value
+     */
+    static run<T>(node: Node<T>): T {
+      return node.compute();
     }
-  
-    // Create a proxy handler for the function
-    const handler: ProxyHandler<any> = {
-      apply(target, thisArg, argumentsList) {
-        // Save the previous current node
-        const prevNode = targetGraph.currentNode;
-  
-        // Execute the original function first to maintain test behavior
-        let result;
-        if (argumentsList.length > 0) {
-          result = fn.apply(thisArg, argumentsList);
-        } else {
-          result = fn.apply(thisArg, []);
-        }
-  
-        // Create a node for this function call with the same function
-        const node = targetGraph.createNode(fn);
-  
-        // If there's a previous node in the chain, connect it to this one
-        if (prevNode) {
-          targetGraph.connect(prevNode, node, 'next');
-        }
-  
-        // Set this as the current node for the next call
-        targetGraph.currentNode = node;
-  
-        // Reset to the previous current node after execution
-        targetGraph.currentNode = prevNode;
-  
-        return result;
-      }
-    };
-  
-    // Create a proxy that wraps the original function (not curried)
-    const wrappedFn = new Proxy(fn, handler);
-  
-    return wrappedFn;
+
+    /**
+     * Pretty print a node and its dependencies
+     */
+    static prettyPrint(node: Node<any>, options?: PrettyPrintOptions): string {
+      const printer = new GraphPrettyPrinter(options);
+      return printer.print(node);
+    }
+
+    /**
+     * Create a compact representation of a node
+     */
+    static compact(node: Node<any>, options?: PrettyPrintOptions): string {
+      const printer = new GraphPrettyPrinter(options);
+      return printer.compact(node);
+    }
   }
 
-  /**
-   * Example usage of the decorator function
-   */
-  class Example {
-    exampleMethod = createGraphNodeWrapper(function() {
-      console.log('This is an example method');
-    }).bind(this);
-
-    anotherMethod = createGraphNodeWrapper(function() {
-      console.log('This is another method in the chain');
-    }).bind(this);
-  }
-
-  // Export for testing
+  // Export for backward compatibility
   export { Graph as DefaultGraph };

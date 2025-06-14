@@ -1,11 +1,42 @@
-import { EditorState, Prec } from "@codemirror/state";
+import { EditorState, Prec, Compartment } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
+import { vim } from "@replit/codemirror-vim";
 import { getTextBlockAtPosition } from './text_utils';
 import { executeDSL } from './dsl';
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
+
+// Vim mode state management
+const VIM_MODE_KEY = 'three-tree-vim-mode';
+const vimCompartment = new Compartment();
+let currentEditorView: EditorView | null = null;
+
+export function getVimModeEnabled(): boolean {
+  try {
+    return localStorage.getItem(VIM_MODE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setVimModeEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(VIM_MODE_KEY, enabled.toString());
+    if (currentEditorView) {
+      currentEditorView.dispatch({
+        effects: vimCompartment.reconfigure(enabled ? vim() : [])
+      });
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+export function getCurrentEditorView(): EditorView | null {
+  return currentEditorView;
+}
 
 // Custom command for Ctrl-Enter
 const handleCtrlEnter = (view: EditorView): boolean => {
@@ -45,9 +76,7 @@ export const getBlockAtCursor = (view: EditorView): { block: string } | null => 
 };
 
 
-// Function to initialize the editor
-export function startEditor() {
-  const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
+export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
 
 // Try pressing Ctrl+Enter on the line above!
 // This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene
@@ -65,25 +94,20 @@ mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).ren
 // clearAll()
 `;
 
-  const state = EditorState.create({
-      doc: defaultContent,
-      extensions: [
-        basicSetup,
-        javascript(),
-        Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
-      ],
-    });
-
-  const view = new EditorView({
-    state,
-    parent: document.body,
+export function createEditorState(content: string = defaultContent): EditorState {
+  const vimModeEnabled = getVimModeEnabled();
+  
+  return EditorState.create({
+    doc: content,
+    extensions: [
+      vimCompartment.of(vimModeEnabled ? vim() : []),
+      basicSetup,
+      javascript(),
+      Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
+    ],
   });
+}
 
-  // Set the editor to occupy full height of the screen
-  document.body.style.margin = '0';
-  document.body.style.backgroundColor = 'transparent';
-  view.dom.style.height = '100vh';
-  view.dom.style.width = '100%';
-  view.dom.style.display = 'block';
-  view.dom.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // Semi-transparent background
+export function setCurrentEditorView(view: EditorView): void {
+  currentEditorView = view;
 }
