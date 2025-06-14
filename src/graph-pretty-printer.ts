@@ -4,15 +4,15 @@ import { Node } from './graph';
 /**
  * Options for pretty printing the graph
  */
-export interface PrettyPrintOptions {
+export type PrettyPrintOptions = {
   /** Show node IDs in the output */
-  showIds?: boolean;
+  readonly showIds?: boolean;
   /** Maximum depth to traverse (prevents infinite loops) */
-  maxDepth?: number;
+  readonly maxDepth?: number;
   /** Custom node label function */
-  nodeLabel?: (node: Node<any>) => string;
+  readonly nodeLabel?: (node: Node<any>) => string;
   /** Include dependency count */
-  showDependencyCount?: boolean;
+  readonly showDependencyCount?: boolean;
 }
 
 /**

@@ -6,33 +6,33 @@ exports[`Graph Pretty Printing should create compact representation 2`] = `"mesh
 
 exports[`Graph Pretty Printing should handle forest printing with multiple root nodes 1`] = `
 "Root 1:
-mesh (dsl-node-31) [deps: 1]
-└─ ode (dsl-node-30) [deps: 1]
-  └─ ode (dsl-node-29) [deps: 1]
-    └─ esh (dsl-node-28) [deps: 2]
-      ├─ phere (dsl-node-26) [deps: 0]
-      └─ aterial (dsl-node-27) [deps: 0]
+mesh (node-31) [deps: 1]
+└─ ode (node-30) [deps: 1]
+  └─ ode (node-29) [deps: 1]
+    └─ esh (node-28) [deps: 2]
+      ├─ phere (node-26) [deps: 0]
+      └─ aterial (node-27) [deps: 0]
 
 Root 2:
-mesh (dsl-node-36) [deps: 1]
-└─ ode (dsl-node-35) [deps: 1]
-  └─ esh (dsl-node-34) [deps: 2]
-    ├─ ox (dsl-node-32) [deps: 0]
-    └─ aterial (dsl-node-33) [deps: 0]
+mesh (node-36) [deps: 1]
+└─ ode (node-35) [deps: 1]
+  └─ esh (node-34) [deps: 2]
+    ├─ ox (node-32) [deps: 0]
+    └─ aterial (node-33) [deps: 0]
 
 Root 3:
-mesh (dsl-node-39) [deps: 2]
-├─ phere (dsl-node-37) [deps: 0]
-└─ aterial (dsl-node-38) [deps: 0]
+mesh (node-39) [deps: 2]
+├─ phere (node-37) [deps: 0]
+└─ aterial (node-38) [deps: 0]
 "
 `;
 
 exports[`Graph Pretty Printing should pretty print a complex graph with approximately 10 nodes 1`] = `
-"mesh (dsl-node-10) [deps: 1]
-└─ ode (dsl-node-9) [deps: 1]
-  └─ esh (dsl-node-8) [deps: 2]
-    ├─ ox (dsl-node-6) [deps: 0]
-    └─ aterial (dsl-node-7) [deps: 0]
+"mesh (node-10) [deps: 1]
+└─ ode (node-9) [deps: 1]
+  └─ esh (node-8) [deps: 2]
+    ├─ ox (node-6) [deps: 0]
+    └─ aterial (node-7) [deps: 0]
 "
 `;
 
@@ -46,13 +46,13 @@ exports[`Graph Pretty Printing should pretty print with custom options 1`] = `
 `;
 
 exports[`Graph Pretty Printing should show dependency chain execution 1`] = `
-"mesh (dsl-node-47) [deps: 1]
-└─ ode (dsl-node-46) [deps: 1]
-  └─ ode (dsl-node-45) [deps: 1]
-    └─ ode (dsl-node-44) [deps: 1]
-      └─ ode (dsl-node-43) [deps: 1]
-        └─ esh (dsl-node-42) [deps: 2]
-          ├─ phere (dsl-node-40) [deps: 0]
-          └─ aterial (dsl-node-41) [deps: 0]
+"mesh (node-47) [deps: 1]
+└─ ode (node-46) [deps: 1]
+  └─ ode (node-45) [deps: 1]
+    └─ ode (node-44) [deps: 1]
+      └─ ode (node-43) [deps: 1]
+        └─ esh (node-42) [deps: 2]
+          ├─ phere (node-40) [deps: 0]
+          └─ aterial (node-41) [deps: 0]
 "
 `;

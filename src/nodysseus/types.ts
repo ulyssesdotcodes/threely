@@ -43,7 +43,7 @@ export const isEdgesInGraph = (graph: Graph | SavedGraph): graph is Graph =>
   graph.hasOwnProperty("edges_in");
 export const isExportedGraph = (
   g: ExportedGraph | unknown
-): g is ExportedGraph => g && (g as ExportedGraph).graphs.length > 0;
+): g is ExportedGraph => !!(g && (g as ExportedGraph).graphs?.length > 0);
 
 export type EdgesIn = Record<string, Record<string, Edge>>;
 

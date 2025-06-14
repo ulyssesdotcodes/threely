@@ -8,7 +8,7 @@ import {
   rotateY as rotateYObj,
   rotateZ as rotateZObj
 } from './three/Object3D';
-import { Graph, Node, map } from './graph';
+import { Graph, Node, map, createNode, apply } from './graph';
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -16,11 +16,6 @@ let currentScene: THREE.Scene | null = null;
 // Object registry to track named objects for updates
 const objectRegistry = new Map<string, THREE.Object3D>();
 
-// Helper function to generate unique node IDs
-let nodeIdCounter = 0;
-function generateNodeId(): string {
-  return `dsl-node-${++nodeIdCounter}`;
-}
 
 export function setScene(scene: THREE.Scene) {
   currentScene = scene;
@@ -50,160 +45,103 @@ export function clearAll() {
 }
 
 // Functional geometry creation functions that return Node<T>
-export function sphere(radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<THREE.SphereGeometry> {
-  return {
-    id: generateNodeId(),
-    compute: () => new THREE.SphereGeometry(radius, widthSegments, heightSegments),
-    dependencies: []
-  };
-}
+export const sphere = (radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<THREE.SphereGeometry> =>
+  createNode(() => new THREE.SphereGeometry(radius, widthSegments, heightSegments));
 
-export function box(width: number = 1, height: number = 1, depth: number = 1): Node<THREE.BoxGeometry> {
-  return {
-    id: generateNodeId(),
-    compute: () => new THREE.BoxGeometry(width, height, depth),
-    dependencies: []
-  };
-}
+export const box = (width: number = 1, height: number = 1, depth: number = 1): Node<THREE.BoxGeometry> =>
+  createNode(() => new THREE.BoxGeometry(width, height, depth));
 
-export function cylinder(radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<THREE.CylinderGeometry> {
-  return {
-    id: generateNodeId(),
-    compute: () => new THREE.CylinderGeometry(radiusTop, radiusBottom, height),
-    dependencies: []
-  };
-}
+export const cylinder = (radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<THREE.CylinderGeometry> =>
+  createNode(() => new THREE.CylinderGeometry(radiusTop, radiusBottom, height));
 
 // Functional material creation function that returns Node<T>
-export function material(options: any = {}): Node<THREE.MeshBasicMaterial> {
-  return {
-    id: generateNodeId(),
-    compute: () => {
-      const defaultOptions = {
-        color: 0x00ff00,
-        wireframe: false
-      };
-      return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
-    },
-    dependencies: []
-  };
-}
+export const material = (options: any = {}): Node<THREE.MeshBasicMaterial> =>
+  createNode(() => {
+    const defaultOptions = {
+      color: 0x00ff00,
+      wireframe: false
+    };
+    return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
+  });
 
 // Functional mesh creation function that returns Node<T>
-export function mesh(geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> {
-  return {
-    id: generateNodeId(),
-    compute: (geometry: THREE.BufferGeometry, material: THREE.Material) => new THREE.Mesh(geometry, material),
-    dependencies: [geometryNode, materialNode]
-  };
-}
+export const mesh = (geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> =>
+  apply(
+    (geometry: THREE.BufferGeometry, material: THREE.Material) => new THREE.Mesh(geometry, material),
+    [geometryNode, materialNode]
+  );
 
 // Transform functions that work with Node<Object3D>
-export function translateX<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (obj: T) => {
-      translateXObj(obj, distance);
-      return obj;
-    },
-    dependencies: [node]
-  };
-}
+export const translateX = <T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> =>
+  map((obj: T) => {
+    translateXObj(obj, distance);
+    return obj;
+  })(node);
 
-export function translateY<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (obj: T) => {
-      translateYObj(obj, distance);
-      return obj;
-    },
-    dependencies: [node]
-  };
-}
+export const translateY = <T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> =>
+  map((obj: T) => {
+    translateYObj(obj, distance);
+    return obj;
+  })(node);
 
-export function translateZ<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (obj: T) => {
-      translateZObj(obj, distance);
-      return obj;
-    },
-    dependencies: [node]
-  };
-}
+export const translateZ = <T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> =>
+  map((obj: T) => {
+    translateZObj(obj, distance);
+    return obj;
+  })(node);
 
-export function rotateX<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (obj: T) => {
-      rotateXObj(obj, angle);
-      return obj;
-    },
-    dependencies: [node]
-  };
-}
+export const rotateX = <T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> =>
+  map((obj: T) => {
+    rotateXObj(obj, angle);
+    return obj;
+  })(node);
 
-export function rotateY<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (obj: T) => {
-      rotateYObj(obj, angle);
-      return obj;
-    },
-    dependencies: [node]
-  };
-}
+export const rotateY = <T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> =>
+  map((obj: T) => {
+    rotateYObj(obj, angle);
+    return obj;
+  })(node);
 
-export function rotateZ<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (obj: T) => {
-      rotateZObj(obj, angle);
-      return obj;
-    },
-    dependencies: [node]
-  };
-}
+export const rotateZ = <T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> =>
+  map((obj: T) => {
+    rotateZObj(obj, angle);
+    return obj;
+  })(node);
 
 // Functional render function that works with Node<Object3D>
-export function render<T extends THREE.Object3D>(node: Node<T>, objectName: string): Node<T> {
-  return {
-    id: generateNodeId(),
-    compute: (object: T) => {
-      if (!currentScene) {
-        console.warn('No scene available for rendering');
-        return object;
-      }
+export const render = <T extends THREE.Object3D>(node: Node<T>, objectName: string): Node<T> =>
+  map((object: T) => {
+    if (!currentScene) {
+      console.warn('No scene available for rendering');
+      return object;
+    }
 
-      const existingObject = objectRegistry.get(objectName);
+    const existingObject = objectRegistry.get(objectName);
 
-      if (existingObject) {
-        existingObject.position.copy(object.position);
-        existingObject.rotation.copy(object.rotation);
-        existingObject.scale.copy(object.scale);
+    if (existingObject) {
+      existingObject.position.copy(object.position);
+      existingObject.rotation.copy(object.rotation);
+      existingObject.scale.copy(object.scale);
 
-        if (existingObject instanceof THREE.Mesh && object instanceof THREE.Mesh) {
-          existingObject.geometry.dispose();
-          existingObject.geometry = object.geometry;
+      if (existingObject instanceof THREE.Mesh && object instanceof THREE.Mesh) {
+        existingObject.geometry.dispose();
+        existingObject.geometry = object.geometry;
 
-          if (existingObject.material instanceof THREE.Material) {
-            existingObject.material.dispose();
-          }
-          existingObject.material = object.material;
+        if (existingObject.material instanceof THREE.Material) {
+          existingObject.material.dispose();
         }
-
-        console.log(`Updated existing object: ${objectName}`);
-        return existingObject as T;
-      } else {
-        currentScene.add(object);
-        objectRegistry.set(objectName, object);
-        console.log(`Created new object: ${objectName}`);
-        return object;
+        existingObject.material = object.material;
       }
-    },
-    dependencies: [node]
-  };
-}
+
+      console.log(`Updated existing object: ${objectName}`);
+      return existingObject as T;
+    } else {
+      currentScene.add(object);
+      objectRegistry.set(objectName, object);
+      console.log(`Created new object: ${objectName}`);
+      return object;
+    }
+  })(node);
 
 // Create a DSL context with all the functional versions
 export const dslContext = {
