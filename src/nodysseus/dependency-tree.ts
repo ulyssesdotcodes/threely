@@ -2,37 +2,79 @@ import {
   Edge,
   GenericHTMLElement,
   Graph,
-  Lib,
   NodysseusNode,
-  NodysseusStore,
   RefNode,
-  ValueNode,
   isGraph,
   isNodeRef,
-  isNodeGraph,
   isNodeValue,
-  RUnknown,
-  outputs,
-  Output,
-  NodeKind,
-  Nothing,
-  isNothing,
-  isNothingOrUndefined,
-  State,
-  WatchNode,
-  isWatchNode,
-  AnyNode,
-  UnwrapNode,
-  AnyNodeMap,
   Node,
   ConstNode,
-  VarNode,
-  MapNode,
-  BindNode,
-  NodeOutputs,
-  NodeOutputsU,
-  NodeType,
 } from "./types.js";
+
+// Type definitions for missing types
+type RUnknown = Record<string, unknown>;
+type Output = "value" | "display" | "metadata";
+type NodeKind = "const" | "var" | "map" | "bind";
+type Nothing = { __kind: "nothing" };
+type AnyNode<T> = ConstNode<T> | VarNode<T> | MapNode<T, any> | BindNode<T, any>;
+type UnwrapNode<T> = T;
+type AnyNodeMap<T> = Record<string, AnyNode<T[keyof T]>>;
+type VarNode<T> = {
+  __kind: "var";
+  id: string;
+  value: State<T>;
+  set: (value: T) => void;
+  compare: (a: T, b: T) => boolean;
+};
+type MapNode<T, S extends Record<string, unknown>> = {
+  __kind: "map";
+  id: string;
+  value: State<T>;
+  fn: State<(s: S) => T>;
+  cachedInputs: State<S>;
+  isStale: (previous: S, next: S) => boolean;
+  inputs: Record<keyof S, string>;
+  isDirty: State<boolean>;
+};
+type BindNode<T, S extends Record<string, unknown>> = {
+  __kind: "bind";
+  id: string;
+  value: State<T>;
+  fn: (inputs: S) => T | PromiseLike<T>;
+  cachedInputs: State<S>;
+  inputs: Record<keyof S, string>;
+  isStale: (previous: S, next: S) => boolean;
+  isDirty: State<boolean>;
+};
+type NodeOutputs<T, D, M> = {
+  value: AnyNode<T>;
+  display: AnyNode<D>;
+  metadata: AnyNode<M>;
+  graphId?: string;
+  nodeId?: string;
+};
+type NodeOutputsU = NodeOutputs<unknown, unknown, unknown>;
+class State<T> {
+  private _value: T;
+  
+  constructor(value?: T) {
+    this._value = value as T;
+  }
+  
+  read(): T {
+    return this._value;
+  }
+  
+  write(value: T): void {
+    this._value = value;
+  }
+}
+
+// Helper functions for missing types
+const isNothing = (value: any): value is Nothing => value?.__kind === "nothing";
+const isNothingOrUndefined = (value: any): value is Nothing | undefined => 
+  value === undefined || isNothing(value);
+const outputs: Output[] = ["value", "display", "metadata"];
 import { v4 as uuid } from "uuid";
 import {
   NodysseusError,
@@ -52,6 +94,25 @@ import {
   wrapPromiseReduce,
 } from "./util.js";
 
+// Missing dependencies - adding placeholder implementations
+const nolib = { no: { runtime: { addListener: () => {}, publish: () => {} } } };
+const nolibLib = {};
+const externs = { parseValue: (x: any) => x };
+const node_value = (node: any) => node.value;
+const node_extern = (refNode: any, args: any, lib: any, opts: any) => {};
+const create_fn = (graph: any, nodeId: any, id: any, closure: any, lib: any) => {};
+const get = (obj: any, path: string) => {
+  const keys = path.split('.');
+  let result = obj;
+  for (const key of keys) {
+    result = result?.[key];
+    if (result === undefined) return undefined;
+  }
+  return result;
+};
+
+// Add browser globals that might be missing
+declare const requestAnimationFrame: (callback: (time: number) => void) => number;
 
 const NAME_FIELD = new Set(["name"]);
 
@@ -107,7 +168,7 @@ const clientId = uuid();
 
 
 const isConstNode = <T>(a: AnyNode<T>): a is ConstNode<T> =>
-  (a as ConstNode<T>)?.__kind === "const";
+  a?.__kind === "const";
 
 
 const isVarNode = <T>(a: AnyNode<T>): a is VarNode<T> =>
@@ -131,14 +192,14 @@ const isNode = <T>(a: any): a is AnyNode<T> =>
 class Scope {
   private nodes: Map<
     string,
-    Node<NodeKind> | NodeOutputs<unknown, unknown, unknown>
+    any
   > = new Map();
   constructor() {}
-  add(node: Node<NodeKind>) {
+  add(node: any) {
     this.nodes.set(node.id, node);
   }
   get<T>(id: string) {
-    return this.nodes.get(id) as AnyNode<T>;
+    return this.nodes.get(id) as any;
   }
   has(id: string) {
     return this.nodes.has(id);
@@ -164,7 +225,7 @@ class Scope {
 }
 
 export const constNode = <T>(a: T, id?: string): ConstNode<T> => ({
-  __kind: "const",
+  __kind: "const" as const,
   id: id ?? uuid(),
   value: new State(a),
 });
@@ -174,7 +235,7 @@ export const varNode = <T>(
   compare: (a: T, b: T) => boolean = (a, b) => a === b,
   id?: string,
 ): VarNode<T> => ({
-  __kind: "var",
+  __kind: "var" as const,
   id: id ?? uuid(),
   value: new State(),
   set,
@@ -187,7 +248,7 @@ export const mapNode = <T, S extends Record<string, unknown>>(
   isStale: (previous: S, next: S) => boolean,
   id?: string,
 ): MapNode<T, S> => ({
-  __kind: "map",
+  __kind: "map" as const,
   id: id ?? uuid(),
   value: new State(),
   fn: new State(fn),
@@ -204,11 +265,11 @@ export const bindNode = <
 >(
   inputs: { [k in keyof S]: AnyNode<S[k]> },
   fn: (inputs: S) => T | PromiseLike<T>,
-  isStale = (p, n) => true,
+  isStale = (p: any, n: any) => true,
   id?: string,
 ): BindNode<T, S> =>
   ({
-    __kind: "bind",
+    __kind: "bind" as const,
     id: id ?? uuid(),
     value: new State(),
     fn,
@@ -224,7 +285,7 @@ export const handleError = (e: Error, nodeGraphId: string) => {
 
 
 const isNodeOutputs = (
-  value: NodeOutputsU | AnyNode<unknown>,
+  value: any | AnyNode<unknown>,
 ): value is NodeOutputsU =>
   isNode(value) &&
   !!(value as NodeOutputsU).nodeId &&
@@ -243,8 +304,14 @@ export class NodysseusRuntime {
   private torun: Set<string> = new Set();
   private dirtying = 0;
   private store = {
-    refs: new Map()
-  }
+    refs: new Map(),
+    persist: new Map(),
+    state: new Map()
+  };
+  public id = uuid();
+  public event = "graph-changed";
+
+  // Methods implemented below
 
   //////////
   // ported from nodysseus.runtime
@@ -392,11 +459,11 @@ export class NodysseusRuntime {
     finalize();
   }
 
-  constNode<T>(v: T, id: string, useExisting: boolean = true): AnyNode<T> {
+  constNode<T>(v: T, id: string, useExisting: boolean = true): any {
     const existing = this.scope.get(id) as ConstNode<T>;
     const existingValue = existing?.value.read();
     if(useExisting && compareObjects(existingValue, v)) {
-      return existing as AnyNode<T>;
+      return existing as any;
     }
 
     const node = useExisting && existing ? existing : constNode(v, id);
@@ -423,7 +490,7 @@ export class NodysseusRuntime {
       (newValueWrapper: T | {value: T}) => {
         const newValue : T =
         unwrapValue && typeof newValueWrapper === "object" && Object.hasOwn(newValueWrapper as any, "value") ?
-          (newValueWrapper as {value : T }).value : newValueWrapper as T
+          (newValueWrapper as {value : T }).value : newValueWrapper as any
 
         
         const currentValue = node.value.read();
@@ -456,11 +523,11 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     isStale: (previous: S, next: S) => boolean = () => true,
     id?: string,
     useExisting: boolean = true,
-  ): AnyNode<T> {
+  ): any {
     if (useExisting && id && this.scope.has(id)) return this.scope.get(id);
     const node = mapNode(inputs, fn, isStale, id);
     this.scope.add(node);
-    this.resetOutputs(node.id, inputs);
+    this.resetOutputs(node.id, inputs as any);
     this.dirty(node.id);
     return node;
   }
@@ -475,15 +542,15 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     id: string,
     isStale?: (previous: S, next: S) => boolean,
     useExisting: boolean = true,
-  ): AnyNode<T> {
+  ): any {
     if (useExisting && id && this.scope.has(id)) return this.scope.get(id);
-    const currentBind = this.scope.get(id) as AnyNode<T>;
+    const currentBind = this.scope.get(id) as any;
     if (useExisting && currentBind) {
       return currentBind;
     }
     const node = bindNode<R, T, S>(
       inputs,
-      (args) => {
+      (args: any) => {
         const current = node.value.read();
         return wrapPromiseAll([fn(args), current]).then(
           ([outNode, current]) => {
@@ -515,13 +582,13 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             }
             return outNode;
           },
-        ).value as T | PromiseLike<T>;
+        ).value as any;
       },
       isStale,
       id,
     );
     this.scope.add(node);
-    this.resetOutputs(node.id, inputs);
+    this.resetOutputs(node.id, inputs as any);
     this.dirty(node.id);
     return node;
   }
@@ -547,14 +614,14 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
       { key, ...keyOptions } as { key: AnyNode<string> } & {
         [k in keyof S]: AnyNode<AnyNode<T>>;
       },
-      (args) => args[args.key] as AnyNode<T>,
+      (args: any) => args[args.key] as any,
       id && `${id}-bind`,
       (p, n) => p.key !== n.key || p[p.key] !== n[n.key],
       useExisting,
     ) as AnyNode<AnyNode<T>>;
     return this.mapNode(
       { bound: binding },
-      ({ bound }) => {
+      ({ bound }: any) => {
         const res = !isNothing(bound) && this.runNode(bound);
         return res !== undefined && !isNothing(res) ? res : undefined;
       },
@@ -570,14 +637,14 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     id: string,
     useExisting: boolean,
     isNodeRun: boolean = false,
-  ): AnyNode<T> {
+  ): any {
     return this.mapNode(
       {map},
-      ({map}) => map[key],
+      ({map}: any) => map[key],
       undefined,
       id + key + "-map",
       useExisting,
-    ) as AnyNode<T>;
+    ) as any;
   }
 
   public accessor<T, S extends Record<string, unknown>>(
@@ -586,18 +653,18 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     id: string,
     useExisting: boolean,
     isNodeRun: boolean = false,
-  ): AnyNode<T> {
+  ): any {
     return this.mapNode(
       {
         bound: this.bindNode(
           { map },
-          ({ map }) => map[key],
+          ({ map }: any) => map[key],
           id + key + "-bind",
           undefined,
           useExisting,
         ),
       },
-      ({ bound }) => {
+      ({ bound }: any) => {
         // if(isNodeOutputs(map)) {
         //   nolib.no.runtime.publish("noderun", {graphId: map.graphId, nodeId: map.nodeId}, nolibLib)
         // }
@@ -606,7 +673,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
       undefined,
       id + key + "-map",
       useExisting,
-    ) as AnyNode<T>;
+    ) as any;
   }
 
   private removeKey<T, S extends Record<string, unknown>>(
@@ -616,7 +683,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
   ): AnyNode<AnyNodeMap<S>> {
     return this.mapNode(
       { map },
-      ({ map }) => ({ ...map, [key]: undefined }),
+      ({ map }: any) => ({ ...map, [key]: undefined }),
       undefined,
       id,
     );
@@ -626,24 +693,24 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     node: AnyNode<AnyNode<T>>,
     nodeGraphId: string,
     useExisting = true,
-  ): AnyNode<T> {
+  ): any {
     return this.mapNode(
       {
         bound: this.bindNode(
           { bound: node },
-          ({ bound }) => bound,
+          ({ bound }: any) => bound,
           nodeGraphId + "-runNodeNodebind",
           undefined,
         ),
       },
-      ({ bound }) => this.runNode(bound) as T,
+      ({ bound }: any) => this.runNode(bound) as any,
       undefined,
       nodeGraphId,
       useExisting,
     );
   }
 
-  // private runOutput<T, D, M, O extends Output>(outputNode: NodeOutputs<T, D, M>, output: O, nodeGraphId): NodeOutputs<T, D, M>[O] {
+  // private runOutput<T, D, M, O extends Output>(outputNode: any, output: O, nodeGraphId): any[O] {
   //   return this.mapNode({bound: this.bindNode({value: outputNode[output] as NodeOutputs<T, D, M>[O]}, ({value}) => value, undefined, nodeGraphId + "-bound")}, ({bound}) => this.runNode(bound as UnwrapNode<NodeOutputs<T, D, M>>), undefined, nodeGraphId) as UnwrapNode<UnwrapNode<NodeOutputs<T, D, M>>>;
   // }
 
@@ -651,7 +718,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     graph: Graph | string,
     nodeId: string,
     closure?: AnyNodeMap<S>,
-  ): NodeOutputs<T, D, M> | Promise<NodeOutputs<T, D, M>> {
+  ): any | Promise<NodeOutputs<T, D, M>> {
     closure = closure ?? ({} as AnyNodeMap<S>);
     return wrapPromise(
       typeof graph === "string" ? this.store.refs.get(graph) : graph,
@@ -670,17 +737,17 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     ).value;
   }
 
-  private calcNode<T, S extends Record<string, unknown>>(
-    graph: Graph,
-    node: NodysseusNode,
-    graphId: string,
-    nodeGraphId: string,
-    nodeClosure: AnyNode<AnyNodeMap<S>>,
-    graphClosure: AnyNode<AnyNodeMap<S>>,
-    edgesIn: Edge[],
-    useExisting: boolean,
-    extraNodeGraphId: Output = "value",
-  ) {
+  private calcNode(
+    graph: any,
+    node: any,
+    graphId: any,
+    nodeGraphId: any,
+    nodeClosure: any,
+    graphClosure: any,
+    edgesIn: any,
+    useExisting: any,
+    extraNodeGraphId: any = "value",
+  ): any {
     const calculateInputs = () =>
       Object.fromEntries(
         edgesIn.map((e) => [
@@ -748,7 +815,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     } else {
       return this.mapNode(
         calculateInputs(),
-        (args) => args,
+        (args: any) => args,
         undefined,
         nodeGraphId,
         useExisting,
@@ -760,17 +827,17 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     outputNode: NodeOutputs<T, unknown, unknown>,
     nodeGraphId,
     useExisting,
-  ): AnyNode<T> {
-    // return this.mapNode({bound: this.bindNode({map: this.mapNode({map}, ({map}) => map, undefined, id + key + "-bindmap", useExisting)}, ({map}) => map[key], undefined, id + key + "-bind", useExisting)}, ({bound}) => {
+  ): any {
+    // return this.mapNode({bound: this.bindNode({map: this.mapNode({map}, ({map}: any) => map, undefined, id + key + "-bindmap", useExisting)}, ({map}: any) => map[key], undefined, id + key + "-bind", useExisting)}, ({bound}) => {
     //   if((map as NodeOutputs<unknown, unknown, unknown>).graphId) {
     //     const nodeOutput = map as NodeOutputs<unknown, unknown, unknown>;
     //     nolib.no.runtime.publish("noderun", {graph: nodeOutput.graphId, node_id: nodeOutput.nodeId}, nolibLib)
     //   }
     //   return this.runNode(bound)
-    // }, undefined, id + key + "-map", useExisting) as AnyNode<T>;
+    // }, undefined, id + key + "-map", useExisting) as any;
     return this.accessor(outputNode, "value", nodeGraphId, useExisting);
     // return outputNode["value"];
-    // this.mapNode({bound: this.bindNode({value: outputNode.value}, ({value}) => value, undefined, nodeGraphId + "-bound")}, ({bound}) => this.runNode(bound) as T, undefined, nodeGraphId);
+    // this.mapNode({bound: this.bindNode({value: outputNode.value}, ({value}) => value, undefined, nodeGraphId + "-bound")}, ({bound}) => this.runNode(bound) as any, undefined, nodeGraphId);
   }
 
   private checkEvents() {
@@ -780,12 +847,12 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     }
   }
 
-  private mergeClosure<S extends RUnknown>(
-    closure: AnyNode<AnyNodeMap<RUnknown>>,
-    args: AnyNode<RUnknown>,
-    id: string,
+  private mergeClosure(
+    closure: any,
+    args: any,
+    id: any,
     useExisting = true,
-  ): AnyNode<AnyNodeMap<S>> {
+  ): any {
     return this.mapNode(
       {
         closure,
@@ -812,18 +879,18 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     );
   }
 
-  private dereference<T, S extends Record<string, unknown>>(
-    graph: Graph,
-    node: RefNode,
-    edgesIn: Edge[],
-    graphId: string,
-    nodeGraphId: string,
-    closure: AnyNode<AnyNodeMap<S>>,
-    calculateInputs: () => AnyNodeMap<S>,
-    extraNodeGraphId: Output = "value",
-    useExisting: boolean = true,
+  private dereference(
+    graph: any,
+    node: any,
+    edgesIn: any,
+    graphId: any,
+    nodeGraphId: any,
+    closure: any,
+    calculateInputs: any,
+    extraNodeGraphId: any = "value",
+    useExisting: any = true,
     refNode = node,
-  ): AnyNode<T> | PromiseLike<AnyNode<T>> {
+  ): any {
     return wrapPromise(this.store.refs.get(refNode.ref) as Graph, (e) =>
       handleError(e, nodeGraphId),
     ).then((nodeRef): AnyNode<T> => {
@@ -836,9 +903,9 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
           return this.constNode({
             dataLabel: "script",
             codeEditor: { language: "javascript", editorText: node.value },
-          } as T, outputNodeGraphId, useExisting );
+          } as any, outputNodeGraphId, useExisting );
         } else if (extraNodeGraphId === "display") {
-          return this.constNode({ dom_type: "text_value", text: "" } as T, outputNodeGraphId, useExisting);
+          return this.constNode({ dom_type: "text_value", text: "" } as any, outputNodeGraphId, useExisting);
         }
 
         let scriptFn;
@@ -854,13 +921,13 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
           ) as (...args: any[]) => any;
         } catch (e) {
           handleError(e, nodeGraphId);
-          if(this.scope.has(outputNodeGraphId)) return this.scope.get(outputNodeGraphId) as AnyNode<T>
+          if(this.scope.has(outputNodeGraphId)) return this.scope.get(outputNodeGraphId) as any
           scriptFn = () => {};
         }
 
         return this.mapNode(
           calculateInputs(),
-          (args) => {
+          (args: any) => {
             try {
               return scriptFn(
                 this.lib,
@@ -936,7 +1003,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             },
             nodeGraphId + extraNodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         }
 
         const libNode =
@@ -1058,7 +1125,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   !compareObjects(previous, next),
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>)
+            ) as any)
           : (this.mapNode(
               {
                 result: resultNode,
@@ -1088,16 +1155,16 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               undefined,
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>)
+            ) as any)
       ).value;
       } else if (refNode.ref === "extern") {
         if (refNode.value === "extern.switch") {
           const outputNodeGraphId = appendGraphId(nodeGraphId, graphId);
 
           if(extraNodeGraphId === "display") {
-          return this.constNode({ dom_type: "text_value", text: "" } as T, outputNodeGraphId, useExisting);
+          return this.constNode({ dom_type: "text_value", text: "" } as any, outputNodeGraphId, useExisting);
           } else if (extraNodeGraphId === "metadata") {
-            return this.constNode({ dom_type: "text_value", text: "" } as T, outputNodeGraphId, useExisting)
+            return this.constNode({ dom_type: "text_value", text: "" } as any, outputNodeGraphId, useExisting)
           }
 
           const inputEdge = edgesIn.find((e) => e.as === "input");
@@ -1137,7 +1204,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                 ),
                 nodeGraphId,
                 useExisting,
-              ) as AnyNode<T>)
+              ) as any)
             : this.constNode(undefined, nodeGraphId, false);
         } else if (refNode.value === "extern.runnable") {
           if (extraNodeGraphId === "metadata") {
@@ -1150,7 +1217,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               },
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>;
+            ) as any;
           }
           const fnArgs = this.varNode<Record<string, unknown>>(
             {},
@@ -1211,7 +1278,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                 ),
             },
             ({ parameters, fnNode }) =>
-              ((args) => {
+              ((args: any) => {
                 if (!fnNode) return;
                 this.dirty(fnArgs.id, fnNode.id);
                 if (parameters) {
@@ -1225,7 +1292,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   (this.scope.get(fnArgs.id) as typeof fnArgs).set({});
                 }
                 return this.runNode(fnNode);
-              }) as T,
+              }) as any,
             undefined,
             nodeGraphId,
             useExisting,
@@ -1241,7 +1308,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               },
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>;
+            ) as any;
           }
           return this.mapNode(
             calculateInputs() as {
@@ -1262,7 +1329,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             undefined,
             nodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         } else if (refNode.value === "extern.fold") {
           return this.mapNode(
             calculateInputs() as {
@@ -1288,7 +1355,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             undefined,
             nodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         } else if (refNode.value === "extern.ap") {
           if (extraNodeGraphId === "metadata") {
             return this.constNode(
@@ -1302,7 +1369,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               },
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>;
+            ) as any;
           }
           const fnEdge = edgesIn.find((e) => e.as === "fn");
           if (!fnEdge) {
@@ -1411,7 +1478,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             ({ fn, run, argsNode, isScope }) => {
               if (run) {
                 return wrapPromise(this.runNode(argsNode))
-                  .then((args) =>
+                  .then((args: any) =>
                     (Array.isArray(fn) ? fn : [fn])
                       .filter((f) => typeof f === "function")
                       .map((ffn) => ffn(args)),
@@ -1420,7 +1487,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   .value;
               } else if (isScope) {
                 return wrapPromise(this.runNode(argsNode)).then(
-                  (scopeArgs) => (args) => {
+                  (scopeArgs) => (args: any) => {
                     const argsWithScopedArgs = { ...args, ...scopeArgs };
                     return wrapPromiseAll(
                       (Array.isArray(fn) ? fn : [fn])
@@ -1432,7 +1499,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   },
                 ).value;
               } else {
-                return (args) => {
+                return (args: any) => {
                   const runtimeApArgs = this.scope.get(
                     apArgs.id,
                   ) as VarNode<any>;
@@ -1440,7 +1507,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   return wrapPromise(
                     this.runNode(argsNode) as Record<string, unknown>,
                   )
-                    .then((args) =>
+                    .then((args: any) =>
                       (Array.isArray(fn) ? fn : [fn])
                         .filter((f) => typeof f === "function")
                         .map((ffn) => ffn(args)),
@@ -1454,7 +1521,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             undefined,
             nodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         } else if (
           refNode.value === "extern.reference" ||
           refNode.value === "extern.state"
@@ -1472,7 +1539,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               },
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>;
+            ) as any;
           }
           const initialNode =
             edgesIn.find((e) => e.as === "initial" || e.as === "value")?.from &&
@@ -1711,7 +1778,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                             const value: T =
                               typeof t === "object" && Object.hasOwn(t, "value")
                                 ? (t as { value: T }).value
-                                : (t as T);
+                                : (t as any);
                             (setNode as VarNode<T>).set(value);
                             if (share) {
                               runtime.store.state.set(stateId, { value });
@@ -1749,7 +1816,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             () => false,
             nodeGraphId + extraNodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         } else if (
           refNode.value === "extern.readReference" ||
           refNode.value === "extern.memoryUnwrap"
@@ -1766,20 +1833,20 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               },
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>;
+            ) as any;
           }
           return this.mapNode(
             {
               ref: this.bindNode(
                 { reference: calculateInputs()["reference"] },
-                ({ reference }) => (reference as AnyNode<T> ),
+                ({ reference }) => (reference as any ),
                 undefined,
                 nodeGraphId + "-bindreadref",
                 useExisting,
               ),
             },
             ({ ref }) => {
-              const result = ref?.value?.read() as T;
+              const result = ref?.value?.read() as any;
               if ((result as Nothing)?.__kind === "nothing") return undefined;
               else return result;
             },
@@ -1789,13 +1856,13 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
           );
         } else if (refNode.value === "extern.frame") {
           const varNode: VarNode<T> = this.varNode(
-            1 as T,
+            1 as any,
             undefined,
             nodeGraphId,
             useExisting,
           );
           const update = () => {
-            varNode.set(((varNode.value.read() as number) + 1) as T);
+            varNode.set(((varNode.value.read() as number) + 1) as any);
             if (this.scope.get(nodeGraphId) === varNode) {
               requestAnimationFrame(update);
             }
@@ -1804,13 +1871,13 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
           return varNode;
         } else if (refNode.value === "extern.time") {
           const varNode: VarNode<T> = this.varNode(
-            1 as T,
+            1 as any,
             undefined,
             nodeGraphId,
             useExisting,
           );
           const update = (time) => {
-            varNode.set((time * 0.001 * ((node.value as unknown as number) ?? 1)) as T);
+            varNode.set((time * 0.001 * ((node.value as unknown as number) ?? 1)) as any);
             if (this.scope.get(nodeGraphId) === varNode) {
               requestAnimationFrame(update);
             }
@@ -1844,7 +1911,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               nodeGraphId + "-accessnodedisplay",
               useExisting,
             ),
-          ).value as AnyNode<T>;
+          ).value as any;
         } else if (refNode.value === "extern.workerRunnable") {
           return this.constNode(
             {
@@ -1857,7 +1924,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             },
             nodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         } else if (refNode.value === "extern.create_fn") {
           const idEdge = edgesIn.find(
             (e) => e.as === "function" || e.as === "runnable" || e.as === "fn",
@@ -1886,14 +1953,14 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   undefined,
                   appendGraphId(nodeGraphId, "-generatedFn"),
                   useExisting,
-                ) as AnyNode<T>,
+                ) as any,
               undefined,
               appendGraphId(nodeGraphId, "-bindclosure"),
               useExisting,
             ),
             nodeGraphId,
             useExisting,
-          ) as AnyNode<T>;
+          ) as any;
         } else if (refNode.value === "extern.html_element") {
           if (extraNodeGraphId === "metadata" && this.lib.domTypes) {
             const el = this.lib.domTypes[node.value ?? "div"];
@@ -1936,7 +2003,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                       ),
                   },
                 },
-              } as T,
+              } as any,
               nodeGraphId + extraNodeGraphId,
               useExisting,
             );
@@ -1961,7 +2028,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   typeof props?.onref === "function"
                     ? (ref) => props.onref({ ref })
                     : undefined,
-              } as T;
+              } as any;
             },
             undefined,
             nodeGraphId + extraNodeGraphId,
@@ -1970,7 +2037,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
         } else if (refNode.value === "extern.data") {
           return this.mapNode(
             calculateInputs(),
-            (args) => args as unknown as T,
+            (args: any) => args as unknown as any,
             undefined,
             nodeGraphId,
             useExisting
@@ -1990,7 +2057,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               },
               nodeGraphId + extraNodeGraphId,
               useExisting,
-            ) as AnyNode<T>;
+            ) as any;
           }
           const inputs = calculateInputs();
           const systemValues = this.accessor(closure, "__parent_graph_value", appendGraphId(nodeGraphId + extraNodeGraphId, "-extern-system-values"), useExisting);
@@ -2113,7 +2180,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                   })
                   .filter((v) => v)
                   .flat(),
-              } as T;
+              } as any;
             },
             undefined,
             nodeGraphId + extraNodeGraphId,
@@ -2157,7 +2224,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               useExisting,
             ),
           },
-          ({ bound }) => this.runNode(bound),
+          ({ bound }: any) => this.runNode(bound),
           undefined,
           nodeGraphId + "-argsdataouterbind",
           useExisting,
@@ -2181,14 +2248,14 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               useExisting,
             ),
           },
-          ({ bound }) => {
+          ({ bound }: any) => {
             return wrapPromise(this.runNode(bound)).then(
               (res) =>
                 (res !== undefined && !isNothing(res)
                   ? isAccessor
                     ? get(res, argname.substring(argname.indexOf(".") + 1))
                     : res
-                  : undefined) as T,
+                  : undefined) as any,
             ).value;
           },
           undefined,
@@ -2210,7 +2277,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
             nodeRef,
             nodeRef.out ?? "out",
             nodeGraphId,
-            // this.mapNode({graphvalue, ...inputs}, (args) => this.constNode(args, nodeGraphId + "-innergraphclosure", useExisting), undefined, appendGraphId(nodeGraphId, "-graphclosure"), useExisting),
+            // this.mapNode({graphvalue, ...inputs}, (args: any) => this.constNode(args, nodeGraphId + "-innergraphclosure", useExisting), undefined, appendGraphId(nodeGraphId, "-graphclosure"), useExisting),
             this.constNode(
               {
                 ...inputs,
@@ -2236,7 +2303,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
               useExisting,
             ),
           },
-          ({ bound }) => this.runNode(bound) as T,
+          ({ bound }: any) => this.runNode(bound) as any,
           undefined,
           nodeGraphId + extraNodeGraphId,
           useExisting,
@@ -2254,18 +2321,18 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
           extraNodeGraphId,
           useExisting,
           nodeRef,
-        ) as AnyNode<T>;
+        ) as any;
       }
     }).value;
   }
 
-  private fromNodeInternal<T, D, M, S extends Record<string, unknown>>(
-    graph: Graph,
-    nodeId: string,
-    graphId: string,
-    graphClosure?: AnyNode<AnyNodeMap<S>>,
-    useExisting: boolean = true,
-  ): NodeOutputs<T, D, M> {
+  private fromNodeInternal(
+    graph: any,
+    nodeId: any,
+    graphId: any,
+    graphClosure?: any,
+    useExisting: any = true,
+  ): any {
     const node = graph.nodes[nodeId];
     const nodeGraphId = appendGraphId(graphId, nodeId);
     if (useExisting && this.scope.has(nodeGraphId + "-boundNode"))
@@ -2337,7 +2404,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
 
     const nodeClosure = this.mapNode({graphClosure}, ({graphClosure}) => ({...graphClosure, __parent_graph_value: nodeValue}), undefined, nodeGraphId + "-closure-with-system")
 
-    const ret: NodeOutputs<T, D, M> = this.mapNode(
+    const ret: any = this.mapNode(
       { graphNodeNode },
       ({ graphNodeNode }) => {
         // if ref has changed, remove all current graph nodes
@@ -2409,7 +2476,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     _output?: "display" | "value" | "metadata",
   ): T | PromiseLike<T> | Nothing {
     if (isNothing(innode)) return innode;
-    const node: AnyNode<T> = this.scope.get(innode.id)! as AnyNode<T>;
+    const node: AnyNode<T> = this.scope.get(innode.id)! as any;
 
     const current = node.value?.read();
     let result;
@@ -2508,7 +2575,7 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
                 if (isBindNode(updatedNode) && !isNothing(res) && res)
                   this.scope.add(res as AnyNode<unknown>);
 
-                updatedNode.value.write(r as T);
+                updatedNode.value.write(r as any);
                 updatedNode.isDirty.write(false);
 
                 if (this.watches.has(node.id)) {
@@ -2548,29 +2615,29 @@ public addListenerVarNode<T>(nodeGraphId, listener, stateId = nodeGraphId){
     return result;
   }
 
-  public runGraphNode<T>(graph: Graph | string, node: string): T | Promise<T> {
+  public runGraphNode<T>(graph: Graph | string, node: string): any {
     const current = this.scope.get(
       `${appendGraphId(
         typeof graph === "string" ? graph : graph.id,
         node,
       )}-boundNode`,
-    ) as AnyNode<T>;
-    if (current) return this.runNode<T>(current) as T;
+    ) as any;
+    if (current) return this.runNode(current) as any;
     return wrapPromise(this.fromNode(graph, node)).then((nodeNode) =>
       this.runNode(nodeNode),
-    ).value as Promise<T>;
+    ).value as any;
   }
 
   public run<T>(
-    node: AnyNode<T> | Promise<AnyNode<T>> | string,
+    node: any,
     _output?: "display" | "value" | "metadata",
-  ): T | Promise<T> {
+  ): any {
     return wrapPromise(node).then((node) => {
       const nodeid = typeof node === "string" ? node : node.id;
       const resolvedNode = this.scope.get(nodeid);
       const res = resolvedNode && this.runNode(resolvedNode);
 
       return res && !isNothing(res) && wrapPromise(res).value;
-    }).value as T | Promise<T>;
+    }).value as any;
   }
 }

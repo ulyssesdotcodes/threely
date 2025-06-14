@@ -7,7 +7,7 @@
    */
   export interface Node<T> {
     id: string;
-    compute: () => T;
+    compute: (...args: any[]) => T;
     dependencies: Node<any>[];
   }
 
@@ -34,7 +34,7 @@
   export function map<A, B>(fn: (a: A) => B): (node: Node<A>) => Node<B> {
     return (node: Node<A>) => ({
       id: generateUniqueId(),
-      compute: () => fn(Graph.run(node)),
+      compute: fn,
       dependencies: [node]
     });
   }
@@ -80,14 +80,14 @@
       if (computeStr.includes('BoxGeometry')) return 'box';
       if (computeStr.includes('CylinderGeometry')) return 'cylinder';
       if (computeStr.includes('MeshBasicMaterial')) return 'material';
-      if (computeStr.includes('THREE.Mesh')) return 'mesh';
+      if (computeStr.includes('THREE.Mesh') || computeStr.includes('new THREE.Mesh')) return 'mesh';
       if (computeStr.includes('translateXObj')) return 'translateX';
       if (computeStr.includes('translateYObj')) return 'translateY';
       if (computeStr.includes('translateZObj')) return 'translateZ';
       if (computeStr.includes('rotateXObj')) return 'rotateX';
       if (computeStr.includes('rotateYObj')) return 'rotateY';
       if (computeStr.includes('rotateZObj')) return 'rotateZ';
-      if (computeStr.includes('currentScene.add')) return 'render';
+      if (computeStr.includes('currentScene.add') || computeStr.includes('objectRegistry')) return 'render';
       if (computeStr.includes('Graph.run')) return 'map';
       
       return 'node';
@@ -169,7 +169,11 @@
      * @returns The computed value
      */
     static run<T>(node: Node<T>): T {
-      return node.compute();
+      // Resolve all dependencies first
+      const dependencyResults = node.dependencies.map(dep => Graph.run(dep));
+      
+      // Call the compute function with all dependency results as arguments
+      return node.compute(...dependencyResults);
     }
 
     /**

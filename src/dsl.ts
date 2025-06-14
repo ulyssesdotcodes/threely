@@ -93,7 +93,7 @@ export function material(options: any = {}): Node<THREE.MeshBasicMaterial> {
 export function mesh(geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> {
   return {
     id: generateNodeId(),
-    compute: () => new THREE.Mesh(Graph.run(geometryNode), Graph.run(materialNode)),
+    compute: (geometry: THREE.BufferGeometry, material: THREE.Material) => new THREE.Mesh(geometry, material),
     dependencies: [geometryNode, materialNode]
   };
 }
@@ -102,8 +102,7 @@ export function mesh(geometryNode: Node<THREE.BufferGeometry>, materialNode: Nod
 export function translateX<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const obj = Graph.run(node);
+    compute: (obj: T) => {
       translateXObj(obj, distance);
       return obj;
     },
@@ -114,8 +113,7 @@ export function translateX<T extends THREE.Object3D>(node: Node<T>, distance: nu
 export function translateY<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const obj = Graph.run(node);
+    compute: (obj: T) => {
       translateYObj(obj, distance);
       return obj;
     },
@@ -126,8 +124,7 @@ export function translateY<T extends THREE.Object3D>(node: Node<T>, distance: nu
 export function translateZ<T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const obj = Graph.run(node);
+    compute: (obj: T) => {
       translateZObj(obj, distance);
       return obj;
     },
@@ -138,8 +135,7 @@ export function translateZ<T extends THREE.Object3D>(node: Node<T>, distance: nu
 export function rotateX<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const obj = Graph.run(node);
+    compute: (obj: T) => {
       rotateXObj(obj, angle);
       return obj;
     },
@@ -150,8 +146,7 @@ export function rotateX<T extends THREE.Object3D>(node: Node<T>, angle: number):
 export function rotateY<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const obj = Graph.run(node);
+    compute: (obj: T) => {
       rotateYObj(obj, angle);
       return obj;
     },
@@ -162,8 +157,7 @@ export function rotateY<T extends THREE.Object3D>(node: Node<T>, angle: number):
 export function rotateZ<T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const obj = Graph.run(node);
+    compute: (obj: T) => {
       rotateZObj(obj, angle);
       return obj;
     },
@@ -175,9 +169,7 @@ export function rotateZ<T extends THREE.Object3D>(node: Node<T>, angle: number):
 export function render<T extends THREE.Object3D>(node: Node<T>, objectName: string): Node<T> {
   return {
     id: generateNodeId(),
-    compute: () => {
-      const object = Graph.run(node);
-      
+    compute: (object: T) => {
       if (!currentScene) {
         console.warn('No scene available for rendering');
         return object;

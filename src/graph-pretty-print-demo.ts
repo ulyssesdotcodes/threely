@@ -12,8 +12,13 @@ const rendered = render(rotated, "demo");
 
 console.log('=== Graph Pretty Print Demo ===\n');
 
+// Show how the new Graph.run works
+console.log('Running the graph:');
+const result = Graph.run(rendered);
+console.log('Result type:', result.constructor.name);
+
 // Default pretty print
-console.log('Default tree view:');
+console.log('\nDefault tree view:');
 console.log(Graph.prettyPrint(rendered));
 
 // Compact representation
