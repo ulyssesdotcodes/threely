@@ -19,9 +19,7 @@
     "uuid": "^11.1.0"
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --platform=browser --watch",
-    "build:single": "esbuild src/index.ts --bundle --outfile=dist/bundle.js --platform=browser",
-    "watch": "node esbuild.mjs",
+    "build": "node esbuild.mjs",
     "test": "jest"
   }
 }
