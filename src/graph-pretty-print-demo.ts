@@ -1,5 +1,6 @@
 // Demo of the graph pretty printer
-import { Graph, GraphPrettyPrinter } from './graph';
+import { Graph } from './graph';
+import { GraphPrettyPrinter } from './graph-pretty-printer';
 import { sphere, box, material, mesh, translateX, rotateY, render } from './dsl';
 
 // Create a complex graph: render(rotateY(translateX(mesh(sphere(), material()), 2), Math.PI/4), "demo")

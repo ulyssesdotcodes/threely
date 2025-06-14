@@ -1,4 +1,5 @@
-import { Graph, GraphPrettyPrinter } from '../src/graph';
+import { Graph } from '../src/graph';
+import { GraphPrettyPrinter } from '../src/graph-pretty-printer';
 import { sphere, box, material, mesh, translateX, translateY, rotateX, rotateY, render } from '../src/dsl';
 
 describe('Graph Pretty Printing', () => {
