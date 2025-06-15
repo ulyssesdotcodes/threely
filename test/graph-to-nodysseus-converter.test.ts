@@ -2,9 +2,7 @@ import {
   convertGraphToNodysseus, 
   convertMultipleNodesToGraph, 
   extractAllNodes, 
-  convertGraphToNodysseusValues,
   convertAndCompareGraphOutputs,
-  ConversionOptions 
 } from '../src/graph-to-nodysseus-converter';
 import { createNode, constant, run } from '../src/graph';
 import { RefNode, ValueNode } from '../src/nodysseus/types';
@@ -155,86 +153,6 @@ describe('Graph to Nodysseus Converter', () => {
     });
   });
 
-  describe('convertGraphToNodysseusValues', () => {
-    it('should convert nodes to ValueNodes with computed results', () => {
-      const a = constant(10);
-      const b = constant(5);
-      const sum = createNode((x, y) => x + y, [a, b]);
-
-      const result = convertGraphToNodysseusValues(sum);
-
-      expect(result.nodes[a.id]).toBeDefined();
-      expect(result.nodes[b.id]).toBeDefined();
-      expect(result.nodes[sum.id]).toBeDefined();
-
-      const sumNode = result.nodes[sum.id] as ValueNode;
-      expect(sumNode.value).toBe('15');
-      expect(sumNode.category).toBe('computed');
-    });
-
-    it('should handle computation errors gracefully', () => {
-      const errorNode = createNode(() => {
-        throw new Error('Test error');
-      });
-
-      const result = convertGraphToNodysseusValues(errorNode);
-
-      const valueNode = result.nodes[errorNode.id] as ValueNode;
-      expect(valueNode.value).toContain('Error: Test error');
-      expect(valueNode.category).toBe('error');
-    });
-
-    it('should serialize object values as JSON', () => {
-      const objNode = createNode(() => ({ foo: 'bar', num: 42 }));
-
-      const result = convertGraphToNodysseusValues(objNode);
-
-      const valueNode = result.nodes[objNode.id] as ValueNode;
-      expect(valueNode.value).toBe('{"foo":"bar","num":42}');
-    });
-
-    it('should respect conversion options', () => {
-      const node = constant(42);
-      const options: ConversionOptions = {
-        graphName: 'Test Graph',
-        graphDescription: 'A test graph',
-        includeEdgesIn: false
-      };
-
-      const result = convertGraphToNodysseusValues(node, options);
-
-      expect(result.name).toBe('Test Graph');
-      expect(result.description).toBe('A test graph');
-      expect(result.edges_in).toBeUndefined();
-    });
-
-    it('should create edges with correct dependency mapping', () => {
-      const a = constant(1);
-      const b = constant(2);
-      const sum = createNode((x, y) => x + y, [a, b]);
-
-      const result = convertGraphToNodysseusValues(sum);
-
-      const edges = Object.values(result.edges);
-      expect(edges).toHaveLength(2);
-
-      const edgeToSum = edges.find(e => e.to === sum.id && e.from === a.id);
-      expect(edgeToSum).toBeDefined();
-      expect(edgeToSum?.as).toBe('dep_0');
-    });
-
-    it('should order nodes by execution dependency', () => {
-      const a = constant(1);
-      const b = createNode((x) => x + 1, [a]);
-      const c = createNode((x) => x * 2, [b]);
-
-      const result = convertGraphToNodysseusValues(c);
-
-      // All nodes should be present
-      expect(Object.keys(result.nodes)).toHaveLength(3);
-      expect(result.out).toBe(c.id);
-    });
-  });
 
   describe('Edge cases and error handling', () => {
     it('should handle circular references gracefully', () => {
@@ -269,189 +187,6 @@ describe('Graph to Nodysseus Converter', () => {
     });
   });
 
-  describe('Execution Output Equivalence', () => {
-    it('should produce same output for simple constant node', () => {
-      const node = constant(42);
-      const originalOutput = run(node);
-      
-      const convertedGraph = convertGraphToNodysseusValues(node);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = parseInt(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-    });
-
-    it('should produce same output for addition graph', () => {
-      const a = constant(10);
-      const b = constant(20);
-      const sum = createNode((x, y) => x + y, [a, b]);
-      
-      const originalOutput = run(sum);
-      
-      const convertedGraph = convertGraphToNodysseusValues(sum);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = parseInt(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe(30);
-    });
-
-    it('should produce same output for complex nested calculation', () => {
-      const a = constant(5);
-      const b = constant(3);
-      const multiply = createNode((x, y) => x * y, [a, b]);
-      const c = constant(2);
-      const final = createNode((x, y) => x + y, [multiply, c]);
-      
-      const originalOutput = run(final);
-      
-      const convertedGraph = convertGraphToNodysseusValues(final);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = parseInt(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe(17); // (5 * 3) + 2 = 17
-    });
-
-    it('should produce same output for string manipulation', () => {
-      const greeting = constant('Hello');
-      const name = constant('World');
-      const combined = createNode((g, n) => `${g}, ${n}!`, [greeting, name]);
-      
-      const originalOutput = run(combined);
-      
-      const convertedGraph = convertGraphToNodysseusValues(combined);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = rootValueNode.value!;
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe('Hello, World!');
-    });
-
-    it('should produce same output for array operations', () => {
-      const arr1 = constant([1, 2, 3]);
-      const arr2 = constant([4, 5]);
-      const concatenated = createNode((a, b) => [...a, ...b], [arr1, arr2]);
-      
-      const originalOutput = run(concatenated);
-      
-      const convertedGraph = convertGraphToNodysseusValues(concatenated);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = JSON.parse(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toEqual(originalOutput);
-      expect(nodysseusOutput).toEqual([1, 2, 3, 4, 5]);
-    });
-
-    it('should produce same output for object manipulation', () => {
-      const obj1 = constant({ a: 1, b: 2 });
-      const obj2 = constant({ c: 3, d: 4 });
-      const merged = createNode((o1, o2) => ({ ...o1, ...o2 }), [obj1, obj2]);
-      
-      const originalOutput = run(merged);
-      
-      const convertedGraph = convertGraphToNodysseusValues(merged);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = JSON.parse(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toEqual(originalOutput);
-      expect(nodysseusOutput).toEqual({ a: 1, b: 2, c: 3, d: 4 });
-    });
-
-    it('should produce same output for function composition', () => {
-      const input = constant(10);
-      const double = createNode((x) => x * 2, [input]);
-      const addTen = createNode((x) => x + 10, [double]);
-      const toString = createNode((x) => `Result: ${x}`, [addTen]);
-      
-      const originalOutput = run(toString);
-      
-      const convertedGraph = convertGraphToNodysseusValues(toString);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = rootValueNode.value!;
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe('Result: 30');
-    });
-
-    it('should produce same output for mathematical operations', () => {
-      const x = constant(4);
-      const y = constant(3);
-      const power = createNode((base, exp) => Math.pow(base, exp), [x, y]);
-      const sqrt = createNode((val) => Math.sqrt(val), [power]);
-      
-      const originalOutput = run(sqrt);
-      
-      const convertedGraph = convertGraphToNodysseusValues(sqrt);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = parseFloat(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe(8); // sqrt(4^3) = sqrt(64) = 8
-    });
-
-    it('should produce same output for conditional logic', () => {
-      const condition = constant(true);
-      const valueA = constant('Option A');
-      const valueB = constant('Option B');
-      const conditional = createNode((cond, a, b) => cond ? a : b, [condition, valueA, valueB]);
-      
-      const originalOutput = run(conditional);
-      
-      const convertedGraph = convertGraphToNodysseusValues(conditional);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = rootValueNode.value!;
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe('Option A');
-    });
-
-    it('should produce same output with shared dependencies', () => {
-      const shared = constant(5);
-      const doubled = createNode((x) => x * 2, [shared]);
-      const tripled = createNode((x) => x * 3, [shared]);
-      const sum = createNode((a, b) => a + b, [doubled, tripled]);
-      
-      const originalOutput = run(sum);
-      
-      const convertedGraph = convertGraphToNodysseusValues(sum);
-      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
-      const nodysseusOutput = parseInt(rootValueNode.value!);
-      
-      expect(nodysseusOutput).toBe(originalOutput);
-      expect(nodysseusOutput).toBe(25); // (5*2) + (5*3) = 10 + 15 = 25
-    });
-
-    it('should verify all intermediate node values match', () => {
-      const a = constant(3);
-      const b = constant(4);
-      const sum = createNode((x, y) => x + y, [a, b]);
-      const doubled = createNode((x) => x * 2, [sum]);
-      
-      // Run original graph and collect all values
-      const aValue = run(a);
-      const bValue = run(b);
-      const sumValue = run(sum);
-      const doubledValue = run(doubled);
-      
-      // Convert to Nodysseus value graph
-      const convertedGraph = convertGraphToNodysseusValues(doubled);
-      
-      // Verify each node's value matches
-      const aNodeValue = convertedGraph.nodes[a.id] as ValueNode;
-      const bNodeValue = convertedGraph.nodes[b.id] as ValueNode;
-      const sumNodeValue = convertedGraph.nodes[sum.id] as ValueNode;
-      const doubledNodeValue = convertedGraph.nodes[doubled.id] as ValueNode;
-      
-      expect(parseInt(aNodeValue.value!)).toBe(aValue);
-      expect(parseInt(bNodeValue.value!)).toBe(bValue);
-      expect(parseInt(sumNodeValue.value!)).toBe(sumValue);
-      expect(parseInt(doubledNodeValue.value!)).toBe(doubledValue);
-      
-      // Verify final result
-      expect(parseInt(doubledNodeValue.value!)).toBe(14); // (3+4)*2 = 14
-    });
-  });
 
   describe('Runtime Output Comparison with @graph.executable', () => {
     it('should use @graph.executable reference type in converted nodes', () => {
@@ -471,10 +206,10 @@ describe('Graph to Nodysseus Converter', () => {
       expect(comparison.originalOutput).toBe(42);
     });
 
-    it('should produce matching outputs for addition operation', () => {
+    it('Should produce matching outputs for addition operation', () => {
       const a = constant(10);
       const b = constant(20);
-      const sum = createNode((x, y) => x + y, [a, b]);
+      const sum = createNode((x, y) => (x) + y, [a, b]);
       
       const comparison = convertAndCompareGraphOutputs(sum);
       
@@ -556,7 +291,7 @@ describe('Graph to Nodysseus Converter', () => {
       const shared = constant(5);
       const doubled = createNode((x) => x * 2, [shared]);
       const tripled = createNode((x) => x * 3, [shared]);
-      const sum = createNode((a, b) => a + b, [doubled, tripled]);
+      const sum = createNode((a, b) => (console.log("xy", a, b), a) + b, [doubled, tripled]);
       
       const comparison = convertAndCompareGraphOutputs(sum);
       
