@@ -46,8 +46,6 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>): Graph => {
   // Start conversion from root node
   const rootId = convertNode(rootNode);
 
-  console.log("edges", edges)
-
   // Build the complete Graph structure
   return {
     id: `functional-graph-${Date.now()}`,

@@ -291,7 +291,7 @@ describe('Graph to Nodysseus Converter', () => {
       const shared = constant(5);
       const doubled = createNode((x) => x * 2, [shared]);
       const tripled = createNode((x) => x * 3, [shared]);
-      const sum = createNode((a, b) => (console.log("xy", a, b), a) + b, [doubled, tripled]);
+      const sum = createNode((a, b) => a + b, [doubled, tripled]);
       
       const comparison = convertAndCompareGraphOutputs(sum);
       
