@@ -52,7 +52,6 @@ export class NodysseusRuntime {
   private dirtying = 0;
   public id: string = "runtime-id";
   public event: string = "graph-update";
-  public lib: Record<string, any> = { runtime: this };
   private store = {
     refs: new Map(),
     persist: new Map(),
@@ -500,9 +499,12 @@ export class NodysseusRuntime {
     const staticGraphId = graph.id;
 
     const compareGraphNodes = (
-      { node: nodeA, edgesIn: edgesInA, graph: graphA },
-      { node: nodeB, edgesIn: edgesInB, graph: graphB },
+      a: any,
+      b: any,
     ) => {
+      if (!a || !b) return false;
+      const { node: nodeA, edgesIn: edgesInA, graph: graphA } = a;
+      const { node: nodeB, edgesIn: edgesInB, graph: graphB } = b;
       if (
         !nodeB ||
         !nodeA ||
@@ -518,7 +520,7 @@ export class NodysseusRuntime {
     const graphNodeNode: VarNode<GraphNodeNode> = this.varNode(
       {
         graph,
-        node: graph.nodes[node.id],
+        node: graph.nodes[nodeId],
         edgesIn: nodeEdgesIn(graph, nodeId),
       },
       compareGraphNodes,
@@ -584,16 +586,14 @@ export class NodysseusRuntime {
             graphNodeNode.edgesIn,
             false,
           ),
-        ).then(
-          (value) => ({
-            value,
-            display: undefined,
-            metadata: undefined,
-          }),
         ).value;
       },
-      ({ graphNodeNode: graphNodeA }, { graphNodeNode: graphNodeB }) =>
-        !compareGraphNodes(graphNodeA, graphNodeB),
+      (prev: any, next: any) => {
+        if (!prev || !next) return false;
+        const { graphNodeNode: graphNodeA } = prev;
+        const { graphNodeNode: graphNodeB } = next;
+        return !compareGraphNodes(graphNodeA, graphNodeB);
+      },
       nodeGraphId + "-boundNode",
     ) as AnyNode<T>
 
@@ -652,7 +652,7 @@ export class NodysseusRuntime {
 
           if (
             isNothing(updatedNode.value.read()) ||
-            isNothing(prev) ||
+            isNothingOrUndefined(prev) ||
             updatedNode.isStale(prev, next)
           ) {
             const res = isBindNode(node)
@@ -748,7 +748,10 @@ private dereference<T, S extends Record<string, unknown>>(
     return wrapPromise(this.store.refs.get(refNode.ref) as Graph, (e) =>
       handleError(e, nodeGraphId),
     ).then((nodeRef): AnyNode<T> => {
-      const externalNode = this.externalHandler.handleExternalNode<T>(
+      if (nodeRef === undefined) {
+        // Use the ExternalNodeHandler for all external node types
+        try {
+          return this.externalHandler.handleExternalNode<T>(
             refNode,
             node,
             edgesIn,
@@ -759,9 +762,10 @@ private dereference<T, S extends Record<string, unknown>>(
             calculateInputs,
             useExisting
           ) as AnyNode<T>;
-      if(externalNode) return externalNode;
-
-      if (isGraph(nodeRef)) {
+        } catch (error) {
+          throw new Error(`invalid node ref ${refNode.ref}`);
+        }
+      } else if (isGraph(nodeRef)) {
         const inputs = calculateInputs();
         const graphvalue = this.accessor(
                   closure,
