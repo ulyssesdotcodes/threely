@@ -8,7 +8,6 @@ import {
   AnyNode, 
   isNothing,
   isNothingOrUndefined,
-  NodeOutputsU 
 } from "./node-types";
 import { Graph, RefNode, GenericHTMLElement, Edge } from "./types";
 import { 
@@ -36,7 +35,50 @@ import {
 const nolib: any = { no: { runtime: { addListener: () => {}, publish: () => {} } } };
 const nolibLib: any = {};
 const requestAnimationFrame: any = () => {};
-const externs: any = { parseValue: (v: any) => v };
+export const externs: any = {
+parseValue: (value: any) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  if (value === "undefined") {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    if (value.startsWith('"') && value.endsWith('"')) {
+      return value.substring(1, value.length - 1);
+    }
+
+    if (value.startsWith("{") || value.startsWith("[")) {
+      try {
+        return JSON.parse(value.replaceAll("'", '"'));
+      } catch (e) {
+        // non-empty
+      }
+    }
+
+    if (value.startsWith("0x")) {
+      const int = parseInt(value);
+      if (!isNaN(int)) {
+        return int;
+      }
+    }
+
+    if (value.match(/-?[0-9.]*/g)?.[0].length === value.length) {
+      const float = parseFloat(value);
+      if (!isNaN(float)) {
+        return float;
+      }
+    }
+
+    if (value === "false" || value === "true") {
+      return value === "true";
+    }
+  }
+
+  return value;
+}};
 const node_value = (node: any) => node.value;
 const get = (obj: any, path: string) => {
   const keys = path.split('.');

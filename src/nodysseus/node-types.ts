@@ -1,7 +1,6 @@
 // Type definitions for the Nodysseus runtime system
 
 export type RUnknown = Record<string, unknown>;
-export type Output = "value" | "display" | "metadata";
 export type NodeKind = "const" | "var" | "map" | "bind";
 export type Nothing = { __kind: "nothing" };
 
@@ -55,22 +54,10 @@ export type AnyNode<T> = any; // Simplified for now
 export type UnwrapNode<T> = T;
 export type AnyNodeMap<T> = Record<string, any>;
 
-export type NodeOutputs<T, D, M> = {
-  value: AnyNode<T>;
-  display: AnyNode<D>;
-  metadata: AnyNode<M>;
-  graphId?: string;
-  nodeId?: string;
-};
-
-export type NodeOutputsU = NodeOutputs<unknown, unknown, unknown>;
-
 // Helper functions for type checking
 export const isNothing = (value: any): value is Nothing => value?.__kind === "nothing";
 export const isNothingOrUndefined = (value: any): value is Nothing | undefined => 
   value === undefined || isNothing(value);
-
-export const outputs: Output[] = ["value", "display", "metadata"];
 
 // Node type guards
 export const isConstNode = <T>(a: any): boolean => a?.__kind === "const";

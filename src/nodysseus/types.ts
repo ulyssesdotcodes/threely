@@ -321,3 +321,11 @@ export function map<A, B>(fn: (a: A) => B): (node: Node<A>) => Node<B> {
 export function runNode<T>(node: Node<T>): T {
   return node.compute();
 }
+
+
+export type GraphNodeNode = {
+      node: NodysseusNode;
+      edgesIn: Array<Edge>;
+      graph: Graph;
+      previous?: NodysseusNode;
+    }

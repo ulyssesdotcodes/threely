@@ -329,7 +329,7 @@ export const convertAndCompareGraphOutputs = <T>(rootNode: Node<T>): {
   try {
     // Get the bound node and run it with "value" output type
     const boundNode = runtime.fromNode(convertedGraph, convertedGraph.out!);
-    nodysseusOutput = runtime.run(boundNode, "value");
+    nodysseusOutput = runtime.run(boundNode);
     
     // Note: The runtime may return complex node structures instead of computed values
     // This is expected behavior for the current Nodysseus runtime implementation
