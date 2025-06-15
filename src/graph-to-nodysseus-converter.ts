@@ -1,5 +1,6 @@
 import { Node, run } from './graph';
 import { Graph, RefNode, Edge, NodysseusNode, ValueNode } from './nodysseus/types';
+import { NodysseusRuntime } from './nodysseus/runtime-core';
 
 /**
  * Convert a functional graph Node to Nodysseus Graph
@@ -20,11 +21,11 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>): Graph => {
     // Convert dependencies first (depth-first traversal)
     const dependencyIds = node.dependencies.map(dep => convertNode(dep));
 
-    // Create RefNode for functional execution
+    // Create RefNode for executable function with actual function as value
     const refNode: RefNode = {
       id: node.id,
-      ref: "@graph.functional",
-      value: node.compute.toString() // Serialize the compute function
+      ref: "@graph.executable",
+      value: node.compute // Store the actual function, not just its string representation
     };
 
     visitedNodes.set(node.id, refNode);
@@ -302,4 +303,53 @@ const assembleValueBasedGraph = (
   }
 
   return graph;
+};
+
+/**
+ * Convert functional graph to Nodysseus and compare outputs
+ * Uses the new @graph.executable node type and validates execution equivalence
+ */
+export const convertAndCompareGraphOutputs = <T>(rootNode: Node<T>): {
+  originalOutput: T;
+  nodysseusOutput: any;
+  outputsMatch: boolean;
+  convertedGraph: Graph;
+} => {
+  // Get original output
+  const originalOutput = run(rootNode);
+  
+  // Convert to Nodysseus graph using @graph.executable nodes
+  const convertedGraph = convertGraphToNodysseus(rootNode);
+  
+  // Create runtime and execute Nodysseus graph
+  const runtime = new NodysseusRuntime();
+  let nodysseusOutput: any;
+  let outputsMatch = false;
+  
+  try {
+    // Get the bound node and run it with "value" output type
+    const boundNode = runtime.fromNode(convertedGraph, convertedGraph.out!);
+    nodysseusOutput = runtime.run(boundNode, "value");
+    
+    // Note: The runtime may return complex node structures instead of computed values
+    // This is expected behavior for the current Nodysseus runtime implementation
+    
+    // Compare outputs with deep equality for objects/arrays
+    if (typeof originalOutput === 'object' && originalOutput !== null) {
+      outputsMatch = JSON.stringify(originalOutput) === JSON.stringify(nodysseusOutput);
+    } else {
+      outputsMatch = originalOutput === nodysseusOutput;
+    }
+  } catch (error) {
+    console.error('Error running Nodysseus graph:', error);
+    nodysseusOutput = undefined;
+    outputsMatch = false;
+  }
+  
+  return {
+    originalOutput,
+    nodysseusOutput,
+    outputsMatch,
+    convertedGraph
+  };
 };

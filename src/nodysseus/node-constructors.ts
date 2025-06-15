@@ -12,8 +12,8 @@ import {
   isMapNode,
   isBindNode,
   isNode
-} from "./node-types.js";
-import { ConstNode } from "./types.js";
+} from "./node-types";
+import { ConstNode } from "./types";
 
 const NAME_FIELD = new Set(["name"]);
 

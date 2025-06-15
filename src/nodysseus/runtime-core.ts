@@ -16,8 +16,8 @@ import {
   NodeOutputsU,
   outputs,
   Output
-} from "./node-types.js";
-import { Graph, Edge } from "./types.js";
+} from "./node-types";
+import { Graph, Edge } from "./types";
 import { 
   Scope,
   constNode, 
@@ -28,15 +28,15 @@ import {
   mapEntries,
   nothingValue,
   chainNothing 
-} from "./node-constructors.js";
-import { ExternalNodeHandler } from "./external-nodes.js";
+} from "./node-constructors";
+import { ExternalNodeHandler } from "./external-nodes";
 import {
   appendGraphId,
   compareObjects,
   wrapPromise,
   wrapPromiseAll,
   newLib
-} from "./util.js";
+} from "./util";
 
 export class NodysseusRuntime {
   public scope: Scope = new Scope();
@@ -79,7 +79,7 @@ export class NodysseusRuntime {
             const watch = (a: T) => {
               this.watches
                 .get(node.id)
-                ?.splice(this.watches.get(node.id)?.indexOf(watch) ?? 0, 1);
+                ?.splice(this.watches.get(node.id)?.indexOf(watch as (a: unknown) => void) ?? 0, 1);
               res({ value: a });
             };
             this.addWatchFn(node, watch);

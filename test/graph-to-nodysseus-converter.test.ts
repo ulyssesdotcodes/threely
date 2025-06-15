@@ -3,6 +3,7 @@ import {
   convertMultipleNodesToGraph, 
   extractAllNodes, 
   convertGraphToNodysseusValues,
+  convertAndCompareGraphOutputs,
   ConversionOptions 
 } from '../src/graph-to-nodysseus-converter';
 import { createNode, constant, run } from '../src/graph';
@@ -67,15 +68,15 @@ describe('Graph to Nodysseus Converter', () => {
       expect(Object.keys(result.edges)).toHaveLength(4);
     });
 
-    it('should create RefNodes with serialized compute functions', () => {
+    it('should create RefNodes with executable functions', () => {
       const dep = constant(10);
       const node = createNode((x) => x * 2, [dep]);
       
       const result = convertGraphToNodysseus(node);
       const refNode = result.nodes[node.id] as RefNode;
 
-      expect(refNode.ref).toBe('@graph.functional');
-      expect(refNode.value).toContain('x * 2');
+      expect(refNode.ref).toBe('@graph.executable');
+      expect(typeof refNode.value).toBe('function');
     });
 
     it('should handle duplicate nodes correctly', () => {
@@ -265,6 +266,328 @@ describe('Graph to Nodysseus Converter', () => {
       expect(result.nodes[node.id]).toBeDefined();
       expect(Object.keys(result.edges)).toHaveLength(0);
       expect(result.out).toBe(node.id);
+    });
+  });
+
+  describe('Execution Output Equivalence', () => {
+    it('should produce same output for simple constant node', () => {
+      const node = constant(42);
+      const originalOutput = run(node);
+      
+      const convertedGraph = convertGraphToNodysseusValues(node);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = parseInt(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+    });
+
+    it('should produce same output for addition graph', () => {
+      const a = constant(10);
+      const b = constant(20);
+      const sum = createNode((x, y) => x + y, [a, b]);
+      
+      const originalOutput = run(sum);
+      
+      const convertedGraph = convertGraphToNodysseusValues(sum);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = parseInt(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe(30);
+    });
+
+    it('should produce same output for complex nested calculation', () => {
+      const a = constant(5);
+      const b = constant(3);
+      const multiply = createNode((x, y) => x * y, [a, b]);
+      const c = constant(2);
+      const final = createNode((x, y) => x + y, [multiply, c]);
+      
+      const originalOutput = run(final);
+      
+      const convertedGraph = convertGraphToNodysseusValues(final);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = parseInt(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe(17); // (5 * 3) + 2 = 17
+    });
+
+    it('should produce same output for string manipulation', () => {
+      const greeting = constant('Hello');
+      const name = constant('World');
+      const combined = createNode((g, n) => `${g}, ${n}!`, [greeting, name]);
+      
+      const originalOutput = run(combined);
+      
+      const convertedGraph = convertGraphToNodysseusValues(combined);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = rootValueNode.value!;
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe('Hello, World!');
+    });
+
+    it('should produce same output for array operations', () => {
+      const arr1 = constant([1, 2, 3]);
+      const arr2 = constant([4, 5]);
+      const concatenated = createNode((a, b) => [...a, ...b], [arr1, arr2]);
+      
+      const originalOutput = run(concatenated);
+      
+      const convertedGraph = convertGraphToNodysseusValues(concatenated);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = JSON.parse(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toEqual(originalOutput);
+      expect(nodysseusOutput).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('should produce same output for object manipulation', () => {
+      const obj1 = constant({ a: 1, b: 2 });
+      const obj2 = constant({ c: 3, d: 4 });
+      const merged = createNode((o1, o2) => ({ ...o1, ...o2 }), [obj1, obj2]);
+      
+      const originalOutput = run(merged);
+      
+      const convertedGraph = convertGraphToNodysseusValues(merged);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = JSON.parse(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toEqual(originalOutput);
+      expect(nodysseusOutput).toEqual({ a: 1, b: 2, c: 3, d: 4 });
+    });
+
+    it('should produce same output for function composition', () => {
+      const input = constant(10);
+      const double = createNode((x) => x * 2, [input]);
+      const addTen = createNode((x) => x + 10, [double]);
+      const toString = createNode((x) => `Result: ${x}`, [addTen]);
+      
+      const originalOutput = run(toString);
+      
+      const convertedGraph = convertGraphToNodysseusValues(toString);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = rootValueNode.value!;
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe('Result: 30');
+    });
+
+    it('should produce same output for mathematical operations', () => {
+      const x = constant(4);
+      const y = constant(3);
+      const power = createNode((base, exp) => Math.pow(base, exp), [x, y]);
+      const sqrt = createNode((val) => Math.sqrt(val), [power]);
+      
+      const originalOutput = run(sqrt);
+      
+      const convertedGraph = convertGraphToNodysseusValues(sqrt);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = parseFloat(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe(8); // sqrt(4^3) = sqrt(64) = 8
+    });
+
+    it('should produce same output for conditional logic', () => {
+      const condition = constant(true);
+      const valueA = constant('Option A');
+      const valueB = constant('Option B');
+      const conditional = createNode((cond, a, b) => cond ? a : b, [condition, valueA, valueB]);
+      
+      const originalOutput = run(conditional);
+      
+      const convertedGraph = convertGraphToNodysseusValues(conditional);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = rootValueNode.value!;
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe('Option A');
+    });
+
+    it('should produce same output with shared dependencies', () => {
+      const shared = constant(5);
+      const doubled = createNode((x) => x * 2, [shared]);
+      const tripled = createNode((x) => x * 3, [shared]);
+      const sum = createNode((a, b) => a + b, [doubled, tripled]);
+      
+      const originalOutput = run(sum);
+      
+      const convertedGraph = convertGraphToNodysseusValues(sum);
+      const rootValueNode = convertedGraph.nodes[convertedGraph.out!] as ValueNode;
+      const nodysseusOutput = parseInt(rootValueNode.value!);
+      
+      expect(nodysseusOutput).toBe(originalOutput);
+      expect(nodysseusOutput).toBe(25); // (5*2) + (5*3) = 10 + 15 = 25
+    });
+
+    it('should verify all intermediate node values match', () => {
+      const a = constant(3);
+      const b = constant(4);
+      const sum = createNode((x, y) => x + y, [a, b]);
+      const doubled = createNode((x) => x * 2, [sum]);
+      
+      // Run original graph and collect all values
+      const aValue = run(a);
+      const bValue = run(b);
+      const sumValue = run(sum);
+      const doubledValue = run(doubled);
+      
+      // Convert to Nodysseus value graph
+      const convertedGraph = convertGraphToNodysseusValues(doubled);
+      
+      // Verify each node's value matches
+      const aNodeValue = convertedGraph.nodes[a.id] as ValueNode;
+      const bNodeValue = convertedGraph.nodes[b.id] as ValueNode;
+      const sumNodeValue = convertedGraph.nodes[sum.id] as ValueNode;
+      const doubledNodeValue = convertedGraph.nodes[doubled.id] as ValueNode;
+      
+      expect(parseInt(aNodeValue.value!)).toBe(aValue);
+      expect(parseInt(bNodeValue.value!)).toBe(bValue);
+      expect(parseInt(sumNodeValue.value!)).toBe(sumValue);
+      expect(parseInt(doubledNodeValue.value!)).toBe(doubledValue);
+      
+      // Verify final result
+      expect(parseInt(doubledNodeValue.value!)).toBe(14); // (3+4)*2 = 14
+    });
+  });
+
+  describe('Runtime Output Comparison with @graph.executable', () => {
+    it('should use @graph.executable reference type in converted nodes', () => {
+      const node = constant(42);
+      const result = convertGraphToNodysseus(node);
+      
+      const refNode = result.nodes[node.id] as RefNode;
+      expect(refNode.ref).toBe('@graph.executable');
+      expect(typeof refNode.value).toBe('function');
+    });
+
+    it('should produce matching outputs for simple constant node', () => {
+      const node = constant(42);
+      const comparison = convertAndCompareGraphOutputs(node);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(42);
+      expect(comparison.nodysseusOutput).toBe(42);
+    });
+
+    it('should produce matching outputs for addition operation', () => {
+      const a = constant(10);
+      const b = constant(20);
+      const sum = createNode((x, y) => x + y, [a, b]);
+      
+      const comparison = convertAndCompareGraphOutputs(sum);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(30);
+      expect(comparison.nodysseusOutput).toBe(30);
+    });
+
+    it('should produce matching outputs for complex nested operations', () => {
+      const a = constant(5);
+      const b = constant(3);
+      const multiply = createNode((x, y) => x * y, [a, b]);
+      const c = constant(2);
+      const final = createNode((x, y) => x + y, [multiply, c]);
+      
+      const comparison = convertAndCompareGraphOutputs(final);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(17); // (5 * 3) + 2 = 17
+      expect(comparison.nodysseusOutput).toBe(17);
+    });
+
+    it('should produce matching outputs for string operations', () => {
+      const greeting = constant('Hello');
+      const name = constant('World');
+      const combined = createNode((g, n) => `${g}, ${n}!`, [greeting, name]);
+      
+      const comparison = convertAndCompareGraphOutputs(combined);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe('Hello, World!');
+      expect(comparison.nodysseusOutput).toBe('Hello, World!');
+    });
+
+    it('should produce matching outputs for array operations', () => {
+      const arr1 = constant([1, 2, 3]);
+      const arr2 = constant([4, 5]);
+      const concatenated = createNode((a, b) => [...a, ...b], [arr1, arr2]);
+      
+      const comparison = convertAndCompareGraphOutputs(concatenated);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toEqual([1, 2, 3, 4, 5]);
+      expect(comparison.nodysseusOutput).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('should produce matching outputs for object operations', () => {
+      const obj1 = constant({ a: 1, b: 2 });
+      const obj2 = constant({ c: 3, d: 4 });
+      const merged = createNode((o1, o2) => ({ ...o1, ...o2 }), [obj1, obj2]);
+      
+      const comparison = convertAndCompareGraphOutputs(merged);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toEqual({ a: 1, b: 2, c: 3, d: 4 });
+      expect(comparison.nodysseusOutput).toEqual({ a: 1, b: 2, c: 3, d: 4 });
+    });
+
+    it('should produce matching outputs for mathematical functions', () => {
+      const x = constant(4);
+      const y = constant(3);
+      const power = createNode((base, exp) => Math.pow(base, exp), [x, y]);
+      const sqrt = createNode((val) => Math.sqrt(val), [power]);
+      
+      const comparison = convertAndCompareGraphOutputs(sqrt);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(8); // sqrt(4^3) = sqrt(64) = 8
+      expect(comparison.nodysseusOutput).toBe(8);
+    });
+
+    it('should produce matching outputs for conditional logic', () => {
+      const condition = constant(true);
+      const valueA = constant('Option A');
+      const valueB = constant('Option B');
+      const conditional = createNode((cond, a, b) => cond ? a : b, [condition, valueA, valueB]);
+      
+      const comparison = convertAndCompareGraphOutputs(conditional);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe('Option A');
+      expect(comparison.nodysseusOutput).toBe('Option A');
+    });
+
+    it('should produce matching outputs with shared dependencies', () => {
+      const shared = constant(5);
+      const doubled = createNode((x) => x * 2, [shared]);
+      const tripled = createNode((x) => x * 3, [shared]);
+      const sum = createNode((a, b) => a + b, [doubled, tripled]);
+      
+      const comparison = convertAndCompareGraphOutputs(sum);
+      
+      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(25); // (5*2) + (5*3) = 10 + 15 = 25
+      expect(comparison.nodysseusOutput).toBe(25);
+    });
+
+    it('should provide detailed comparison information', () => {
+      const a = constant(3);
+      const b = constant(4);
+      const sum = createNode((x, y) => x + y, [a, b]);
+      
+      const comparison = convertAndCompareGraphOutputs(sum);
+      
+      expect(comparison).toHaveProperty('originalOutput');
+      expect(comparison).toHaveProperty('nodysseusOutput');
+      expect(comparison).toHaveProperty('outputsMatch');
+      expect(comparison).toHaveProperty('convertedGraph');
+      
+      expect(comparison.convertedGraph.nodes).toBeDefined();
+      expect(comparison.convertedGraph.edges).toBeDefined();
+      expect(comparison.convertedGraph.out).toBe(sum.id);
     });
   });
 });

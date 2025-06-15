@@ -9,8 +9,8 @@ import {
   isNothing,
   isNothingOrUndefined,
   NodeOutputsU 
-} from "./node-types.js";
-import { Graph, RefNode, GenericHTMLElement, Edge } from "./types.js";
+} from "./node-types";
+import { Graph, RefNode, GenericHTMLElement, Edge } from "./types";
 import { 
   constNode, 
   varNode, 
@@ -20,7 +20,7 @@ import {
   mapEntries,
   nothingValue,
   chainNothing 
-} from "./node-constructors.js";
+} from "./node-constructors";
 import {
   appendGraphId,
   compareObjects,
@@ -30,7 +30,7 @@ import {
   newLib,
   nodeEdgesIn,
   parseArg
-} from "./util.js";
+} from "./util";
 
 // Missing dependencies - adding placeholder implementations
 const nolib: any = { no: { runtime: { addListener: () => {}, publish: () => {} } } };
@@ -99,6 +99,12 @@ export class ExternalNodeHandler {
       );
     }
 
+    if (refNode.ref === "@graph.executable") {
+      return this.handleGraphExecutableNode(
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, extraNodeGraphId, useExisting
+      );
+    }
+
     // Default case - handle as graph
     return this.handleGraphNode(
       refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, calculateInputs, extraNodeGraphId, useExisting
@@ -132,7 +138,7 @@ export class ExternalNodeHandler {
         "_node_args",
         "wrapPromise",
         ...inputs,
-        refNode.value || "",
+        (typeof refNode.value === 'string' ? refNode.value : '') || "",
       ) as (...args: any[]) => any;
     } catch (e: any) {
       handleError(e, nodeGraphId);
@@ -426,7 +432,7 @@ export class ExternalNodeHandler {
     extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    const argname = refNode.value && parseArg(refNode.value).name;
+    const argname = refNode.value && typeof refNode.value === 'string' && parseArg(refNode.value).name;
     
     if (extraNodeGraphId === "metadata") {
       return this.runtime.constNode({
@@ -502,6 +508,66 @@ export class ExternalNodeHandler {
           const sortedInputs = inputs.sort();
           const orderedArgs = sortedInputs.map((inputName: string) => args[inputName]);
           return computeFn(...orderedArgs);
+        } catch (e: any) {
+          handleError(e, nodeGraphId);
+          return undefined;
+        }
+      },
+      undefined,
+      nodeGraphId,
+      useExisting,
+    );
+  }
+
+  private handleGraphExecutableNode(
+    refNode: RefNode,
+    node: any,
+    edgesIn: Edge[],
+    nodeGraphId: string,
+    calculateInputs: () => any,
+    extraNodeGraphId: string,
+    useExisting: boolean
+  ): any {
+    if (extraNodeGraphId === "metadata") {
+      return this.runtime.constNode({
+        dataLabel: "executable function",
+        codeEditor: { language: "javascript", editorText: "Function stored as value" },
+      }, nodeGraphId, useExisting);
+    } else if (extraNodeGraphId === "display") {
+      return this.runtime.constNode({ 
+        dom_type: "text_value", 
+        text: "Executable Function Node" 
+      }, nodeGraphId, useExisting);
+    }
+
+    // Parse the function from the value field
+    let executableFn: Function;
+    try {
+      if (typeof refNode.value === 'string') {
+        // If it's a string, eval it as a function
+        executableFn = eval(`(${refNode.value})`);
+      } else if (typeof refNode.value === 'function') {
+        // If it's already a function, use it directly
+        executableFn = refNode.value;
+      } else {
+        // Default to identity function
+        executableFn = (x: any) => x;
+      }
+    } catch (e: any) {
+      handleError(e, nodeGraphId);
+      executableFn = () => undefined;
+    }
+
+    const inputs = edgesIn.map((e) => e.as);
+    
+    return this.runtime.mapNode(
+      calculateInputs(),
+      (args: any) => {
+        try {
+          // Extract dependency values in correct order based on edge 'as' names
+          const sortedInputs = inputs.sort();
+          const orderedArgs = sortedInputs.map((inputName: string) => args[inputName]);
+          return executableFn(...orderedArgs);
         } catch (e: any) {
           handleError(e, nodeGraphId);
           return undefined;

@@ -3,7 +3,7 @@ export type NodysseusNode = GraphNode | ValueNode | RefNode;
 type BaseNode = { id: string; name?: string; category?: string };
 export type GraphNode = Graph & { value?: any; category?: string };
 export type ValueNode = BaseNode & { value?: string };
-export type RefNode = BaseNode & { ref: string; value?: string };
+export type RefNode = BaseNode & { ref: string; value?: string | Function };
 
 export const isNodeValue = (n: NodysseusNode): n is ValueNode =>
   n && !!(n as ValueNode).value;

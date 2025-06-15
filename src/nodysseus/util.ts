@@ -12,7 +12,7 @@ import {
   SavedGraph,
   isEdgesInGraph,
   FullyTypedArg,
-} from "./types.js";
+} from "./types";
 
 export const WRAPPED_KIND = "wrapped";
 type WrappedKind = "wrapped";
