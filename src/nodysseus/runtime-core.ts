@@ -593,7 +593,7 @@ export class NodysseusRuntime {
             graphNodeNode.edgesIn,
             false,
           ),
-        ).then(v => (console.log("calced node", v), v)).value;
+        ).then(v => v).value;
       },
       (prev: any, next: any) => {
         if (!prev || !next) return false;
@@ -641,16 +641,14 @@ export class NodysseusRuntime {
 
         for (const key of keys) {
           const inputNode = this.scope.get(updatedNode.inputs[key]);
-          console.log("got inputnode", updatedNode.inputs[key], inputNode);
           const res = this.runNode(inputNode);
-          console.log("got res", res)
           if (inputNode) {
             _inputPromises.push(wrapPromise(res).value);
           }
         }
 
         return wrapPromiseAll(_inputPromises).then((ips: any) =>
-          (console.log("ips", ips), ips).reduce((a: any, v: any, i: number) => ((a[keys[i]] = v), a), {}),
+          ips.reduce((a: any, v: any, i: number) => ((a[keys[i]] = v), a), {}),
         ).value;
       };
 
@@ -675,8 +673,6 @@ export class NodysseusRuntime {
                   (ffn: any) => ffn(next),
                 ),
               );
-              console.log("node", node)
-              console.log("res", res)
             updatedNode.value.write(res);
             updatedNode.cachedInputs.write(next);
 
@@ -733,8 +729,7 @@ export class NodysseusRuntime {
     );
     if (current) return this.runNode(current);
     return wrapPromise(this.fromNode(graph, node)).then((nodeNode) =>
-      (console.log("inner node?", nodeNode),
-      this.runNode(nodeNode))
+      this.runNode(nodeNode)
     ).value;
   }
 

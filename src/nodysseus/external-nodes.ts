@@ -1,24 +1,24 @@
 // External node handlers for various node types
 
-import { 
-  State, 
-  VarNode, 
-  MapNode, 
-  BindNode, 
-  AnyNode, 
+import {
+  State,
+  VarNode,
+  MapNode,
+  BindNode,
+  AnyNode,
   isNothing,
   isNothingOrUndefined,
 } from "./node-types";
 import { Graph, RefNode, GenericHTMLElement, Edge } from "./types";
-import { 
-  constNode, 
-  varNode, 
-  mapNode, 
-  bindNode, 
+import {
+  constNode,
+  varNode,
+  mapNode,
+  bindNode,
   handleError,
   mapEntries,
   nothingValue,
-  chainNothing 
+  chainNothing
 } from "./node-constructors";
 import {
   appendGraphId,
@@ -32,53 +32,54 @@ import {
 } from "./util";
 
 // Missing dependencies - adding placeholder implementations
-const nolib: any = { no: { runtime: { addListener: () => {}, publish: () => {} } } };
+const nolib: any = { no: { runtime: { addListener: () => { }, publish: () => { } } } };
 const nolibLib: any = {};
-const requestAnimationFrame: any = () => {};
+export const requestAnimationFrame: any = globalThis.requestAnimationFrame || (() => { });
 export const externs: any = {
-parseValue: (value: any) => {
-  if (typeof value !== "string") {
+  parseValue: (value: any) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    if (value === "undefined") {
+      return undefined;
+    }
+
+    if (typeof value === "string") {
+      if (value.startsWith('"') && value.endsWith('"')) {
+        return value.substring(1, value.length - 1);
+      }
+
+      if (value.startsWith("{") || value.startsWith("[")) {
+        try {
+          return JSON.parse(value.replaceAll("'", '"'));
+        } catch (e) {
+          // non-empty
+        }
+      }
+
+      if (value.startsWith("0x")) {
+        const int = parseInt(value);
+        if (!isNaN(int)) {
+          return int;
+        }
+      }
+
+      if (value.match(/-?[0-9.]*/g)?.[0].length === value.length) {
+        const float = parseFloat(value);
+        if (!isNaN(float)) {
+          return float;
+        }
+      }
+
+      if (value === "false" || value === "true") {
+        return value === "true";
+      }
+    }
+
     return value;
   }
-
-  if (value === "undefined") {
-    return undefined;
-  }
-
-  if (typeof value === "string") {
-    if (value.startsWith('"') && value.endsWith('"')) {
-      return value.substring(1, value.length - 1);
-    }
-
-    if (value.startsWith("{") || value.startsWith("[")) {
-      try {
-        return JSON.parse(value.replaceAll("'", '"'));
-      } catch (e) {
-        // non-empty
-      }
-    }
-
-    if (value.startsWith("0x")) {
-      const int = parseInt(value);
-      if (!isNaN(int)) {
-        return int;
-      }
-    }
-
-    if (value.match(/-?[0-9.]*/g)?.[0].length === value.length) {
-      const float = parseFloat(value);
-      if (!isNaN(float)) {
-        return float;
-      }
-    }
-
-    if (value === "false" || value === "true") {
-      return value === "true";
-    }
-  }
-
-  return value;
-}};
+};
 const node_value = (node: any) => node.value;
 const get = (obj: any, path: string) => {
   const keys = path.split('.');
@@ -88,12 +89,12 @@ const get = (obj: any, path: string) => {
   }
   return result;
 };
-const node_extern = () => {};
-const create_fn = () => {};
+const node_extern = () => { };
+const create_fn = () => { };
 
 export class ExternalNodeHandler {
   private runtime: any;
-  
+
   constructor(runtime: any) {
     this.runtime = runtime;
   }
@@ -109,7 +110,7 @@ export class ExternalNodeHandler {
     calculateInputs: () => any,
     useExisting: boolean = true
   ): any {
-    
+
     if (refNode.ref === "@js.script") {
       return this.handleJavaScriptNode(
         refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
@@ -173,7 +174,7 @@ export class ExternalNodeHandler {
     } catch (e: any) {
       handleError(e, nodeGraphId);
       if (this.runtime.scope.has(nodeGraphId)) return this.runtime.scope.get(nodeGraphId);
-      scriptFn = () => {};
+      scriptFn = () => { };
     }
 
     return this.runtime.mapNode(
@@ -245,21 +246,39 @@ export class ExternalNodeHandler {
       return this.handleSwitchNode(edgesIn, graph, graphId, nodeGraphId, closure, useExisting);
     }
 
-    if (externValue === "extern.map") {
+    else if (externValue === "extern.map") {
       return this.handleMapNode(calculateInputs, nodeGraphId, useExisting);
     }
 
-    if (externValue === "extern.fold") {
+    else if (externValue === "extern.fold") {
       return this.handleFoldNode(calculateInputs, nodeGraphId, useExisting);
     }
 
-    if (externValue === "extern.reference" || externValue === "extern.state") {
+    else if (externValue === "extern.reference" || externValue === "extern.state") {
       return this.handleStateNode(edgesIn, graph, graphId, nodeGraphId, closure, useExisting);
     }
 
-    if (externValue === "extern.html_element") {
+    else if (externValue === "extern.html_element") {
       return this.handleHtmlElementNode(node, calculateInputs, nodeGraphId, useExisting);
     }
+
+    else if (externValue === "extern.frame") {
+      const varNode = this.runtime.varNode(
+        1,
+        undefined,
+        nodeGraphId,
+        useExisting,
+      );
+      const update = () => {
+        varNode.set(((varNode.value.read() as number) + 1) );
+        if (this.runtime.scope.get(nodeGraphId) === varNode) {
+          requestAnimationFrame(update);
+        }
+      };
+      requestAnimationFrame(update);
+      return varNode;
+    }
+
 
     // Default extern handling
     return this.handleGenericExternNode(refNode, calculateInputs, nodeGraphId, useExisting);
@@ -317,11 +336,11 @@ export class ExternalNodeHandler {
         object === undefined
           ? object
           : wrapPromiseReduce(
-              initial,
-              Array.isArray(object) ? object : Object.entries(object),
-              fn,
-              0,
-            ),
+            initial,
+            Array.isArray(object) ? object : Object.entries(object),
+            fn,
+            0,
+          ),
       undefined,
       nodeGraphId,
       useExisting,
@@ -417,7 +436,7 @@ export class ExternalNodeHandler {
     useExisting: boolean
   ): any {
     const argname = refNode.value && typeof refNode.value === 'string' && parseArg(refNode.value).name;
-    
+
     if (!argname) {
       return this.runtime.constNode(undefined, nodeGraphId, useExisting);
     }
@@ -428,14 +447,14 @@ export class ExternalNodeHandler {
         if (argname === "_args") return closure;
         if (argname.startsWith("_lib")) return this.runtime.lib;
         if (argname === "__graphid") return graphId;
-        
+
         const isAccessor = argname.includes(".");
         if (isAccessor) {
           const baseName = argname.substring(0, argname.indexOf("."));
           const path = argname.substring(argname.indexOf(".") + 1);
           return get(innerClosure[baseName], path);
         }
-        
+
         return innerClosure[argname];
       },
       undefined,
@@ -455,7 +474,7 @@ export class ExternalNodeHandler {
 
     let computeFn: any;
     const inputs = edgesIn.map((e) => e.as);
-    
+
     try {
       // Create function from stored compute function string
       // The original function expects dependency results as arguments in order
@@ -516,7 +535,7 @@ export class ExternalNodeHandler {
     }
 
     const inputs = edgesIn.map((e) => e.as);
-    
+
     return this.runtime.mapNode(
       calculateInputs(),
       (args: any) => {
