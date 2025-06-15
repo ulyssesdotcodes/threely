@@ -467,9 +467,8 @@ describe('Graph to Nodysseus Converter', () => {
       const node = constant(42);
       const comparison = convertAndCompareGraphOutputs(node);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe(42);
-      expect(comparison.nodysseusOutput).toBe(42);
     });
 
     it('should produce matching outputs for addition operation', () => {
@@ -479,9 +478,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(sum);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe(30);
-      expect(comparison.nodysseusOutput).toBe(30);
     });
 
     it('should produce matching outputs for complex nested operations', () => {
@@ -493,9 +491,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(final);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe(17); // (5 * 3) + 2 = 17
-      expect(comparison.nodysseusOutput).toBe(17);
     });
 
     it('should produce matching outputs for string operations', () => {
@@ -505,9 +502,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(combined);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe('Hello, World!');
-      expect(comparison.nodysseusOutput).toBe('Hello, World!');
     });
 
     it('should produce matching outputs for array operations', () => {
@@ -517,9 +513,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(concatenated);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toEqual(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toEqual([1, 2, 3, 4, 5]);
-      expect(comparison.nodysseusOutput).toEqual([1, 2, 3, 4, 5]);
     });
 
     it('should produce matching outputs for object operations', () => {
@@ -529,9 +524,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(merged);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toEqual(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toEqual({ a: 1, b: 2, c: 3, d: 4 });
-      expect(comparison.nodysseusOutput).toEqual({ a: 1, b: 2, c: 3, d: 4 });
     });
 
     it('should produce matching outputs for mathematical functions', () => {
@@ -542,9 +536,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(sqrt);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe(8); // sqrt(4^3) = sqrt(64) = 8
-      expect(comparison.nodysseusOutput).toBe(8);
     });
 
     it('should produce matching outputs for conditional logic', () => {
@@ -555,9 +548,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(conditional);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe('Option A');
-      expect(comparison.nodysseusOutput).toBe('Option A');
     });
 
     it('should produce matching outputs with shared dependencies', () => {
@@ -568,9 +560,8 @@ describe('Graph to Nodysseus Converter', () => {
       
       const comparison = convertAndCompareGraphOutputs(sum);
       
-      expect(comparison.outputsMatch).toBe(true);
+      expect(comparison.originalOutput).toBe(comparison.nodysseusOutput);
       expect(comparison.originalOutput).toBe(25); // (5*2) + (5*3) = 10 + 15 = 25
-      expect(comparison.nodysseusOutput).toBe(25);
     });
 
     it('should provide detailed comparison information', () => {
