@@ -261,7 +261,7 @@ export class NodysseusRuntime {
     return node;
   }
 
-  bindNode<R, T extends any, S extends Record<string, unknown>>(
+  bindNode<R, T extends AnyNode<R>, S extends Record<string, unknown>>(
     inputs: { [k in keyof S]: any },
     fn: (s: S) => T | PromiseLike<T>,
     id: string,
@@ -433,10 +433,9 @@ export class NodysseusRuntime {
     graphId: string,
     nodeGraphId: string,
     nodeClosure: AnyNode<AnyNodeMap<S>>,
-    graphClosure: AnyNode<AnyNodeMap<S>>,
+    graphClosure: AnyNode<AnyNodeMap<S>> | undefined,
     edgesIn: Edge[],
     useExisting: boolean,
-    extraNodeGraphId:  string,
   ) {
     const calculateInputs = () =>
       Object.fromEntries(
@@ -456,7 +455,6 @@ export class NodysseusRuntime {
         nodeGraphId,
         nodeClosure,
         calculateInputs,
-        extraNodeGraphId,
         useExisting,
       );
     } else if (isNodeValue(node)) {
@@ -474,7 +472,7 @@ export class NodysseusRuntime {
           node,
           node.out ?? "out",
           nodeGraphId,
-            {},
+            this.constNode({}, nodeGraphId + "-unused"),
           useExisting,
         )
     } else {
@@ -587,44 +585,17 @@ export class NodysseusRuntime {
             false,
           ),
         ).then(
-          (value) =>
-            wrapPromiseAll([
-              this.calcNode(
-                graphNodeNode.graph,
-                graphNodeNode.node,
-                graphId,
-                nodeGraphId,
-                nodeClosure,
-                graphClosure,
-                graphNodeNode.edgesIn,
-                true,
-                "display",
-              ),
-              this.calcNode(
-                graphNodeNode.graph,
-                graphNodeNode.node,
-                graphId,
-                nodeGraphId,
-                nodeClosure,
-                graphClosure,
-                graphNodeNode.edgesIn,
-                true,
-                "metadata",
-              ),
-            ]).then(([display, metadata]) => ({
-              value,
-              display,
-              metadata,
-            })).value,
+          (value) => ({
+            value,
+            display: undefined,
+            metadata: undefined,
+          }),
         ).value;
       },
       ({ graphNodeNode: graphNodeA }, { graphNodeNode: graphNodeB }) =>
         !compareGraphNodes(graphNodeA, graphNodeB),
       nodeGraphId + "-boundNode",
-    ) as NodeOutputs<T, D, M>;
-
-    ret.graphId = staticGraphId;
-    ret.nodeId = nodeId;
+    ) as AnyNode<T>
 
     return ret;
   }
@@ -771,7 +742,6 @@ private dereference<T, S extends Record<string, unknown>>(
     nodeGraphId: string,
     closure: AnyNode<AnyNodeMap<S>>,
     calculateInputs: () => AnyNodeMap<S>,
-    extraNodeGraphId: string,
     useExisting: boolean = true,
     refNode = node,
   ): AnyNode<T> | PromiseLike<AnyNode<T>> {
@@ -787,7 +757,6 @@ private dereference<T, S extends Record<string, unknown>>(
             nodeGraphId,
             closure,
             calculateInputs,
-            extraNodeGraphId,
             useExisting
           ) as AnyNode<T>;
       if(externalNode) return externalNode;
@@ -797,7 +766,7 @@ private dereference<T, S extends Record<string, unknown>>(
         const graphvalue = this.accessor(
                   closure,
                   "__parent_graph_value",
-                  `${nodeGraphId}-${extraNodeGraphId}-internalnodegraphvalue`,
+                  `${nodeGraphId}-internalnodegraphvalue`,
                   useExisting,
                 );
         const innerGraphNode = this.accessor(
@@ -816,7 +785,7 @@ private dereference<T, S extends Record<string, unknown>>(
             ),
             useExisting,
           ),
-          extraNodeGraphId,
+          "value",
           nodeGraphId + "-innergraphnodeval",
           useExisting,
         );
@@ -826,12 +795,12 @@ private dereference<T, S extends Record<string, unknown>>(
             bound: this.bindNode(
               {},
               () => innerGraphNode,
-              nodeGraphId + extraNodeGraphId + "-graphoutbind",
+              nodeGraphId + "-graphoutbind",
             ),
           },
           ({ bound }) => this.runNode(bound) as T,
           undefined,
-          nodeGraphId + extraNodeGraphId,
+          nodeGraphId,
           useExisting,
         );
         return res;
@@ -844,7 +813,6 @@ private dereference<T, S extends Record<string, unknown>>(
           nodeGraphId,
           closure,
           calculateInputs,
-          extraNodeGraphId,
           useExisting,
           nodeRef,
         ) as AnyNode<T>;

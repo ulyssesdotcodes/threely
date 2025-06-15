@@ -2,6 +2,11 @@
 
 export type RUnknown = Record<string, unknown>;
 export type NodeKind = "const" | "var" | "map" | "bind";
+export type Node<K extends NodeKind, T = unknown> = {
+  __kind: K;
+  id: string;
+  value: State<T>;
+};
 export type Nothing = { __kind: "nothing" };
 
 export class State<T = any> {
@@ -50,7 +55,7 @@ export type BindNode<T, S extends Record<string, unknown>> = {
   isDirty: State<boolean>;
 };
 
-export type AnyNode<T> = any; // Simplified for now
+export type AnyNode<T> = Node<NodeKind, T>
 export type UnwrapNode<T> = T;
 export type AnyNodeMap<T> = Record<string, any>;
 

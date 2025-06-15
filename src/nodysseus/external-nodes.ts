@@ -107,43 +107,42 @@ export class ExternalNodeHandler {
     nodeGraphId: string,
     closure: any,
     calculateInputs: () => any,
-    extraNodeGraphId: string = "value",
     useExisting: boolean = true
   ): any {
     
     if (refNode.ref === "@js.script") {
       return this.handleJavaScriptNode(
-        refNode, node, edgesIn, nodeGraphId, calculateInputs, extraNodeGraphId, useExisting
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
       );
     }
 
     if (refNode.ref === "return") {
       return this.handleReturnNode(
-        refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, extraNodeGraphId, useExisting
+        refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, useExisting
       );
     }
 
     if (refNode.ref === "extern") {
       return this.handleExternNode(
-        refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, calculateInputs, extraNodeGraphId, useExisting
+        refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, calculateInputs, useExisting
       );
     }
 
     if (refNode.ref === "arg") {
       return this.handleArgNode(
-        refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, extraNodeGraphId, useExisting
+        refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, useExisting
       );
     }
 
     if (refNode.ref === "@graph.functional") {
       return this.handleGraphFunctionalNode(
-        refNode, node, edgesIn, nodeGraphId, calculateInputs, extraNodeGraphId, useExisting
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
       );
     }
 
     if (refNode.ref === "@graph.executable") {
       return this.handleGraphExecutableNode(
-        refNode, node, edgesIn, nodeGraphId, calculateInputs, extraNodeGraphId, useExisting
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
       );
     }
 
@@ -156,17 +155,8 @@ export class ExternalNodeHandler {
     edgesIn: Edge[],
     nodeGraphId: string,
     calculateInputs: () => any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        dataLabel: "script",
-        codeEditor: { language: "javascript", editorText: node.value },
-      }, nodeGraphId, useExisting);
-    } else if (extraNodeGraphId === "display") {
-      return this.runtime.constNode({ dom_type: "text_value", text: "" }, nodeGraphId, useExisting);
-    }
 
     let scriptFn: any;
     const inputs = edgesIn.map((e) => e.as);
@@ -214,7 +204,6 @@ export class ExternalNodeHandler {
     graphId: string,
     nodeGraphId: string,
     closure: any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
     // Simplified return node handling
@@ -227,13 +216,13 @@ export class ExternalNodeHandler {
         ])
     );
 
-    const resultNode = inputs[extraNodeGraphId] || (extraNodeGraphId === "value" && inputs["display"]);
+    const resultNode = inputs["value"] || inputs["display"];
 
     return this.runtime.mapNode(
       { result: resultNode },
       ({ result }: any) => result && this.runtime.runNode(result),
       undefined,
-      nodeGraphId + extraNodeGraphId,
+      nodeGraphId,
       useExisting,
     );
   }
@@ -247,17 +236,16 @@ export class ExternalNodeHandler {
     nodeGraphId: string,
     closure: any,
     calculateInputs: () => any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
     const externValue = refNode.value;
 
     if (externValue === "extern.switch") {
-      return this.handleSwitchNode(edgesIn, graph, graphId, nodeGraphId, closure, extraNodeGraphId, useExisting);
+      return this.handleSwitchNode(edgesIn, graph, graphId, nodeGraphId, closure, useExisting);
     }
 
     if (externValue === "extern.map") {
-      return this.handleMapNode(calculateInputs, nodeGraphId, extraNodeGraphId, useExisting);
+      return this.handleMapNode(calculateInputs, nodeGraphId, useExisting);
     }
 
     if (externValue === "extern.fold") {
@@ -265,15 +253,15 @@ export class ExternalNodeHandler {
     }
 
     if (externValue === "extern.reference" || externValue === "extern.state") {
-      return this.handleStateNode(edgesIn, graph, graphId, nodeGraphId, closure, extraNodeGraphId, useExisting);
+      return this.handleStateNode(edgesIn, graph, graphId, nodeGraphId, closure, useExisting);
     }
 
     if (externValue === "extern.html_element") {
-      return this.handleHtmlElementNode(node, calculateInputs, nodeGraphId, extraNodeGraphId, useExisting);
+      return this.handleHtmlElementNode(node, calculateInputs, nodeGraphId, useExisting);
     }
 
     // Default extern handling
-    return this.handleGenericExternNode(refNode, calculateInputs, nodeGraphId, extraNodeGraphId, useExisting);
+    return this.handleGenericExternNode(refNode, calculateInputs, nodeGraphId, useExisting);
   }
 
   private handleSwitchNode(
@@ -282,7 +270,6 @@ export class ExternalNodeHandler {
     graphId: string,
     nodeGraphId: string,
     closure: any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
     const inputEdge = edgesIn.find((e) => e.as === "input");
@@ -303,18 +290,8 @@ export class ExternalNodeHandler {
   private handleMapNode(
     calculateInputs: () => any,
     nodeGraphId: string,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        parameters: {
-          fn: "@flow.runnable",
-          array: "any: default",
-        },
-      }, nodeGraphId + extraNodeGraphId, useExisting);
-    }
-
     return this.runtime.mapNode(
       calculateInputs(),
       ({ fn, array }: any) =>
@@ -356,21 +333,8 @@ export class ExternalNodeHandler {
     graphId: string,
     nodeGraphId: string,
     closure: any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        parameters: {
-          initial: "any",
-          persist: "any",
-          publish: "any",
-          listener: "any",
-          share: "any",
-        },
-      }, nodeGraphId + extraNodeGraphId, useExisting);
-    }
-
     // Simplified state node - just return a var node
     const stateNode = this.runtime.varNode(
       undefined,
@@ -383,11 +347,9 @@ export class ExternalNodeHandler {
 
     return this.runtime.mapNode(
       { state: stateNode },
-      ({ state }: any) => extraNodeGraphId === "display" 
-        ? { dom_type: "text_value", text: JSON.stringify(state) }
-        : state,
+      ({ state }: any) => state,
       () => false,
-      nodeGraphId + extraNodeGraphId,
+      nodeGraphId,
       useExisting,
     );
   }
@@ -396,18 +358,8 @@ export class ExternalNodeHandler {
     node: any,
     calculateInputs: () => any,
     nodeGraphId: string,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        parameters: {
-          children: "@html.html_element",
-          props: { type: "any" },
-        },
-      }, nodeGraphId + extraNodeGraphId, useExisting);
-    }
-
     return this.runtime.mapNode(
       calculateInputs(),
       (el: any) => {
@@ -426,7 +378,7 @@ export class ExternalNodeHandler {
         };
       },
       undefined,
-      nodeGraphId + extraNodeGraphId,
+      nodeGraphId,
       useExisting,
     );
   }
@@ -435,15 +387,8 @@ export class ExternalNodeHandler {
     refNode: RefNode,
     calculateInputs: () => any,
     nodeGraphId: string,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        parameters: "any"
-      }, nodeGraphId + extraNodeGraphId, useExisting);
-    }
-
     const inputs = calculateInputs();
     return this.runtime.mapNode(
       inputs,
@@ -455,7 +400,7 @@ export class ExternalNodeHandler {
         }
       },
       undefined,
-      nodeGraphId + extraNodeGraphId,
+      nodeGraphId,
       useExisting,
     );
   }
@@ -468,19 +413,12 @@ export class ExternalNodeHandler {
     graphId: string,
     nodeGraphId: string,
     closure: any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
     const argname = refNode.value && typeof refNode.value === 'string' && parseArg(refNode.value).name;
     
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        values: []
-      }, nodeGraphId + extraNodeGraphId, useExisting);
-    }
-
     if (!argname) {
-      return this.runtime.constNode(undefined, nodeGraphId + extraNodeGraphId, useExisting);
+      return this.runtime.constNode(undefined, nodeGraphId, useExisting);
     }
 
     return this.runtime.mapNode(
@@ -511,17 +449,8 @@ export class ExternalNodeHandler {
     edgesIn: Edge[],
     nodeGraphId: string,
     calculateInputs: () => any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        dataLabel: "functional node",
-        codeEditor: { language: "javascript", editorText: refNode.value },
-      }, nodeGraphId, useExisting);
-    } else if (extraNodeGraphId === "display") {
-      return this.runtime.constNode({ dom_type: "text_value", text: "" }, nodeGraphId, useExisting);
-    }
 
     let computeFn: any;
     const inputs = edgesIn.map((e) => e.as);
@@ -564,20 +493,8 @@ export class ExternalNodeHandler {
     edgesIn: Edge[],
     nodeGraphId: string,
     calculateInputs: () => any,
-    extraNodeGraphId: string,
     useExisting: boolean
   ): any {
-    if (extraNodeGraphId === "metadata") {
-      return this.runtime.constNode({
-        dataLabel: "executable function",
-        codeEditor: { language: "javascript", editorText: "Function stored as value" },
-      }, nodeGraphId, useExisting);
-    } else if (extraNodeGraphId === "display") {
-      return this.runtime.constNode({ 
-        dom_type: "text_value", 
-        text: "Executable Function Node" 
-      }, nodeGraphId, useExisting);
-    }
 
     // Parse the function from the value field
     let executableFn: Function;
