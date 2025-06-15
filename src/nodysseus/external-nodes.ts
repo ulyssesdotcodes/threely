@@ -147,10 +147,7 @@ export class ExternalNodeHandler {
       );
     }
 
-    // Default case - handle as graph
-    return this.handleGraphNode(
-      refNode, node, edgesIn, graph, graphId, nodeGraphId, closure, calculateInputs, extraNodeGraphId, useExisting
-    );
+    return false;
   }
 
   private handleJavaScriptNode(
@@ -621,19 +618,4 @@ export class ExternalNodeHandler {
     );
   }
 
-  private handleGraphNode(
-    refNode: any,
-    node: any,
-    edgesIn: Edge[],
-    graph: Graph,
-    graphId: string,
-    nodeGraphId: string,
-    closure: any,
-    calculateInputs: () => any,
-    extraNodeGraphId: string,
-    useExisting: boolean
-  ): any {
-    // Simplified graph node handling
-    return this.runtime.constNode(undefined, nodeGraphId + extraNodeGraphId, useExisting);
-  }
 }
