@@ -1,13 +1,7 @@
 // DSL implementation for Three.js live coding environment
 import * as THREE from 'three';
-import {
-  translateX as translateXObj,
-  translateY as translateYObj,
-  translateZ as translateZObj,
-  rotateX as rotateXObj,
-  rotateY as rotateYObj,
-  rotateZ as rotateZObj
-} from './three/Object3D';
+import * as Obj3D from './three/Object3D';
+import * as Mat from './three/Material';
 import { Graph, Node, map, createNode, apply } from './graph';
 
 // Scene reference for adding rendered objects
@@ -44,73 +38,12 @@ export function clearAll() {
   console.log('Cleared all objects from scene and registry');
 }
 
-// Functional geometry creation functions that return Node<T>
-export const sphere = (radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<THREE.SphereGeometry> =>
-  createNode(() => new THREE.SphereGeometry(radius, widthSegments, heightSegments));
+let chainObj3d = Object.fromEntries(Object.entries(Obj3D).map(([k, v]) => [k, {
+  fn: v,
+  chain: () => chainObj3d
+}]))
 
-export const box = (width: number = 1, height: number = 1, depth: number = 1): Node<THREE.BoxGeometry> =>
-  createNode(() => new THREE.BoxGeometry(width, height, depth));
-
-export const cylinder = (radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<THREE.CylinderGeometry> =>
-  createNode(() => new THREE.CylinderGeometry(radiusTop, radiusBottom, height));
-
-// Functional material creation function that returns Node<T>
-export const material = (options: any = {}): Node<THREE.MeshBasicMaterial> =>
-  createNode(() => {
-    const defaultOptions = {
-      color: 0x00ff00,
-      wireframe: false
-    };
-    return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
-  });
-
-// Functional mesh creation function that returns Node<T>
-export const mesh = (geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> =>
-  apply(
-    (geometry: THREE.BufferGeometry, material: THREE.Material) => new THREE.Mesh(geometry, material),
-    [geometryNode, materialNode]
-  );
-
-// Transform functions that work with Node<Object3D>
-export const translateX = <T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> =>
-  map((obj: T) => {
-    translateXObj(obj, distance);
-    return obj;
-  })(node);
-
-export const translateY = <T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> =>
-  map((obj: T) => {
-    translateYObj(obj, distance);
-    return obj;
-  })(node);
-
-export const translateZ = <T extends THREE.Object3D>(node: Node<T>, distance: number): Node<T> =>
-  map((obj: T) => {
-    translateZObj(obj, distance);
-    return obj;
-  })(node);
-
-export const rotateX = <T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> =>
-  map((obj: T) => {
-    rotateXObj(obj, angle);
-    return obj;
-  })(node);
-
-export const rotateY = <T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> =>
-  map((obj: T) => {
-    rotateYObj(obj, angle);
-    return obj;
-  })(node);
-
-export const rotateZ = <T extends THREE.Object3D>(node: Node<T>, angle: number): Node<T> =>
-  map((obj: T) => {
-    rotateZObj(obj, angle);
-    return obj;
-  })(node);
-
-// Functional render function that works with Node<Object3D>
-export const render = <T extends THREE.Object3D>(node: Node<T>, objectName: string): Node<T> =>
-  map((object: T) => {
+chainObj3d.render = {chain: () => chainObj3d, fn: (object: THREE.Object3D, objectName: string) => {
     if (!currentScene) {
       console.warn('No scene available for rendering');
       return object;
@@ -134,14 +67,48 @@ export const render = <T extends THREE.Object3D>(node: Node<T>, objectName: stri
       }
 
       console.log(`Updated existing object: ${objectName}`);
-      return existingObject as T;
+      return existingObject;
     } else {
       currentScene.add(object);
       objectRegistry.set(objectName, object);
       console.log(`Created new object: ${objectName}`);
       return object;
     }
-  })(node);
+  }};
+let chainMat = Object.fromEntries(Object.entries(Mat).map(([k, v]) => [k, {
+  fn: v,
+  chain: () => chainMat
+}]))
+
+// Functional geometry creation functions that return Node<T>
+export const sphere = (radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<THREE.SphereGeometry> =>
+  createNode(() => new THREE.SphereGeometry(radius, widthSegments, heightSegments), [], chainObj3d);
+
+export const box = (width: number = 1, height: number = 1, depth: number = 1): Node<THREE.BoxGeometry> =>
+  createNode(() => new THREE.BoxGeometry(width, height, depth), [], chainObj3d);
+
+export const cylinder = (radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<THREE.CylinderGeometry> =>
+  createNode(() => new THREE.CylinderGeometry(radiusTop, radiusBottom, height), [], chainObj3d);
+
+// Functional material creation function that returns Node<T>
+export const material = (options: any = {}): Node<THREE.MeshBasicMaterial> =>
+  createNode(() => {
+    const defaultOptions = {
+      color: 0x00ff00,
+      wireframe: false
+    };
+    return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
+  }, [], chainMat);
+
+// Functional mesh creation function that returns Node<T>
+export const mesh = (geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> =>
+  apply(
+    (geometry: THREE.BufferGeometry, material: THREE.Material) => new THREE.Mesh(geometry, material),
+    [geometryNode, materialNode],
+    chainObj3d
+  );
+
+
 
 // Create a DSL context with all the functional versions
 export const dslContext = {
@@ -150,13 +117,6 @@ export const dslContext = {
   cylinder,
   material,
   mesh,
-  translateX,
-  translateY,
-  translateZ,
-  rotateX,
-  rotateY,
-  rotateZ,
-  render,
   clearAll,
   Graph,
   Math,

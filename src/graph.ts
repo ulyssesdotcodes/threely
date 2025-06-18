@@ -29,12 +29,24 @@ const generateUniqueId = (): string => `node-${++nodeIdCounter}`;
  */
 export const createNode = <T>(
   compute: (...args: any[]) => T,
-  dependencies: readonly Node<any>[] = []
-): Node<T> => ({
+  dependencies: readonly Node<any>[] = [],
+  chain: Record<string,  {fn: (...args: any[]) => any, chain: () => any}>
+): Node<T> => (new Proxy({
   id: generateUniqueId(),
   compute,
   dependencies
-});
+}, {
+  get(target, p, receiver) {
+    if(target[p]) return target[p]
+    if(chain[p as any]) {
+    console.log("prop2", p, chain[p as any])
+      return (...args) => {
+        args = args.map(a => a.id ? a : constant(a));
+        return createNode(chain[p as any].fn, [target, ...args], chain[p as any].chain())
+      }
+    }
+  }
+}));
 
 /**
  * Execute a node and return its computed value
@@ -55,8 +67,8 @@ export const run = <T>(node: Node<T>): T => {
  * @param fn - Function to transform value A to value B
  * @returns A function that transforms Node<A> to Node<B>
  */
-export const map = <A, B>(fn: (a: A) => B) => (node: Node<A>): Node<B> =>
-  createNode(fn, [node]);
+export const map = <A, B>(fn: (a: A) => B, chain) => (node: Node<A>): Node<B> =>
+  createNode(fn, [node], chain);
 
 /**
  * Apply a function with multiple arguments to multiple nodes
@@ -66,8 +78,9 @@ export const map = <A, B>(fn: (a: A) => B) => (node: Node<A>): Node<B> =>
  */
 export const apply = <T>(
   fn: (...args: any[]) => T,
-  nodes: readonly Node<any>[]
-): Node<T> => createNode(fn, nodes);
+  nodes: readonly Node<any>[],
+  chain?: any
+): Node<T> => createNode(fn, nodes, chain);
 
 /**
  * Create a constant node (no dependencies)
@@ -75,19 +88,7 @@ export const apply = <T>(
  * @returns Node that always returns the constant value
  */
 export const constant = <T>(value: T): Node<T> => 
-  createNode(() => value, []);
-
-/**
- * Compose two nodes: f(g(x))
- * @param f - Outer function node
- * @param g - Inner function node  
- * @returns Composed node
- */
-export const compose = <A, B, C>(
-  f: (b: B) => C,
-  g: (a: A) => B
-) => (node: Node<A>): Node<C> =>
-  createNode(f, [map(g)(node)]);
+  createNode(() => value, [], {});
 
 /**
  * Pretty print a node and its dependencies

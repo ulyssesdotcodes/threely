@@ -24,16 +24,6 @@ export function initBackgroundScene() {
   
   document.body.insertBefore(canvas, document.body.firstChild);
   
-  // Create a simple wireframe cube
-  const geometry = new THREE.BoxGeometry(2, 2, 2);
-  const material = new THREE.MeshBasicMaterial({ 
-    color: 0x444444, 
-    wireframe: true,
-    transparent: true,
-    opacity: 0.3
-  });
-  const cube = new THREE.Mesh(geometry, material);
-  scene.add(cube);
   
   // Position camera
   camera.position.z = 5;
@@ -41,10 +31,6 @@ export function initBackgroundScene() {
   // Animation loop
   function animate() {
     requestAnimationFrame(animate);
-    
-    // Rotate cube slowly
-    cube.rotation.x += 0.005;
-    cube.rotation.y += 0.01;
     
     renderer.renderAsync(scene, camera);
   }
