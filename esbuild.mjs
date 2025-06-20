@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import esbuild from 'esbuild';
 
-const PORT = 8080;
+const PORT = 8081;
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 
 const ctx = await esbuild.context({

@@ -30,6 +30,7 @@ import {
   nodeEdgesIn,
   parseArg
 } from "./util";
+import { globalPubSub, PubSubMessage } from "./pubsub-manager";
 
 // Missing dependencies - adding placeholder implementations
 const nolib: any = { no: { runtime: { addListener: () => { }, publish: () => { } } } };
@@ -52,7 +53,7 @@ export const externs: any = {
 
       if (value.startsWith("{") || value.startsWith("[")) {
         try {
-          return JSON.parse(value.replaceAll("'", '"'));
+          return JSON.parse(value.replace(/'/g, '"'));
         } catch (e) {
           // non-empty
         }
@@ -143,6 +144,18 @@ export class ExternalNodeHandler {
 
     if (refNode.ref === "@graph.executable") {
       return this.handleGraphExecutableNode(
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
+      );
+    }
+
+    if (refNode.ref === "event") {
+      return this.handleEventNode(
+        refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
+      );
+    }
+
+    if (refNode.ref === "publish") {
+      return this.handlePublishNode(
         refNode, node, edgesIn, nodeGraphId, calculateInputs, useExisting
       );
     }
@@ -552,6 +565,84 @@ export class ExternalNodeHandler {
           handleError(e, nodeGraphId);
           return undefined;
         }
+      },
+      undefined,
+      nodeGraphId,
+      useExisting,
+    );
+  }
+
+  private handleEventNode(
+    refNode: RefNode,
+    node: any,
+    edgesIn: Edge[],
+    nodeGraphId: string,
+    calculateInputs: () => any,
+    useExisting: boolean
+  ): any {
+    const channel = typeof refNode.value === 'string' ? refNode.value : 'default';
+    
+    // Create a var node that will hold the latest message data
+    const eventVarNode = this.runtime.varNode(
+      undefined, // initial value
+      (a: any, b: any) => false, // always update when new message arrives
+      nodeGraphId + '-event-var',
+      useExisting,
+      true, // dirty on change
+      false // don't unwrap value
+    );
+
+    // Subscribe to the pub/sub channel
+    const unsubscribe = globalPubSub.subscribe(channel, {
+      id: nodeGraphId,
+      callback: (message: PubSubMessage) => {
+        // Update the var node with the new message data
+        eventVarNode.set(message.data);
+      }
+    });
+
+    // Store unsubscribe function for cleanup
+    if (!this.runtime.eventUnsubscribers) {
+      this.runtime.eventUnsubscribers = new Map();
+    }
+    this.runtime.eventUnsubscribers.set(nodeGraphId, unsubscribe);
+
+    // Get the initial message if one exists
+    const latestMessage = globalPubSub.getLatestMessage(channel);
+    if (latestMessage) {
+      eventVarNode.set(latestMessage.data);
+    }
+
+    return this.runtime.mapNode(
+      { eventVar: eventVarNode },
+      ({ eventVar }: any) => eventVar,
+      () => false, // don't check staleness, rely on var node dirtying
+      nodeGraphId,
+      useExisting,
+    );
+  }
+
+  private handlePublishNode(
+    refNode: RefNode,
+    node: any,
+    edgesIn: Edge[],
+    nodeGraphId: string,
+    calculateInputs: () => any,
+    useExisting: boolean  
+  ): any {
+    const channel = typeof refNode.value === 'string' ? refNode.value : 'default';
+    
+    return this.runtime.mapNode(
+      calculateInputs(),
+      (args: any) => {
+        // Get the data to publish from the 'data' input, or use the first available input
+        const dataInput = args.data !== undefined ? args.data : Object.values(args)[0];
+        
+        // Publish the message
+        globalPubSub.publish(channel, dataInput);
+        
+        // Return the published data for chaining
+        return dataInput;
       },
       undefined,
       nodeGraphId,

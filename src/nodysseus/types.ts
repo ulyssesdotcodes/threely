@@ -329,3 +329,6 @@ export type GraphNodeNode = {
       graph: Graph;
       previous?: NodysseusNode;
     }
+
+// Re-export pub/sub manager for convenience
+export { PubSubManager, globalPubSub, type PubSubMessage, type PubSubSubscriber } from './pubsub-manager';
