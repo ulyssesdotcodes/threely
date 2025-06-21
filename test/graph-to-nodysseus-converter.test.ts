@@ -189,13 +189,20 @@ describe('Graph to Nodysseus Converter', () => {
 
 
   describe('Runtime Output Comparison with @graph.executable', () => {
-    it('should use @graph.executable reference type in converted nodes', () => {
-      const node = constant(42);
-      const result = convertGraphToNodysseus(node);
+    it('should convert function nodes to @graph.executable RefNodes and constants to ValueNodes', () => {
+      const constantNode = constant(42);
+      const functionNode = createNode((x: number) => x * 2, [constantNode]);
+      const result = convertGraphToNodysseus(functionNode);
       
-      const refNode = result.nodes[node.id] as RefNode;
-      expect(refNode.ref).toBe('@graph.executable');
-      expect(typeof refNode.value).toBe('function');
+      // Function node should be RefNode with @graph.executable
+      const functionRefNode = result.nodes[functionNode.id] as RefNode;
+      expect(functionRefNode.ref).toBe('@graph.executable');
+      expect(typeof functionRefNode.value).toBe('function');
+      
+      // Constant node should be ValueNode
+      const constantValueNode = result.nodes[constantNode.id] as ValueNode;
+      expect(constantValueNode.value).toBe(42);
+      expect('ref' in constantValueNode).toBe(false);
     });
 
     it('should produce matching outputs for simple constant node', () => {

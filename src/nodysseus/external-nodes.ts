@@ -577,10 +577,7 @@ export class ExternalNodeHandler {
           // Extract dependency values in correct order based on edge 'as' names
           const sortedInputs = inputs.sort();
           const orderedArgs = sortedInputs.map((inputName: string) => args[inputName]);
-          console.log('handleGraphExecutableNode: args =', args);
-          console.log('handleGraphExecutableNode: orderedArgs =', orderedArgs);
           const result = executableFn(...orderedArgs);
-          console.log('handleGraphExecutableNode: result =', result);
           return result;
         } catch (e: any) {
           handleError(e, nodeGraphId);

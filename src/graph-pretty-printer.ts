@@ -35,24 +35,39 @@ export class GraphPrettyPrinter {
    * Default node label generator
    */
   private defaultNodeLabel(node: Node<any>): string {
-    const computeStr = node.compute.toString();
-    
-    // Try to extract meaningful info from the compute function
-    if (computeStr.includes('SphereGeometry')) return 'sphere';
-    if (computeStr.includes('BoxGeometry')) return 'box';
-    if (computeStr.includes('CylinderGeometry')) return 'cylinder';
-    if (computeStr.includes('MeshBasicMaterial')) return 'material';
-    if (computeStr.includes('THREE.Mesh') || computeStr.includes('new THREE.Mesh')) return 'mesh';
-    if (computeStr.includes('translateXObj')) return 'translateX';
-    if (computeStr.includes('translateYObj')) return 'translateY';
-    if (computeStr.includes('translateZObj')) return 'translateZ';
-    if (computeStr.includes('rotateXObj')) return 'rotateX';
-    if (computeStr.includes('rotateYObj')) return 'rotateY';
-    if (computeStr.includes('rotateZObj')) return 'rotateZ';
-    if (computeStr.includes('currentScene.add') || computeStr.includes('objectRegistry')) return 'render';
-    if (computeStr.includes('Graph.run')) return 'map';
-    
-    return 'node';
+    // Handle different value types
+    if (typeof node.value === 'function') {
+      const functionStr = node.value.toString();
+      
+      // Try to extract meaningful info from the function
+      if (functionStr.includes('SphereGeometry')) return 'sphere';
+      if (functionStr.includes('BoxGeometry')) return 'box';
+      if (functionStr.includes('CylinderGeometry')) return 'cylinder';
+      if (functionStr.includes('MeshBasicMaterial')) return 'material';
+      if (functionStr.includes('THREE.Mesh') || functionStr.includes('new THREE.Mesh')) return 'mesh';
+      if (functionStr.includes('translateXObj')) return 'translateX';
+      if (functionStr.includes('translateYObj')) return 'translateY';
+      if (functionStr.includes('translateZObj')) return 'translateZ';
+      if (functionStr.includes('rotateXObj')) return 'rotateX';
+      if (functionStr.includes('rotateYObj')) return 'rotateY';
+      if (functionStr.includes('rotateZObj')) return 'rotateZ';
+      if (functionStr.includes('currentScene.add') || functionStr.includes('objectRegistry')) return 'render';
+      if (functionStr.includes('Graph.run')) return 'map';
+      
+      return 'function';
+    } else if (typeof node.value === 'object' && node.value !== null && 'ref' in node.value) {
+      // RefNode value
+      const refNode = node.value as any;
+      return `extern:${refNode.ref}`;
+    } else {
+      // Constant value
+      if (typeof node.value === 'string') return `"${node.value}"`;
+      if (typeof node.value === 'number') return `${node.value}`;
+      if (typeof node.value === 'boolean') return `${node.value}`;
+      if (node.value === null) return 'null';
+      if (node.value === undefined) return 'undefined';
+      return 'constant';
+    }
   }
 
   /**

@@ -5,6 +5,7 @@ import * as Mat from './three/Material';
 import { Graph, Node,  createNode, apply } from './graph';
 import { convertGraphToNodysseus } from './graph-to-nodysseus-converter';
 import { NodysseusRuntime } from './nodysseus/runtime-core';
+import { RefNode } from './nodysseus/types';
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -110,7 +111,83 @@ export const mesh = (geometryNode: Node<THREE.BufferGeometry>, materialNode: Nod
     chainObj3d
   );
 
+// Frame counter function that returns a Node with extern.frame RefNode
+export const frame = (): Node<any> => {
+  const frameRefNode: RefNode = {
+    id: `frame-${Date.now()}`,
+    ref: 'extern.frame'
+  };
+  
+  return createNode(frameRefNode, [], chainObj3d);
+};
 
+
+
+// Create wrapper functions that work with Nodes
+export const translateX = (objectNode: Node<THREE.Object3D>, distance: number): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    return object.translateX(distance);
+  }, [objectNode], chainObj3d);
+
+export const translateY = (objectNode: Node<THREE.Object3D>, distance: number): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    return object.translateY(distance);
+  }, [objectNode], chainObj3d);
+
+export const translateZ = (objectNode: Node<THREE.Object3D>, distance: number): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    return object.translateZ(distance);
+  }, [objectNode], chainObj3d);
+
+export const rotateX = (objectNode: Node<THREE.Object3D>, angle: number): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    return object.rotateX(angle);
+  }, [objectNode], chainObj3d);
+
+export const rotateY = (objectNode: Node<THREE.Object3D>, angle: number): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    return object.rotateY(angle);
+  }, [objectNode], chainObj3d);
+
+export const rotateZ = (objectNode: Node<THREE.Object3D>, angle: number): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    return object.rotateZ(angle);
+  }, [objectNode], chainObj3d);
+
+// Export render function that works with Nodes
+export const render = (objectNode: Node<THREE.Object3D>, objectName: string): Node<THREE.Object3D> =>
+  apply((object: THREE.Object3D) => {
+    if (!currentScene) {
+      console.warn('No scene available for rendering');
+      return object;
+    }
+
+    const existingObject = objectRegistry.get(objectName);
+
+    if (existingObject) {
+      existingObject.position.copy(object.position);
+      existingObject.rotation.copy(object.rotation);
+      existingObject.scale.copy(object.scale);
+
+      if (existingObject instanceof THREE.Mesh && object instanceof THREE.Mesh) {
+        existingObject.geometry.dispose();
+        existingObject.geometry = object.geometry;
+
+        if (existingObject.material instanceof THREE.Material) {
+          existingObject.material.dispose();
+        }
+        existingObject.material = object.material;
+      }
+
+      console.log(`Updated existing object: ${objectName}`);
+      return existingObject;
+    } else {
+      currentScene.add(object);
+      objectRegistry.set(objectName, object);
+      console.log(`Created new object: ${objectName}`);
+      return object;
+    }
+  }, [objectNode], chainObj3d);
 
 // Create a DSL context with all the functional versions
 export const dslContext = {
@@ -119,6 +196,14 @@ export const dslContext = {
   cylinder,
   material,
   mesh,
+  frame,
+  translateX,
+  translateY,
+  translateZ,
+  rotateX,
+  rotateY,
+  rotateZ,
+  render,
   clearAll,
   Graph,
   Math,
@@ -147,7 +232,7 @@ export function executeDSL(code: string): THREE.Object3D | null {
     const result = parseDSL(code);
     
     // If the result is a Node, execute it using NodysseusRuntime and runGraph
-    if (result && typeof result === 'object' && 'compute' in result) {
+    if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
       // Convert the graph to Nodysseus format
       const nodysseusGraph = convertGraphToNodysseus(result);
       

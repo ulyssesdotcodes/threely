@@ -39,12 +39,12 @@ describe('Graph Pretty Printing', () => {
       showIds: false,
       showDependencyCount: false,
       nodeLabel: (node) => {
-        const computeStr = node.compute.toString();
-        if (computeStr.includes('SphereGeometry')) return 'SPHERE_GEOMETRY';
-        if (computeStr.includes('MeshBasicMaterial')) return 'BASIC_MATERIAL';
-        if (computeStr.includes('THREE.Mesh')) return 'MESH_OBJECT';
-        if (computeStr.includes('rotateXObj')) return 'ROTATE_X_TRANSFORM';
-        if (computeStr.includes('currentScene.add')) return 'SCENE_RENDER';
+        const valueStr = typeof node.value === 'function' ? node.value.toString() : String(node.value);
+        if (valueStr.includes('SphereGeometry')) return 'SPHERE_GEOMETRY';
+        if (valueStr.includes('MeshBasicMaterial')) return 'BASIC_MATERIAL';
+        if (valueStr.includes('THREE.Mesh')) return 'MESH_OBJECT';
+        if (valueStr.includes('rotateXObj')) return 'ROTATE_X_TRANSFORM';
+        if (valueStr.includes('currentScene.add')) return 'SCENE_RENDER';
         return 'UNKNOWN_NODE';
       }
     });

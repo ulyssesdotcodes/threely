@@ -86,6 +86,9 @@ mesh(box(2, 1, 1), material({color: 0xff0000})).translateX(-3).render("redBox")
 
 mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).render("blueCylinder")
 
+// Animated sphere using frame counter:
+mesh(sphere(0.5), material({color: 0x00ff00})).translateX(Math.sin(frame() * 0.01) * 2).render("animatedSphere")
+
 // Try modifying the values and re-running to see objects update:
 // mesh(sphere(0.5), material({color: 0xffffff})).translateY(2).rotateX(90).render("mySphere")
 // mesh(box(1, 3, 1), material({color: 0x00ff00})).translateX(-2).render("redBox")

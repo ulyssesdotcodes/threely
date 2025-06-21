@@ -37,13 +37,13 @@ console.log(Graph.prettyPrint(rendered, {
 console.log('\nWith custom node labels:');
 console.log(Graph.prettyPrint(rendered, {
   nodeLabel: (node) => {
-    const computeStr = node.compute.toString();
-    if (computeStr.includes('SphereGeometry')) return '🌍 SPHERE';
-    if (computeStr.includes('MeshBasicMaterial')) return '🎨 MATERIAL';
-    if (computeStr.includes('THREE.Mesh')) return '🔧 MESH';
-    if (computeStr.includes('translateXObj')) return '➡️ TRANSLATE-X';
-    if (computeStr.includes('rotateYObj')) return '🔄 ROTATE-Y';
-    if (computeStr.includes('currentScene.add')) return '🖼️ RENDER';
+    const valueStr = typeof node.value === 'function' ? node.value.toString() : String(node.value);
+    if (valueStr.includes('SphereGeometry')) return '🌍 SPHERE';
+    if (valueStr.includes('MeshBasicMaterial')) return '🎨 MATERIAL';
+    if (valueStr.includes('THREE.Mesh')) return '🔧 MESH';
+    if (valueStr.includes('translateXObj')) return '➡️ TRANSLATE-X';
+    if (valueStr.includes('rotateYObj')) return '🔄 ROTATE-Y';
+    if (valueStr.includes('currentScene.add')) return '🖼️ RENDER';
     return '❓ UNKNOWN';
   }
 }));

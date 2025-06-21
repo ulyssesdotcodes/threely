@@ -1,14 +1,17 @@
 // graph.ts - Implementation of a functional node-based graph system with TypeScript
 import { GraphPrettyPrinter, PrettyPrintOptions } from './graph-pretty-printer';
 
+// Import RefNode type for external node references
+import { RefNode } from './nodysseus/types';
+
 /**
  * Type representing a Node in the graph.
  *
- * @template T - The type of value this node computes
+ * @template T - The type of value this node produces
  */
 export type Node<T> = {
   readonly id: string;
-  readonly compute: (...args: any[]) => T;
+  readonly value: ((...args: any[]) => T) | RefNode | T;
   readonly dependencies: readonly Node<any>[];
 }
 
@@ -25,21 +28,20 @@ let nodeIdCounter = 0;
 const generateUniqueId = (): string => `node-${++nodeIdCounter}`;
 
 /**
- * Create a new node with the given compute function and dependencies
+ * Create a new node with the given value and dependencies
  */
 export const createNode = <T>(
-  compute: (...args: any[]) => T,
+  value: ((...args: any[]) => T) | RefNode | T,
   dependencies: readonly Node<any>[] = [],
-  chain: Record<string,  {fn: (...args: any[]) => any, chain: () => any}>
+  chain: Record<string,  {fn: (...args: any[]) => any, chain: () => any}> = {}
 ): Node<T> => (new Proxy({
   id: generateUniqueId(),
-  compute,
+  value,
   dependencies
 }, {
   get(target, p, receiver) {
     if(target[p]) return target[p]
     if(chain[p as any]) {
-    console.log("prop2", p, chain[p as any])
       return (...args) => {
         args = args.map(a => a.id ? a : constant(a));
         return createNode(chain[p as any].fn, [target, ...args], chain[p as any].chain())
@@ -54,11 +56,19 @@ export const createNode = <T>(
  * @returns The computed value
  */
 export const run = <T>(node: Node<T>): T => {
-  // Resolve all dependencies first
-  const dependencyResults = node.dependencies.map(dep => run(dep));
-  
-  // Call the compute function with all dependency results as arguments
-  return node.compute(...dependencyResults);
+  // Handle different value types
+  if (typeof node.value === 'function') {
+    // Function value: resolve dependencies and call function
+    const dependencyResults = node.dependencies.map(dep => run(dep));
+    return (node.value as (...args: any[]) => T)(...dependencyResults);
+  } else if (typeof node.value === 'object' && node.value !== null && 'ref' in node.value) {
+    // RefNode value: this should be handled by the Nodysseus runtime
+    // For now, throw an error since we can't execute RefNodes directly in the functional graph
+    throw new Error(`Cannot execute RefNode '${(node.value as RefNode).ref}' in functional graph. Use NodysseusRuntime instead.`);
+  } else {
+    // Constant value: return as-is
+    return node.value as T;
+  }
 };
 
 /**
@@ -88,7 +98,7 @@ export const apply = <T>(
  * @returns Node that always returns the constant value
  */
 export const constant = <T>(value: T): Node<T> => 
-  createNode(() => value, [], {});
+  createNode(value, [], {});
 
 /**
  * Pretty print a node and its dependencies

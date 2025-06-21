@@ -21,14 +21,33 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>): Graph => {
     // Convert dependencies first (depth-first traversal)
     const dependencyIds = node.dependencies.map(dep => convertNode(dep));
 
-    // Create RefNode for executable function with actual function as value
-    const refNode: RefNode = {
-      id: node.id,
-      ref: "@graph.executable",
-      value: node.compute // Store the actual function, not just its string representation
-    };
+    let nodysseusNode: NodysseusNode;
 
-    visitedNodes.set(node.id, refNode);
+    // Handle different value types
+    if (typeof node.value === 'function') {
+      // Function value: create RefNode for executable function
+      nodysseusNode = {
+        id: node.id,
+        ref: "@graph.executable",
+        value: node.value // Store the actual function
+      } as RefNode;
+    } else if (typeof node.value === 'object' && node.value !== null && 'ref' in node.value) {
+      // RefNode value: use it directly with the node's ID
+      const refNodeValue = node.value as RefNode;
+      nodysseusNode = {
+        id: node.id,
+        ref: refNodeValue.ref,
+        value: refNodeValue.value
+      } as RefNode;
+    } else {
+      // Constant value: create ValueNode
+      nodysseusNode = {
+        id: node.id,
+        value: node.value
+      } as ValueNode;
+    }
+
+    visitedNodes.set(node.id, nodysseusNode);
 
     // Create edges for dependencies - edge.as represents argument position
     dependencyIds.forEach((depId, index) => {
@@ -92,7 +111,7 @@ export const convertMultipleNodesToGraph = (nodes: Node<any>[]): Graph => {
     const refNode: RefNode = {
       id: node.id,
       ref: "@graph.functional",
-      value: node.compute.toString()
+      value: typeof node.value === 'function' ? node.value.toString() : String(node.value)
     };
 
     visitedNodes.set(node.id, refNode);
