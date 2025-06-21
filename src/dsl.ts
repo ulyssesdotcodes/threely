@@ -2,7 +2,9 @@
 import * as THREE from 'three';
 import * as Obj3D from './three/Object3D';
 import * as Mat from './three/Material';
-import { Graph, Node, map, createNode, apply } from './graph';
+import { Graph, Node,  createNode, apply } from './graph';
+import { convertGraphToNodysseus } from './graph-to-nodysseus-converter';
+import { NodysseusRuntime } from './nodysseus/runtime-core';
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -137,14 +139,25 @@ export function parseDSL(code: string): any {
   }
 }
 
+const watches = {};
+
 // Execute DSL code and run the graph if the result is a Node
 export function executeDSL(code: string): THREE.Object3D | null {
   try {
     const result = parseDSL(code);
     
-    // If the result is a Node, execute it using Graph.run
+    // If the result is a Node, execute it using NodysseusRuntime and runGraph
     if (result && typeof result === 'object' && 'compute' in result) {
-      const computed = Graph.run(result);
+      // Convert the graph to Nodysseus format
+      const nodysseusGraph = convertGraphToNodysseus(result);
+      
+      // Create runtime and execute
+      const runtime = new NodysseusRuntime();
+      const computed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+      if(computed instanceof THREE.Object3D){
+        watches[computed.name] = (value) => {console.log(value)};
+       
+      }
       return computed instanceof THREE.Object3D ? computed : null;
     }
     

@@ -8,26 +8,12 @@ export declare const box: (width?: number, height?: number, depth?: number) => N
 export declare const cylinder: (radiusTop?: number, radiusBottom?: number, height?: number) => Node<THREE.CylinderGeometry>;
 export declare const material: (options?: any) => Node<THREE.MeshBasicMaterial>;
 export declare const mesh: (geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>) => Node<THREE.Mesh>;
-export declare const translateX: <T extends THREE.Object3D>(node: Node<T>, distance: number) => Node<T>;
-export declare const translateY: <T extends THREE.Object3D>(node: Node<T>, distance: number) => Node<T>;
-export declare const translateZ: <T extends THREE.Object3D>(node: Node<T>, distance: number) => Node<T>;
-export declare const rotateX: <T extends THREE.Object3D>(node: Node<T>, angle: number) => Node<T>;
-export declare const rotateY: <T extends THREE.Object3D>(node: Node<T>, angle: number) => Node<T>;
-export declare const rotateZ: <T extends THREE.Object3D>(node: Node<T>, angle: number) => Node<T>;
-export declare const render: <T extends THREE.Object3D>(node: Node<T>, objectName: string) => Node<T>;
 export declare const dslContext: {
     sphere: (radius?: number, widthSegments?: number, heightSegments?: number) => Node<THREE.SphereGeometry>;
     box: (width?: number, height?: number, depth?: number) => Node<THREE.BoxGeometry>;
     cylinder: (radiusTop?: number, radiusBottom?: number, height?: number) => Node<THREE.CylinderGeometry>;
     material: (options?: any) => Node<THREE.MeshBasicMaterial>;
     mesh: (geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>) => Node<THREE.Mesh>;
-    translateX: <T extends THREE.Object3D>(node: Node<T>, distance: number) => Node<T>;
-    translateY: <T extends THREE.Object3D>(node: Node<T>, distance: number) => Node<T>;
-    translateZ: <T extends THREE.Object3D>(node: Node<T>, distance: number) => Node<T>;
-    rotateX: <T extends THREE.Object3D>(node: Node<T>, angle: number) => Node<T>;
-    rotateY: <T extends THREE.Object3D>(node: Node<T>, angle: number) => Node<T>;
-    rotateZ: <T extends THREE.Object3D>(node: Node<T>, angle: number) => Node<T>;
-    render: <T extends THREE.Object3D>(node: Node<T>, objectName: string) => Node<T>;
     clearAll: typeof clearAll;
     Graph: typeof Graph;
     Math: Math;
