@@ -81,6 +81,7 @@ export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(
 // Try pressing Ctrl+Enter on the line above!
 // This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene
 // Running it again will update the existing object instead of creating a new one!
+// Note: sphere(), box(), and cylinder() now create mock geometries that are applied during render!
 
 mesh(box(2, 1, 1), material({color: 0xff0000})).translateX(-3).render("redBox")
 
@@ -88,6 +89,21 @@ mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).ren
 
 // Animated sphere using frame counter:
 mesh(sphere(0.5), material({color: 0x00ff00})).translateX(Math.sin(frame() * 0.01) * 2).render("animatedSphere")
+
+// Using mock objects for quick property setting:
+applyMock(mesh(sphere(), material({color: 0xff0000})), mockUtils.position(2, 1, 0)).render("mockSphere")
+
+// Using presets for common configurations:
+applyMock(mesh(box(), material()), mockPresets.elevated(3)).render("elevatedBox")
+
+// Custom geometry parameters with mock system:
+mesh(sphere(1.5, 16, 8), material({color: 0xff00ff})).render("customSphere")
+
+// Custom box with specific dimensions:
+mesh(box(3, 0.5, 0.5), material({color: 0x00ffff})).translateY(-2).render("customBox")
+
+// Custom cylinder with different top/bottom radius:
+mesh(cylinder(0.5, 1, 2), material({color: 0xffff00})).translateZ(-3).render("customCylinder")
 
 // Try modifying the values and re-running to see objects update:
 // mesh(sphere(0.5), material({color: 0xffffff})).translateY(2).rotateX(90).render("mySphere")

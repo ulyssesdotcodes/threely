@@ -2,10 +2,11 @@
 import * as THREE from 'three';
 import * as Obj3D from './three/Object3D';
 import * as Mat from './three/Material';
-import { Graph, Node,  createNode, apply } from './graph';
+import { Graph, Node, createNode, apply } from './graph';
 import { convertGraphToNodysseus } from './graph-to-nodysseus-converter';
 import { NodysseusRuntime } from './nodysseus/runtime-core';
 import { RefNode } from './nodysseus/types';
+import { MockObject3D, MockGeometry, applyMockToObject3D, mockUtils, mockPresets, createGeometryFromMock, normalizeVector3Like, normalizeEulerLike } from './three/MockObject3D';
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -41,41 +42,59 @@ export function clearAll() {
   console.log('Cleared all objects from scene and registry');
 }
 
-let chainObj3d = Object.fromEntries(Object.entries(Obj3D).map(([k, v]) => [k, {
-  fn: v,
-  chain: () => chainObj3d
-}]))
+let chainObj3d: any = {};
 
-chainObj3d.render = {chain: () => chainObj3d, fn: (object: THREE.Object3D, objectName: string) => {
+chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: string) => {
     if (!currentScene) {
       console.warn('No scene available for rendering');
-      return object;
+      return new THREE.Object3D();
     }
 
+    // Handle both Node and direct MockObject3D cases
+    let actualMockObject: MockObject3D;
+    if (mockObject && typeof mockObject === 'object' && 'value' in mockObject && 'dependencies' in mockObject) {
+      // This is a Node, execute it to get the MockObject3D
+      try {
+        actualMockObject = Graph.run(mockObject);
+      } catch (error) {
+        console.warn('Failed to execute mock object node:', error);
+        actualMockObject = { geometry: undefined, userData: undefined };
+      }
+    } else {
+      // This is already a resolved MockObject3D
+      actualMockObject = mockObject || { geometry: undefined, userData: undefined };
+    }
+
+
+    // Check if object already exists in the scene
     const existingObject = objectRegistry.get(objectName);
 
     if (existingObject) {
-      existingObject.position.copy(object.position);
-      existingObject.rotation.copy(object.rotation);
-      existingObject.scale.copy(object.scale);
-
-      if (existingObject instanceof THREE.Mesh && object instanceof THREE.Mesh) {
-        existingObject.geometry.dispose();
-        existingObject.geometry = object.geometry;
-
-        if (existingObject.material instanceof THREE.Material) {
-          existingObject.material.dispose();
-        }
-        existingObject.material = object.material;
-      }
-
+      // Update the existing object with mock properties
+      applyMockToObject3D(existingObject, actualMockObject);
       console.log(`Updated existing object: ${objectName}`);
       return existingObject;
     } else {
-      currentScene.add(object);
-      objectRegistry.set(objectName, object);
-      console.log(`Created new object: ${objectName}`);
-      return object;
+      // Create a new real THREE.Object3D from the mock
+      let realObject: THREE.Object3D;
+      
+      if (actualMockObject.geometry && actualMockObject.userData?.material) {
+        // Create a mesh with geometry and material
+        const geometry = createGeometryFromMock(actualMockObject.geometry);
+        const material = actualMockObject.userData.material;
+        realObject = new THREE.Mesh(geometry, material);
+      } else {
+        // Create a basic Object3D
+        realObject = new THREE.Object3D();
+      }
+
+      // Apply all mock properties to the real object
+      applyMockToObject3D(realObject, actualMockObject);
+
+      // Add to scene and registry
+      currentScene.add(realObject);
+      objectRegistry.set(objectName, realObject);
+      return realObject;
     }
   }};
 let chainMat = Object.fromEntries(Object.entries(Mat).map(([k, v]) => [k, {
@@ -83,15 +102,15 @@ let chainMat = Object.fromEntries(Object.entries(Mat).map(([k, v]) => [k, {
   chain: () => chainMat
 }]))
 
-// Functional geometry creation functions that return Node<T>
-export const sphere = (radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<THREE.SphereGeometry> =>
-  createNode(() => new THREE.SphereGeometry(radius, widthSegments, heightSegments), [], chainObj3d);
+// Functional geometry creation functions that return Node<MockGeometry>
+export const sphere = (radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): Node<MockGeometry> =>
+  createNode(mockUtils.sphereGeometry(radius, widthSegments, heightSegments), [], {});
 
-export const box = (width: number = 1, height: number = 1, depth: number = 1): Node<THREE.BoxGeometry> =>
-  createNode(() => new THREE.BoxGeometry(width, height, depth), [], chainObj3d);
+export const box = (width: number = 1, height: number = 1, depth: number = 1): Node<MockGeometry> =>
+  createNode(mockUtils.boxGeometry(width, height, depth), [], {});
 
-export const cylinder = (radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<THREE.CylinderGeometry> =>
-  createNode(() => new THREE.CylinderGeometry(radiusTop, radiusBottom, height), [], chainObj3d);
+export const cylinder = (radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): Node<MockGeometry> =>
+  createNode(mockUtils.cylinderGeometry(radiusTop, radiusBottom, height), [], {});
 
 // Functional material creation function that returns Node<T>
 export const material = (options: any = {}): Node<THREE.MeshBasicMaterial> =>
@@ -103,10 +122,16 @@ export const material = (options: any = {}): Node<THREE.MeshBasicMaterial> =>
     return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
   }, [], chainMat);
 
-// Functional mesh creation function that returns Node<T>
-export const mesh = (geometryNode: Node<THREE.BufferGeometry>, materialNode: Node<THREE.Material>): Node<THREE.Mesh> =>
+// Functional mesh creation function that returns Node<MockObject3D>
+export const mesh = (geometryNode: Node<MockGeometry>, materialNode: Node<THREE.Material>): Node<MockObject3D> =>
   apply(
-    (geometry: THREE.BufferGeometry, material: THREE.Material) => new THREE.Mesh(geometry, material),
+    (mockGeometry: MockGeometry, material: THREE.Material) => {
+      // Return a mock object that will be converted to a real mesh during render
+      return {
+        geometry: mockGeometry,
+        userData: { material }
+      };
+    },
     [geometryNode, materialNode],
     chainObj3d
   );
@@ -123,71 +148,228 @@ export const frame = (): Node<any> => {
 
 
 
-// Create wrapper functions that work with Nodes
-export const translateX = (objectNode: Node<THREE.Object3D>, distance: number): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
-    return object.translateX(distance);
-  }, [objectNode], chainObj3d);
+// Helper function for translateX logic
+const translateXLogic = (mockObject: MockObject3D, distance: number): MockObject3D => {
+  if (!mockObject) {
+    return { geometry: undefined, userData: undefined };
+  }
+  const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
+  return {
+    geometry: mockObject.geometry,
+    userData: mockObject.userData,
+    ...mockObject,
+    position: {
+      x: currentPos.x + distance,
+      y: currentPos.y,
+      z: currentPos.z
+    }
+  };
+};
 
-export const translateY = (objectNode: Node<THREE.Object3D>, distance: number): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
-    return object.translateY(distance);
-  }, [objectNode], chainObj3d);
+// Dual-mode translateX: handles both Node inputs (DSL) and resolved values (chaining)
+export const translateX = (objectNode: Node<MockObject3D> | MockObject3D, distance: number): Node<MockObject3D> | MockObject3D => {
+  // Check if first argument is a resolved MockObject3D (from chaining execution)
+  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
+    // Direct execution with resolved value - return transformed MockObject3D
+    return translateXLogic(objectNode as MockObject3D, distance);
+  } else {
+    // Node-based execution - return Node that will transform the MockObject3D
+    return apply((mockObject: MockObject3D) => translateXLogic(mockObject, distance), [objectNode as Node<MockObject3D>], chainObj3d);
+  }
+};
 
-export const translateZ = (objectNode: Node<THREE.Object3D>, distance: number): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
-    return object.translateZ(distance);
-  }, [objectNode], chainObj3d);
+const translateYLogic = (mockObject: MockObject3D, distance: number): MockObject3D => {
+  if (!mockObject) {
+    return { geometry: undefined, userData: undefined };
+  }
+  const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
+  return {
+    geometry: mockObject.geometry,
+    userData: mockObject.userData,
+    ...mockObject,
+    position: {
+      x: currentPos.x,
+      y: currentPos.y + distance,
+      z: currentPos.z
+    }
+  };
+};
 
-export const rotateX = (objectNode: Node<THREE.Object3D>, angle: number): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
-    return object.rotateX(angle);
-  }, [objectNode], chainObj3d);
+export const translateY = (objectNode: Node<MockObject3D> | MockObject3D, distance: number): Node<MockObject3D> | MockObject3D => {
+  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
+    return translateYLogic(objectNode as MockObject3D, distance);
+  } else {
+    return apply((mockObject: MockObject3D) => translateYLogic(mockObject, distance), [objectNode as Node<MockObject3D>], chainObj3d);
+  }
+};
 
-export const rotateY = (objectNode: Node<THREE.Object3D>, angle: number): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
-    return object.rotateY(angle);
-  }, [objectNode], chainObj3d);
+const translateZLogic = (mockObject: MockObject3D, distance: number): MockObject3D => {
+  if (!mockObject) {
+    return { geometry: undefined, userData: undefined };
+  }
+  const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
+  return {
+    geometry: mockObject.geometry,
+    userData: mockObject.userData,
+    ...mockObject,
+    position: {
+      x: currentPos.x,
+      y: currentPos.y,
+      z: currentPos.z + distance
+    }
+  };
+};
 
-export const rotateZ = (objectNode: Node<THREE.Object3D>, angle: number): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
-    return object.rotateZ(angle);
-  }, [objectNode], chainObj3d);
+export const translateZ = (objectNode: Node<MockObject3D> | MockObject3D, distance: number): Node<MockObject3D> | MockObject3D => {
+  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
+    return translateZLogic(objectNode as MockObject3D, distance);
+  } else {
+    return apply((mockObject: MockObject3D) => translateZLogic(mockObject, distance), [objectNode as Node<MockObject3D>], chainObj3d);
+  }
+};
 
-// Export render function that works with Nodes
-export const render = (objectNode: Node<THREE.Object3D>, objectName: string): Node<THREE.Object3D> =>
-  apply((object: THREE.Object3D) => {
+const rotateXLogic = (mockObject: MockObject3D, angle: number): MockObject3D => {
+  if (!mockObject) {
+    return { geometry: undefined, userData: undefined };
+  }
+  const currentRot = normalizeEulerLike(mockObject.rotation || { x: 0, y: 0, z: 0 });
+  return {
+    geometry: mockObject.geometry,
+    userData: mockObject.userData,
+    ...mockObject,
+    rotation: {
+      x: currentRot.x + angle,
+      y: currentRot.y,
+      z: currentRot.z
+    }
+  };
+};
+
+export const rotateX = (objectNode: Node<MockObject3D> | MockObject3D, angle: number): Node<MockObject3D> | MockObject3D => {
+  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
+    return rotateXLogic(objectNode as MockObject3D, angle);
+  } else {
+    return apply((mockObject: MockObject3D) => rotateXLogic(mockObject, angle), [objectNode as Node<MockObject3D>], chainObj3d);
+  }
+};
+
+const rotateYLogic = (mockObject: MockObject3D, angle: number): MockObject3D => {
+  if (!mockObject) {
+    return { geometry: undefined, userData: undefined };
+  }
+  const currentRot = normalizeEulerLike(mockObject.rotation || { x: 0, y: 0, z: 0 });
+  return {
+    geometry: mockObject.geometry,
+    userData: mockObject.userData,
+    ...mockObject,
+    rotation: {
+      x: currentRot.x,
+      y: currentRot.y + angle,
+      z: currentRot.z
+    }
+  };
+};
+
+export const rotateY = (objectNode: Node<MockObject3D> | MockObject3D, angle: number): Node<MockObject3D> | MockObject3D => {
+  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
+    return rotateYLogic(objectNode as MockObject3D, angle);
+  } else {
+    return apply((mockObject: MockObject3D) => rotateYLogic(mockObject, angle), [objectNode as Node<MockObject3D>], chainObj3d);
+  }
+};
+
+const rotateZLogic = (mockObject: MockObject3D, angle: number): MockObject3D => {
+  if (!mockObject) {
+    return { geometry: undefined, userData: undefined };
+  }
+  const currentRot = normalizeEulerLike(mockObject.rotation || { x: 0, y: 0, z: 0 });
+  return {
+    geometry: mockObject.geometry,
+    userData: mockObject.userData,
+    ...mockObject,
+    rotation: {
+      x: currentRot.x,
+      y: currentRot.y,
+      z: currentRot.z + angle
+    }
+  };
+};
+
+export const rotateZ = (objectNode: Node<MockObject3D> | MockObject3D, angle: number): Node<MockObject3D> | MockObject3D => {
+  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
+    return rotateZLogic(objectNode as MockObject3D, angle);
+  } else {
+    return apply((mockObject: MockObject3D) => rotateZLogic(mockObject, angle), [objectNode as Node<MockObject3D>], chainObj3d);
+  }
+};
+
+// Export render function that converts MockObject3D to real THREE.Object3D
+export const render = (objectNode: Node<MockObject3D>, objectName: string): Node<THREE.Object3D> =>
+  apply((mockObject: MockObject3D) => {
     if (!currentScene) {
       console.warn('No scene available for rendering');
-      return object;
+      return new THREE.Object3D();
     }
 
+    // Check if object already exists in the scene
     const existingObject = objectRegistry.get(objectName);
 
     if (existingObject) {
-      existingObject.position.copy(object.position);
-      existingObject.rotation.copy(object.rotation);
-      existingObject.scale.copy(object.scale);
-
-      if (existingObject instanceof THREE.Mesh && object instanceof THREE.Mesh) {
-        existingObject.geometry.dispose();
-        existingObject.geometry = object.geometry;
-
-        if (existingObject.material instanceof THREE.Material) {
-          existingObject.material.dispose();
-        }
-        existingObject.material = object.material;
-      }
-
+      // Update the existing object with mock properties
+      applyMockToObject3D(existingObject, mockObject);
       console.log(`Updated existing object: ${objectName}`);
       return existingObject;
     } else {
-      currentScene.add(object);
-      objectRegistry.set(objectName, object);
+      // Create a new real THREE.Object3D from the mock
+      let realObject: THREE.Object3D;
+      
+      if (mockObject.geometry && mockObject.userData?.material) {
+        // Create a mesh with geometry and material
+        const geometry = createGeometryFromMock(mockObject.geometry);
+        const material = mockObject.userData.material;
+        realObject = new THREE.Mesh(geometry, material);
+      } else {
+        // Create a basic Object3D
+        realObject = new THREE.Object3D();
+      }
+
+      // Apply all mock properties to the real object
+      applyMockToObject3D(realObject, mockObject);
+
+      // Add to scene and registry
+      currentScene.add(realObject);
+      objectRegistry.set(objectName, realObject);
       console.log(`Created new object: ${objectName}`);
-      return object;
+      return realObject;
     }
   }, [objectNode], chainObj3d);
+
+// Mock object integration function 
+export const applyMock = (objectNode: Node<MockObject3D>, mock: MockObject3D): Node<MockObject3D> =>
+  apply((existingMock: MockObject3D) => {
+    // Merge the new mock properties with the existing mock
+    return {
+      ...existingMock,
+      ...mock,
+      // Special handling for userData to merge instead of replace
+      userData: {
+        ...existingMock.userData,
+        ...mock.userData
+      }
+    };
+  }, [objectNode], chainObj3d);
+
+// Export mock utilities for direct use in DSL
+export { MockObject3D, mockUtils, mockPresets };
+
+// Set up the chain object after all functions are defined
+chainObj3d.translateX = { fn: translateX, chain: () => chainObj3d };
+chainObj3d.translateY = { fn: translateY, chain: () => chainObj3d };
+chainObj3d.translateZ = { fn: translateZ, chain: () => chainObj3d };
+chainObj3d.rotateX = { fn: rotateX, chain: () => chainObj3d };
+chainObj3d.rotateY = { fn: rotateY, chain: () => chainObj3d };
+chainObj3d.rotateZ = { fn: rotateZ, chain: () => chainObj3d };
+chainObj3d.applyMock = { fn: applyMock, chain: () => chainObj3d };
 
 // Create a DSL context with all the functional versions
 export const dslContext = {
@@ -204,6 +386,9 @@ export const dslContext = {
   rotateY,
   rotateZ,
   render,
+  applyMock,
+  mockUtils,
+  mockPresets,
   clearAll,
   Graph,
   Math,
@@ -231,23 +416,48 @@ export function executeDSL(code: string): THREE.Object3D | null {
   try {
     const result = parseDSL(code);
     
-    // If the result is a Node, execute it using NodysseusRuntime and runGraph
+    // If the result is a Node, try direct Graph.run execution first
     if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
-      // Convert the graph to Nodysseus format
-      const nodysseusGraph = convertGraphToNodysseus(result);
-      
-      // Create runtime and execute
-      const runtime = new NodysseusRuntime();
-      const computed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
-      if(computed instanceof THREE.Object3D){
-        watches[computed.name] = (value) => {console.log(value)};
-       
+      try {
+        // Try direct execution with Graph.run
+        const computed = Graph.run(result);
+        return computed instanceof THREE.Object3D ? computed : null;
+      } catch (error) {
+        console.log('Graph.run failed, falling back to Nodysseus runtime:', error);
+        
+        // Convert the graph to Nodysseus format
+        const nodysseusGraph = convertGraphToNodysseus(result);
+        
+        // Create runtime and execute
+        const runtime = new NodysseusRuntime();
+        const computed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+        if(computed instanceof THREE.Object3D){
+          watches[computed.name] = (value) => {console.log(value)};
+        }
+        return computed instanceof THREE.Object3D ? computed : null;
       }
-      return computed instanceof THREE.Object3D ? computed : null;
     }
     
-    // Otherwise return the result if it's already an Object3D
-    return result instanceof THREE.Object3D ? result : null;
+    // Otherwise return the result if it's already an Object3D or MockObject3D
+    if (result instanceof THREE.Object3D) {
+      return result;
+    }
+    
+    // If it's a MockObject3D, convert it to a real Object3D
+    if (result && typeof result === 'object' && 'geometry' in result) {
+      let realObject: THREE.Object3D;
+      if (result.geometry && result.userData?.material) {
+        const geometry = createGeometryFromMock(result.geometry);
+        const material = result.userData.material;
+        realObject = new THREE.Mesh(geometry, material);
+      } else {
+        realObject = new THREE.Object3D();
+      }
+      applyMockToObject3D(realObject, result);
+      return realObject;
+    }
+    
+    return null;
   } catch (error) {
     console.error('DSL execution error:', error);
     return null;

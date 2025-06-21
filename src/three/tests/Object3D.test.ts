@@ -1,5 +1,5 @@
 import * as Object3D from '../Object3D';
-import { Matrix4, Quaternion, Vector3, Euler, Object3D as ThreeObject3D } from 'three';
+import { Matrix4, Quaternion, Vector3, Euler, Object3D as ThreeObject3D, Raycaster } from 'three';
 import 'reflect-metadata';
 
 describe('Object3D', () => {
@@ -273,8 +273,10 @@ describe('Object3D', () => {
   });
 
   it('raycast should perform raycasting', () => {
-    // Create a mock raycaster for testing
-    const raycaster = { origin: new Vector3(), direction: new Vector3() };
+    // Create a proper raycaster for testing
+    const raycaster = new Raycaster();
+    raycaster.ray.origin = new Vector3();
+    raycaster.ray.direction = new Vector3();
     const intersects: any[] = [];
     Object3D.raycast(object, raycaster, intersects);
     expect(intersects.length).toBe(0); // No intersections by default
