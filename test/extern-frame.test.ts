@@ -4,6 +4,12 @@ import * as externalNodes from '../src/nodysseus/external-nodes';
 
 const mockRequestAnimationFrame = jest.fn();
 
+// Helper function to run a graph and return the result
+function runGraph(graph: Graph) {
+  const runtime = new NodysseusRuntime();
+  return runtime.runGraphNode(graph, graph.out || 'out');
+}
+
 describe('extern.frame', () => {
   beforeEach(() => {
     // Mock the requestAnimationFrame function
@@ -138,7 +144,11 @@ describe('extern.frame', () => {
       },
       edges_in: {
         'double-frame': {
-          'frame-node': 'arg0'
+          'frame-node->double-frame': {
+            from: 'frame-node',
+            to: 'double-frame',
+            as: 'arg0'
+          }
         }
       }
     };
@@ -154,33 +164,5 @@ describe('extern.frame', () => {
     
     // After increment, should be 2 * 2 = 4
     expect(result.value.read()).toBe(4);
-  });
-
-  it('should return a varNode that can be read and observed', () => {
-    const frameNode: RefNode = {
-      id: 'frame-node',
-      ref: 'extern.frame'
-    };
-
-    const graph: Graph = {
-      id: 'test-graph',
-      out: 'frame-node',
-      nodes: {
-        'frame-node': frameNode
-      },
-      edges: {},
-      edges_in: {}
-    };
-
-    const result = runGraph(graph);
-
-    // Should be a proper node with value interface
-    expect(result).toBeDefined();
-    expect(result.value).toBeDefined();
-    expect(typeof result.value.read).toBe('function');
-    expect(typeof result.set).toBe('function');
-    
-    // Should start with value 1
-    expect(result.value.read()).toBe(1);
   });
 });

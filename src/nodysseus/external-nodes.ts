@@ -160,6 +160,10 @@ export class ExternalNodeHandler {
       );
     }
 
+    if (refNode.ref === "extern.frame") {
+      return this.handleFrameExtern(nodeGraphId, useExisting);
+    }
+
     // Return false so runtime-core can handle graph nodes
     return false;
   }
@@ -295,6 +299,23 @@ export class ExternalNodeHandler {
 
     // Default extern handling
     return this.handleGenericExternNode(refNode, calculateInputs, nodeGraphId, useExisting);
+  }
+
+  private handleFrameExtern(nodeGraphId: string, useExisting: boolean): any {
+    const varNode = this.runtime.varNode(
+      1,
+      undefined,
+      nodeGraphId,
+      useExisting,
+    );
+    const update = () => {
+      varNode.set(((varNode.value.read() as number) + 1) );
+      if (this.runtime.scope.get(nodeGraphId) === varNode) {
+        requestAnimationFrame(update);
+      }
+    };
+    requestAnimationFrame(update);
+    return varNode;
   }
 
   private handleSwitchNode(

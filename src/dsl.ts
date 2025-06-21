@@ -22,8 +22,8 @@ export function getObjectRegistry() {
 // Utility function to clear all objects from the scene and registry
 export function clearAll() {
   if (currentScene) {
-    for (const [, object] of objectRegistry) {
-      currentScene.remove(object);
+    objectRegistry.forEach((object) => {
+      currentScene!.remove(object);
 
       // Clean up geometry and materials
       if (object instanceof THREE.Mesh) {
@@ -32,7 +32,7 @@ export function clearAll() {
           object.material.dispose();
         }
       }
-    }
+    });
   }
   objectRegistry.clear();
   console.log('Cleared all objects from scene and registry');

@@ -1,4 +1,27 @@
 {
+  "name": "threely",
+  "version": "1.0.0",
+  "description": "A Three.js DSL library for functional 3D graphics programming",
+  "keywords": ["threejs", "3d", "graphics", "dsl", "functional", "webgl"],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/threely.git"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*"
+  ],
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/three": "^0.177.0",
@@ -20,7 +43,10 @@
     "uuid": "^11.1.0"
   },
   "scripts": {
-    "build": "node esbuild.mjs",
-    "test": "jest"
+    "build": "npm run build:types && npm run build:bundle",
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist src/lib.ts",
+    "build:bundle": "node build-lib.mjs",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
   }
 }
