@@ -2,11 +2,12 @@
 import * as THREE from 'three';
 import * as Obj3D from './three/Object3D';
 import * as Mat from './three/Material';
-import { Graph, Node, createNode, apply } from './graph';
+import { Graph, Node, createNode, apply, prettyPrint } from './graph';
 import { convertGraphToNodysseus } from './graph-to-nodysseus-converter';
 import { NodysseusRuntime } from './nodysseus/runtime-core';
 import { RefNode } from './nodysseus/types';
 import { MockObject3D, MockGeometry, applyMockToObject3D, mockUtils, mockPresets, createGeometryFromMock, normalizeVector3Like, normalizeEulerLike } from './three/MockObject3D';
+import { computeMorphedAttributes } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -45,6 +46,8 @@ export function clearAll() {
 let chainObj3d: any = {};
 
 chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: string) => {
+    console.log('🎨 Render called:', { objectName, mockObject: mockObject ? 'present' : 'null' });
+    
     if (!currentScene) {
       console.warn('No scene available for rendering');
       return new THREE.Object3D();
@@ -56,6 +59,8 @@ chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: 
       // This is a Node, execute it to get the MockObject3D
       try {
         actualMockObject = Graph.run(mockObject);
+        console.log('🎨 Executed Node to get MockObject3D:', actualMockObject);
+        console.log('🎨 Graph pretty print:', prettyPrint(mockObject));
       } catch (error) {
         console.warn('Failed to execute mock object node:', error);
         actualMockObject = { geometry: undefined, userData: undefined };
@@ -63,6 +68,7 @@ chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: 
     } else {
       // This is already a resolved MockObject3D
       actualMockObject = mockObject || { geometry: undefined, userData: undefined };
+      console.log('🎨 Using resolved MockObject3D:', actualMockObject);
     }
 
 
@@ -72,7 +78,7 @@ chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: 
     if (existingObject) {
       // Update the existing object with mock properties
       applyMockToObject3D(existingObject, actualMockObject);
-      console.log(`Updated existing object: ${objectName}`);
+      console.log(`🎨 Updated existing object: ${objectName}`);
       return existingObject;
     } else {
       // Create a new real THREE.Object3D from the mock
@@ -83,9 +89,11 @@ chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: 
         const geometry = createGeometryFromMock(actualMockObject.geometry);
         const material = actualMockObject.userData.material;
         realObject = new THREE.Mesh(geometry, material);
+        console.log(`🎨 Created new Mesh: ${objectName}`);
       } else {
         // Create a basic Object3D
         realObject = new THREE.Object3D();
+        console.log(`🎨 Created new Object3D: ${objectName}`);
       }
 
       // Apply all mock properties to the real object
@@ -94,6 +102,7 @@ chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: 
       // Add to scene and registry
       currentScene.add(realObject);
       objectRegistry.set(objectName, realObject);
+      console.log(`🎨 Added ${objectName} to scene and registry`);
       return realObject;
     }
   }};
@@ -333,6 +342,8 @@ export const render = (objectNode: Node<MockObject3D>, objectName: string): Node
         realObject = new THREE.Object3D();
       }
 
+      realObject.name = objectName;
+
       // Apply all mock properties to the real object
       applyMockToObject3D(realObject, mockObject);
 
@@ -410,6 +421,7 @@ export function parseDSL(code: string): any {
 }
 
 const watches = {};
+const runtime = new NodysseusRuntime();
 
 // Execute DSL code and run the graph if the result is a Node
 export function executeDSL(code: string): THREE.Object3D | null {
@@ -418,24 +430,25 @@ export function executeDSL(code: string): THREE.Object3D | null {
     
     // If the result is a Node, try direct Graph.run execution first
     if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
-      try {
-        // Try direct execution with Graph.run
-        const computed = Graph.run(result);
-        return computed instanceof THREE.Object3D ? computed : null;
-      } catch (error) {
-        console.log('Graph.run failed, falling back to Nodysseus runtime:', error);
-        
-        // Convert the graph to Nodysseus format
-        const nodysseusGraph = convertGraphToNodysseus(result);
-        
-        // Create runtime and execute
-        const runtime = new NodysseusRuntime();
-        const computed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
-        if(computed instanceof THREE.Object3D){
-          watches[computed.name] = (value) => {console.log(value)};
+      // Convert the graph to Nodysseus format
+      const nodysseusGraph = convertGraphToNodysseus(result);
+      console.log(nodysseusGraph)
+      
+      // Create runtime and execute
+      const computed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+      if(computed instanceof THREE.Object3D){
+        const runtimeNode = runtime.scope.get(nodysseusGraph.id + "/" + nodysseusGraph.out!);
+        watches[computed.name] = (value) => {console.log(value)};
+        // TODO: Hacky, fix
+        (async () => {
+        for await (let value of runtime.createWatch(runtimeNode)) {
+          console.log("value", value)
         }
-        return computed instanceof THREE.Object3D ? computed : null;
+        })()
+        return computed;
       }
+      // Return non-Object3D results as well (like numbers from frame())
+      return computed;
     }
     
     // Otherwise return the result if it's already an Object3D or MockObject3D
