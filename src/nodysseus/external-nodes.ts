@@ -308,12 +308,17 @@ export class ExternalNodeHandler {
       nodeGraphId,
       useExisting,
     );
+    
     const update = () => {
-      varNode.set(((varNode.value.read() as number) + 1) );
+      const oldValue = varNode.value.read() as number;
+      const newValue = oldValue + 1;
+      varNode.set(newValue);
+      
       if (this.runtime.scope.get(nodeGraphId) === varNode) {
         requestAnimationFrame(update);
       }
     };
+    
     requestAnimationFrame(update);
     return varNode;
   }

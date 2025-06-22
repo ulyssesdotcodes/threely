@@ -78,6 +78,8 @@ export const getBlockAtCursor = (view: EditorView): { block: string } | null => 
 
 export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
 
+mesh(sphere(), material()).translateX(frame()).rotateY(45).render("mySphere")
+
 // Try pressing Ctrl+Enter on the line above!
 // This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene
 // Running it again will update the existing object instead of creating a new one!

@@ -99,7 +99,7 @@ export class NodysseusRuntime {
     }
   }
 
-  private addWatchFn<T>(node: any, watch: (output: T) => void) {
+  public addWatchFn<T>(node: any, watch: (output: T) => void) {
     if (!this.watches.has(node.id)) this.watches.set(node.id, []);
     this.watches.get(node.id)?.push(watch as any);
     this.checkWatch(node.id);
@@ -183,7 +183,10 @@ export class NodysseusRuntime {
     let nid: any;
     const nodeOuts = this.outputs.get(id) ?? [];
     for (nid of Array.from(nodeOuts)) {
-      this.dirty(nid, breakOnNode);
+      // Prevent infinite recursion by not calling dirty on self
+      if (nid !== id) {
+        this.dirty(nid, breakOnNode);
+      }
     }
     finalize();
   }
@@ -674,14 +677,18 @@ export class NodysseusRuntime {
                 ),
               );
             updatedNode.value.write(res);
-            updatedNode.cachedInputs.write(next);
+            if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
+              updatedNode.cachedInputs.write(next);
+            }
 
             return wrapPromise(res).then((r: any) => {
               if (isBindNode(updatedNode) && !isNothing(res) && res)
                 this.scope.add(res);
 
               updatedNode.value.write(r);
-              updatedNode.isDirty.write(false);
+              if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
+                updatedNode.isDirty.write(false);
+              }
 
               if (this.watches.has(node.id)) {
                 this.watches
@@ -700,7 +707,9 @@ export class NodysseusRuntime {
 
           result = updatedNode.value.read();
           return wrapPromise(result).then((result: any) => {
-            updatedNode.isDirty.write(false);
+            if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
+              updatedNode.isDirty.write(false);
+            }
 
             const currentRunning = this.running.get(node.id);
             if (currentRunning === 1) {
