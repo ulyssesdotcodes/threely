@@ -249,6 +249,7 @@ export function validateNumber(value: number, min?: number, max?: number, name?:
  * Safely updates only the specified properties
  */
 export function applyMockToObject3D(object: Object3D, mock: MockObject3D): Object3D {
+  console.log("applying", object, mock)
   // Apply position
   if (mock.position !== undefined) {
     const pos = normalizeVector3Like(mock.position);
