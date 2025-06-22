@@ -9,7 +9,7 @@ import { NodysseusRuntime } from './nodysseus/runtime-core';
  * into the Nodysseus graph format, preserving the computational structure
  * and dependencies while integrating with the Nodysseus runtime system.
  */
-export const convertGraphToNodysseus = <T>(rootNode: Node<T>): Graph => {
+export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string): Graph => {
   const visitedNodes = new Map<string, NodysseusNode>();
   const edges: Record<string, Edge> = {};
   
@@ -67,7 +67,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>): Graph => {
 
   // Build the complete Graph structure
   return {
-    id: `functional-graph-${Date.now()}`,
+    id: rootNode.graphId || graphId || `functional-graph-${Date.now()}`,
     out: rootId, // Root node is the graph output
     nodes: Object.fromEntries(visitedNodes),
     edges,

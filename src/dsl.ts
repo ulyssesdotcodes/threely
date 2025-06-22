@@ -45,7 +45,9 @@ export function clearAll() {
 
 let chainObj3d: any = {};
 
-chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: string) => {
+chainObj3d.render = {
+  chain: () => chainObj3d, 
+  fn: (mockObject: any, objectName: string) => {
     console.log('🎨 Render called:', { objectName, mockObject: mockObject ? 'present' : 'null' });
     
     if (!currentScene) {
@@ -106,6 +108,7 @@ chainObj3d.render = {chain: () => chainObj3d, fn: (mockObject: any, objectName: 
       return realObject;
     }
   }};
+
 let chainMat = Object.fromEntries(Object.entries(Mat).map(([k, v]) => [k, {
   fn: v,
   chain: () => chainMat
@@ -314,7 +317,7 @@ export const rotateZ = (objectNode: Node<MockObject3D> | MockObject3D, angle: nu
 
 // Export render function that converts MockObject3D to real THREE.Object3D
 export const render = (objectNode: Node<MockObject3D>, objectName: string): Node<THREE.Object3D> =>
-  apply((mockObject: MockObject3D) => {
+  (console.log("renderFn", objectName), apply)((mockObject: MockObject3D) => {
     if (!currentScene) {
       console.warn('No scene available for rendering');
       return new THREE.Object3D();
@@ -353,7 +356,7 @@ export const render = (objectNode: Node<MockObject3D>, objectName: string): Node
       console.log(`Created new object: ${objectName}`);
       return realObject;
     }
-  }, [objectNode], chainObj3d);
+  }, [objectNode], chainObj3d, objectName);
 
 // Mock object integration function 
 export const applyMock = (objectNode: Node<MockObject3D>, mock: MockObject3D): Node<MockObject3D> =>
@@ -431,24 +434,25 @@ export function executeDSL(code: string): THREE.Object3D | null {
     // If the result is a Node, try direct Graph.run execution first
     if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
       // Convert the graph to Nodysseus format
+      console.log(result);
       const nodysseusGraph = convertGraphToNodysseus(result);
       console.log(nodysseusGraph)
       
-      // Create runtime and execute
-      const computed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
-      if(computed instanceof THREE.Object3D){
+      // Re-execute with the named graph
+      const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+      if(finalComputed instanceof THREE.Object3D){
         const runtimeNode = runtime.scope.get(nodysseusGraph.id + "/" + nodysseusGraph.out!);
-        watches[computed.name] = (value) => {console.log(value)};
+        watches[finalComputed.name] = (value) => {console.log(value)};
         // TODO: Hacky, fix
         (async () => {
         for await (let value of runtime.createWatch(runtimeNode)) {
           console.log("value", value)
         }
         })()
-        return computed;
+        return finalComputed;
       }
       // Return non-Object3D results as well (like numbers from frame())
-      return computed;
+      return finalComputed;
     }
     
     // Otherwise return the result if it's already an Object3D or MockObject3D

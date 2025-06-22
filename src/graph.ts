@@ -13,6 +13,7 @@ export type Node<T> = {
   readonly id: string;
   readonly value: ((...args: any[]) => T) | RefNode | T;
   readonly dependencies: readonly Node<any>[];
+  readonly graphId?: string;
 }
 
 /**
@@ -33,11 +34,13 @@ const generateUniqueId = (): string => `node-${++nodeIdCounter}`;
 export const createNode = <T>(
   value: ((...args: any[]) => T) | RefNode | T,
   dependencies: readonly Node<any>[] = [],
-  chain: Record<string,  {fn: (...args: any[]) => any, chain: () => any}> = {}
+  chain: Record<string,  {fn: (...args: any[]) => any, chain: () => any}> = {},
+  graphId?: string
 ): Node<T> => (new Proxy({
   id: generateUniqueId(),
   value,
-  dependencies
+  dependencies,
+  ...(graphId && { graphId })
 }, {
   get(target, p, receiver) {
     if(target[p]) return target[p]
@@ -89,8 +92,9 @@ export const map = <A, B>(fn: (a: A) => B, chain) => (node: Node<A>): Node<B> =>
 export const apply = <T>(
   fn: (...args: any[]) => T,
   nodes: readonly Node<any>[],
-  chain?: any
-): Node<T> => createNode(fn, nodes, chain);
+  chain?: any,
+  graphId?: string
+): Node<T> => createNode(fn, nodes, chain, graphId);
 
 /**
  * Create a constant node (no dependencies)
