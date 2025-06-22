@@ -375,6 +375,8 @@ export function parseDSL(code: string): any {
   }
 }
 
+// Important that this isn't created every time executeDSL is called!
+const runtime = new NodysseusRuntime();
 
 // Execute DSL code and run the graph if the result is a Node
 export function executeDSL(code: string): THREE.Object3D | null {
@@ -386,10 +388,11 @@ export function executeDSL(code: string): THREE.Object3D | null {
       // Convert the graph to Nodysseus format
       console.log(result);
       const nodysseusGraph = convertGraphToNodysseus(result);
-      console.log(nodysseusGraph)
+      // Grab the name and use it as the graph id so that it caches.
+      nodysseusGraph.id = result.dependencies[1].value;
+      console.log(nodysseusGraph);
       
       // Re-execute with the named graph
-      const runtime = new NodysseusRuntime();
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
       return finalComputed;
     }
