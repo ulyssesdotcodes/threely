@@ -43,7 +43,7 @@ describe('Debug CodeMirror First Example', () => {
     console.log('\n--- Step 4: Apply translateX ---');
     const translatedNode = translateX(meshNode, 1);
     console.log('Translated node:', translatedNode);
-    const translatedValue = run(translatedNode);
+    const translatedValue = 'id' in translatedNode ? run(translatedNode) : translatedNode;
     console.log('Translated value:', translatedValue);
     console.log('Translated geometry:', translatedValue.geometry);
     console.log('Translated userData:', translatedValue.userData);
@@ -53,7 +53,7 @@ describe('Debug CodeMirror First Example', () => {
     console.log('\n--- Step 5: Apply rotateY ---');
     const rotatedNode = rotateY(translatedNode, 45);
     console.log('Rotated node:', rotatedNode);
-    const rotatedValue = run(rotatedNode);
+    const rotatedValue = 'id' in rotatedNode ? run(rotatedNode) : rotatedNode;
     console.log('Rotated value:', rotatedValue);
     console.log('Rotated geometry:', rotatedValue.geometry);
     console.log('Rotated userData:', rotatedValue.userData);

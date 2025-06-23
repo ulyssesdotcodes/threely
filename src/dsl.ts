@@ -51,26 +51,17 @@ chainObj3d.render = {
     
     if (!currentScene) {
       console.warn('No scene available for rendering');
-      return new THREE.Object3D();
+      const emptyObject = new THREE.Object3D();
+      (emptyObject as any).graphId = objectName;
+      return emptyObject;
     }
 
     // Handle both Node and direct MockObject3D cases
     let actualMockObject: MockObject3D;
-    if (mockObject && typeof mockObject === 'object' && 'value' in mockObject && 'dependencies' in mockObject) {
-      // This is a Node, execute it to get the MockObject3D
-      try {
-        actualMockObject = Graph.run(mockObject);
-        console.log('🎨 Executed Node to get MockObject3D:', actualMockObject);
-        console.log('🎨 Graph pretty print:', prettyPrint(mockObject));
-      } catch (error) {
-        console.warn('Failed to execute mock object node:', error);
-        actualMockObject = { geometry: undefined, userData: undefined };
-      }
-    } else {
-      // This is already a resolved MockObject3D
-      actualMockObject = mockObject || { geometry: undefined, userData: undefined };
-      console.log('🎨 Using resolved MockObject3D:', actualMockObject);
-    }
+    // The render function should only handle rendering, not graph conversion
+    // All Nodysseus graph execution should happen in executeDSL
+    actualMockObject = mockObject || { geometry: undefined, userData: undefined };
+    console.log('🎨 Using MockObject3D:', actualMockObject);
 
 
     // Check if object already exists in the scene
@@ -79,6 +70,10 @@ chainObj3d.render = {
     if (existingObject) {
       // Update the existing object with mock properties
       applyMockToObject3D(existingObject, actualMockObject);
+      
+      // Set graphId property on the object
+      (existingObject as any).graphId = objectName;
+      
       console.log(`🎨 Updated existing object: ${objectName}`);
       return existingObject;
     } else {
@@ -103,6 +98,10 @@ chainObj3d.render = {
       // Add to scene and registry
       currentScene.add(realObject);
       objectRegistry.set(objectName, realObject);
+      
+      // Set graphId property on the object
+      (realObject as any).graphId = objectName;
+      
       console.log(`🎨 Added ${objectName} to scene and registry`);
       return realObject;
     }
@@ -338,6 +337,9 @@ chainObj3d.rotateY = { fn: rotateY, chain: () => chainObj3d };
 chainObj3d.rotateZ = { fn: rotateZ, chain: () => chainObj3d };
 chainObj3d.applyMock = { fn: applyMock, chain: () => chainObj3d };
 
+// Export the render function for direct use
+export const render = chainObj3d.render.fn;
+
 // Create a DSL context with all the functional versions
 export const dslContext = {
   sphere,
@@ -353,6 +355,7 @@ export const dslContext = {
   rotateY,
   rotateZ,
   applyMock,
+  render,
   mockUtils,
   mockPresets,
   clearAll,
@@ -378,6 +381,7 @@ export function parseDSL(code: string): any {
 // Important that this isn't created every time executeDSL is called!
 const runtime = new NodysseusRuntime();
 
+
 // Execute DSL code and run the graph if the result is a Node
 export function executeDSL(code: string): THREE.Object3D | null {
   try {
@@ -394,6 +398,26 @@ export function executeDSL(code: string): THREE.Object3D | null {
       
       // Re-execute with the named graph
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+      
+      // Set up watch for frame updates if graph contains frame nodes
+      const graphContainsFrame = JSON.stringify(result).includes('extern.frame');
+      if (graphContainsFrame) {
+        const objectName = nodysseusGraph.id;
+        const watch = runtime.createWatch<MockObject3D>(
+          runtime.scope.get(nodysseusGraph.id + "/" + nodysseusGraph.out!)
+        );
+        
+        // Start watching for frame updates
+        (async () => {
+          for await (const updatedValue of watch) {
+            const existingObject = objectRegistry.get(objectName);
+            if (existingObject && currentScene) {
+              applyMockToObject3D(existingObject, updatedValue);
+            }
+          }
+        })();
+      }
+      
       return finalComputed;
     }
     
