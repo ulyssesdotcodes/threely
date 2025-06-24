@@ -71,5 +71,6 @@ describe('Debug CodeMirror First Example', () => {
       console.log('DSL result position:', dslResult.position);
       console.log('DSL result rotation:', dslResult.rotation);
     }
+    
   });
 });

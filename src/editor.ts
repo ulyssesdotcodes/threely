@@ -5,8 +5,11 @@ import {
   setVimModeEnabled, 
   createEditorState, 
   setCurrentEditorView,
-  defaultContent 
+  defaultContent,
+  getCurrentEditorView,
+  getBlockAtCursor
 } from './codemirror';
+import { executeDSL } from './dsl';
 
 export function createVimToggle(): HTMLElement {
   const container = document.createElement('div');
@@ -30,6 +33,48 @@ export function createVimToggle(): HTMLElement {
   });
   
   return container;
+}
+
+export function createRunButton(): HTMLElement {
+  const button = document.createElement('button');
+  button.className = 'run-button';
+  button.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8 5v14l11-7z"/>
+    </svg>
+    <span>Run</span>
+  `;
+  button.title = 'Run current block (Ctrl+Enter)';
+  
+  // Handle button click - same logic as Ctrl+Enter
+  button.addEventListener('click', () => {
+    const view = getCurrentEditorView();
+    if (!view) {
+      console.warn('No editor view available');
+      return;
+    }
+    
+    const blockInfo = getBlockAtCursor(view);
+    console.log("Run button pressed", blockInfo);
+    
+    if (blockInfo && blockInfo.block) {
+      const code = blockInfo.block.trim();
+      console.log("Executing DSL code:", code);
+      
+      try {
+        const result = executeDSL(code);
+        if (result) {
+          console.log("DSL execution successful, object added to scene:", result);
+        } else {
+          console.log("DSL execution returned no result");
+        }
+      } catch (error) {
+        console.error("Error executing DSL code:", error);
+      }
+    }
+  });
+  
+  return button;
 }
 
 export function startEditor(): EditorView {
@@ -57,6 +102,10 @@ export function setupEditorUI(): void {
   // Create and style the vim toggle
   const vimToggle = createVimToggle();
   document.body.appendChild(vimToggle);
+  
+  // Create and add the run button
+  const runButton = createRunButton();
+  document.body.appendChild(runButton);
   
   // Add CSS styles
   const style = document.createElement('style');
@@ -100,6 +149,49 @@ export function setupEditorUI(): void {
     
     .vim-toggle-container input[type="checkbox"]:checked + label {
       color: #4ade80;
+    }
+    
+    .run-button {
+      position: fixed;
+      top: 20px;
+      right: 140px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34, 197, 94, 0.9);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    
+    .run-button:hover {
+      background: rgba(34, 197, 94, 1);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .run-button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .run-button svg {
+      flex-shrink: 0;
+    }
+    
+    .run-button span {
+      font-weight: 500;
     }
   `;
   document.head.appendChild(style);

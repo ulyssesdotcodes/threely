@@ -10,7 +10,7 @@ const ctx = await esbuild.context({
   entryPoints: ['src/index.ts'],
   outdir: PUBLIC_DIR,
   bundle: true,
-  minify: true,
+  minify: false,
   platform: 'browser',
   format: 'esm',
 });

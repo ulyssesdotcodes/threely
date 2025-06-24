@@ -1,21 +1,38 @@
 # Threely Project Notes
 
-## Architecture
-- **Nodysseus runtime system** - Core reactive node graph system with `NodysseusRuntime` class
-- **External node handlers** - `ExternalNodeHandler` class manages external node types like `extern.frame`
-- **Watch system** - `createWatch()` method creates async iterables for observing node value changes
+## 📖 Comprehensive Documentation
+**For complete development reference, see: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)**
 
-## Testing Patterns
-- **Helper functions** - `runGraph(graph)` helper simplifies graph execution in tests
-- **External node testing** - Use `runtime.externalHandler.handleFrameExtern()` directly rather than full graph execution
-- **Mock patterns** - Mock `requestAnimationFrame` from `external-nodes.ts` for frame extern testing
+The Developer Guide contains everything needed to quickly pick up development on any section of the codebase:
+- Architecture overview and file map
+- Chain system implementation details  
+- DSL system and math functions
+- UI components and styling patterns
+- Execution flow and reactive runtime
+- Testing patterns and debugging solutions
+- Common issues and development workflow
 
-## Key Components
-- **Frame extern** (`extern.frame`) - Auto-incrementing counter using requestAnimationFrame, starts at 1
-- **VarNode vs MapNode** - VarNodes are simple values, MapNodes have `cachedInputs` and dependency tracking
-- **Graph structure** - `edges_in` object maps node IDs to their input edge objects (not simple strings)
+## 🚀 Quick Reference
 
-## Code Conventions
-- TypeScript with explicit parameter types in mapNode functions
-- External node refs: use `ref: 'extern.frame'` directly (handled by `ExternalNodeHandler`)
-- Test files use Jest with async/await patterns for watch testing
+### Core Architecture
+- **DSL** (`src/dsl.ts`) - Custom 3D language with chain objects
+- **Nodysseus Runtime** (`src/nodysseus/runtime-core.ts`) - Reactive graph execution
+- **UI System** (`src/editor.ts`) - Run button, Vim toggle, CodeMirror integration
+- **Chain Objects** - Proxy-based fluent APIs (chainObj3d, chainMath)
+
+### Key Patterns
+- **Transform functions MUST deep copy** - `geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined`
+- **Watch MockObject3D inputs** - Not the final THREE.Object3D outputs
+- **Chain setup pattern** - `chainMath.sin = { fn: mathSin, chain: () => chainMath }`
+- **Dual-mode functions** - Handle both Node<T> and primitive inputs
+
+### Testing
+- **Math chains**: `(frameNode as any).multiply(0.1)` syntax for TypeScript
+- **External nodes**: Mock `requestAnimationFrame` from `external-nodes.ts`
+- **DSL integration**: `executeDSL()` may return Node or computed value
+
+### Critical Fixes Applied
+- ✅ **Reference sharing bug** - Deep copy in transform logic functions
+- ✅ **Watch target bug** - Watch MockObject3D input to render, not final output
+- ✅ **Math chaining** - Complete JavaScript Math library as chainable operations
+- ✅ **UI consistency** - Run button with proper styling and event handling

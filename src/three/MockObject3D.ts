@@ -249,7 +249,12 @@ export function validateNumber(value: number, min?: number, max?: number, name?:
  * Safely updates only the specified properties
  */
 export function applyMockToObject3D(object: Object3D, mock: MockObject3D): Object3D {
-  console.log("applying", object, mock)
+  console.log(`🔧 applyMockToObject3D called with:`, { object: object.constructor?.name, mock });
+  if (mock && mock.geometry) {
+    console.log(`🔧 Mock geometry type:`, mock.geometry.type);
+    console.log(`🔧 Mock geometry constructor:`, mock.geometry.constructor?.name);
+    console.log(`🔧 Mock geometry object:`, mock.geometry);
+  }
   // Apply position
   if (mock.position !== undefined) {
     const pos = normalizeVector3Like(mock.position);
@@ -322,11 +327,23 @@ export function applyMockToObject3D(object: Object3D, mock: MockObject3D): Objec
 
   // Apply geometry if specified and object is a Mesh
   if (mock.geometry !== undefined && object instanceof Mesh) {
+    console.log(`🔧 Applying geometry to mesh. Mock geometry:`, mock.geometry);
+    console.log(`🔧 Mock geometry type:`, mock.geometry.type);
+    console.log(`🔧 Mock geometry constructor:`, mock.geometry.constructor?.name);
+    
+    // Check if the mock.geometry is actually a real THREE.js geometry (mutation detection)
+    if (mock.geometry.constructor?.name === 'SphereGeometry' || mock.geometry.constructor?.name === 'BoxGeometry') {
+      console.log(`❌ MUTATION DETECTED in applyMockToObject3D! Mock geometry is actually a real THREE.js geometry!`);
+      console.trace();
+    }
+    
     // Dispose old geometry
     object.geometry.dispose();
     
     // Create and assign new geometry
-    object.geometry = createGeometryFromMock(mock.geometry);
+    const newGeometry = createGeometryFromMock(mock.geometry);
+    console.log(`🔧 Created new geometry:`, newGeometry.constructor?.name);
+    object.geometry = newGeometry;
   }
 
   // Apply material if specified in userData and object is a Mesh

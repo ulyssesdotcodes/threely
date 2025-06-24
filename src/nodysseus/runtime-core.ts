@@ -77,6 +77,15 @@ export class NodysseusRuntime {
         next: () =>
           new Promise<IteratorResult<T>>((res) => {
             const watch = (a: T) => {
+              console.log(`🔍 createWatch [${node.id}] - watch callback called with:`, a);
+              if (a && (a as any).geometry) {
+                const geom = (a as any).geometry;
+                console.log(`🔍 createWatch [${node.id}] - geometry type:`, geom.type, geom.constructor?.name);
+                if (geom.constructor?.name === 'SphereGeometry') {
+                  console.log(`❌ MUTATION DETECTED in createWatch callback!`);
+                  console.trace('Mutation in createWatch');
+                }
+              }
               this.watches
                 .get(node.id)
                 ?.splice(this.watches.get(node.id)?.indexOf(watch as (a: unknown) => void) ?? 0, 1);
@@ -621,6 +630,12 @@ export class NodysseusRuntime {
     if (!node) return undefined;
 
     const current = node.value?.read();
+    
+    // Log if current value has geometry to track mutations
+    if (current && current.geometry && innode.id.includes('boundNode')) {
+      console.log(`🔍 runNode [${innode.id}] - current value geometry:`, current.geometry.type, current.geometry.constructor?.name);
+    }
+    
     let result: any;
 
     if (
@@ -688,6 +703,15 @@ export class NodysseusRuntime {
               updatedNode.value.write(r);
               if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
                 updatedNode.isDirty.write(false);
+              }
+
+              // Log the result being passed to watchers
+              if (this.watches.has(node.id) && r && r.geometry) {
+                console.log(`🔍 runNode [${node.id}] - notifying watchers with result geometry:`, r.geometry.type, r.geometry.constructor?.name);
+                if (r.geometry.constructor?.name === 'SphereGeometry') {
+                  console.log(`❌ MUTATION FOUND in runNode! Result has real THREE.js geometry!`);
+                  console.trace('Mutation in runNode watchers');
+                }
               }
 
               if (this.watches.has(node.id)) {
