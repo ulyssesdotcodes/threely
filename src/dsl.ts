@@ -80,6 +80,8 @@ chainObj3d.render = {
     } else {
       // Create a new real THREE.Object3D from the mock
       let realObject: THREE.Object3D;
+
+      console.log("actmockobj", actualMockObject)
       
       if (actualMockObject.geometry && actualMockObject.userData?.material) {
         // Create a mesh with geometry and material
@@ -200,15 +202,12 @@ const translateXLogic = (mockObject: MockObject3D, distance: number): MockObject
 };
 
 // Dual-mode translateX: handles both Node inputs (DSL) and resolved values (chaining)
-export const translateX = (objectNode: Node<MockObject3D> | MockObject3D, distance: number): Node<MockObject3D> | MockObject3D => {
-  // Check if first argument is a resolved MockObject3D (from chaining execution)
-  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
-    // Direct execution with resolved value - return transformed MockObject3D
-    return translateXLogic(objectNode as MockObject3D, distance);
-  } else {
-    // Node-based execution - return Node that will transform the MockObject3D
-    return apply((mockObject: MockObject3D) => translateXLogic(mockObject, distance), [objectNode as Node<MockObject3D>], chainObj3d);
-  }
+export const translateX = (objectNode: Node<MockObject3D> | MockObject3D, distance: Node<number> | number): Node<MockObject3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const distanceNode = typeof distance === 'number' ? createNode(distance, [], {}) : distance;
+  return apply((mockObject: MockObject3D, dist: number) => translateXLogic(mockObject, dist), [objectNodeResolved, distanceNode], chainObj3d);
 };
 
 const translateYLogic = (mockObject: MockObject3D, distance: number): MockObject3D => {
@@ -228,12 +227,12 @@ const translateYLogic = (mockObject: MockObject3D, distance: number): MockObject
   };
 };
 
-export const translateY = (objectNode: Node<MockObject3D> | MockObject3D, distance: number): Node<MockObject3D> | MockObject3D => {
-  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
-    return translateYLogic(objectNode as MockObject3D, distance);
-  } else {
-    return apply((mockObject: MockObject3D) => translateYLogic(mockObject, distance), [objectNode as Node<MockObject3D>], chainObj3d);
-  }
+export const translateY = (objectNode: Node<MockObject3D> | MockObject3D, distance: Node<number> | number): Node<MockObject3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const distanceNode = typeof distance === 'number' ? createNode(distance, [], {}) : distance;
+  return apply((mockObject: MockObject3D, dist: number) => translateYLogic(mockObject, dist), [objectNodeResolved, distanceNode], chainObj3d);
 };
 
 const translateZLogic = (mockObject: MockObject3D, distance: number): MockObject3D => {
@@ -253,12 +252,12 @@ const translateZLogic = (mockObject: MockObject3D, distance: number): MockObject
   };
 };
 
-export const translateZ = (objectNode: Node<MockObject3D> | MockObject3D, distance: number): Node<MockObject3D> | MockObject3D => {
-  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
-    return translateZLogic(objectNode as MockObject3D, distance);
-  } else {
-    return apply((mockObject: MockObject3D) => translateZLogic(mockObject, distance), [objectNode as Node<MockObject3D>], chainObj3d);
-  }
+export const translateZ = (objectNode: Node<MockObject3D> | MockObject3D, distance: Node<number> | number): Node<MockObject3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const distanceNode = typeof distance === 'number' ? createNode(distance, [], {}) : distance;
+  return apply((mockObject: MockObject3D, dist: number) => translateZLogic(mockObject, dist), [objectNodeResolved, distanceNode], chainObj3d);
 };
 
 const rotateXLogic = (mockObject: MockObject3D, angle: number): MockObject3D => {
@@ -278,12 +277,12 @@ const rotateXLogic = (mockObject: MockObject3D, angle: number): MockObject3D => 
   };
 };
 
-export const rotateX = (objectNode: Node<MockObject3D> | MockObject3D, angle: number): Node<MockObject3D> | MockObject3D => {
-  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
-    return rotateXLogic(objectNode as MockObject3D, angle);
-  } else {
-    return apply((mockObject: MockObject3D) => rotateXLogic(mockObject, angle), [objectNode as Node<MockObject3D>], chainObj3d);
-  }
+export const rotateX = (objectNode: Node<MockObject3D> | MockObject3D, angle: Node<number> | number): Node<MockObject3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const angleNode = typeof angle === 'number' ? createNode(angle, [], {}) : angle;
+  return apply((mockObject: MockObject3D, ang: number) => rotateXLogic(mockObject, ang), [objectNodeResolved, angleNode], chainObj3d);
 };
 
 const rotateYLogic = (mockObject: MockObject3D, angle: number): MockObject3D => {
@@ -303,12 +302,12 @@ const rotateYLogic = (mockObject: MockObject3D, angle: number): MockObject3D => 
   };
 };
 
-export const rotateY = (objectNode: Node<MockObject3D> | MockObject3D, angle: number): Node<MockObject3D> | MockObject3D => {
-  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
-    return rotateYLogic(objectNode as MockObject3D, angle);
-  } else {
-    return apply((mockObject: MockObject3D) => rotateYLogic(mockObject, angle), [objectNode as Node<MockObject3D>], chainObj3d);
-  }
+export const rotateY = (objectNode: Node<MockObject3D> | MockObject3D, angle: Node<number> | number): Node<MockObject3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const angleNode = typeof angle === 'number' ? createNode(angle, [], {}) : angle;
+  return apply((mockObject: MockObject3D, ang: number) => rotateYLogic(mockObject, ang), [objectNodeResolved, angleNode], chainObj3d);
 };
 
 const rotateZLogic = (mockObject: MockObject3D, angle: number): MockObject3D => {
@@ -328,12 +327,12 @@ const rotateZLogic = (mockObject: MockObject3D, angle: number): MockObject3D => 
   };
 };
 
-export const rotateZ = (objectNode: Node<MockObject3D> | MockObject3D, angle: number): Node<MockObject3D> | MockObject3D => {
-  if (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) {
-    return rotateZLogic(objectNode as MockObject3D, angle);
-  } else {
-    return apply((mockObject: MockObject3D) => rotateZLogic(mockObject, angle), [objectNode as Node<MockObject3D>], chainObj3d);
-  }
+export const rotateZ = (objectNode: Node<MockObject3D> | MockObject3D, angle: Node<number> | number): Node<MockObject3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const angleNode = typeof angle === 'number' ? createNode(angle, [], {}) : angle;
+  return apply((mockObject: MockObject3D, ang: number) => rotateZLogic(mockObject, ang), [objectNodeResolved, angleNode], chainObj3d);
 };
 
 
@@ -596,8 +595,6 @@ export function executeDSL(code: string): THREE.Object3D | null {
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
       
       // Set up watch for frame updates only if graph contains frame nodes AND results in a rendered object
-      const graphContainsFrame = JSON.stringify(result).includes('extern.frame');
-      if (graphContainsFrame && finalComputed instanceof THREE.Object3D) {
         const objectName = nodysseusGraph.id;
         
         // Find the node that produces MockObject3D (input to the render function)
@@ -712,7 +709,6 @@ export function executeDSL(code: string): THREE.Object3D | null {
         } else {
           console.log(`⚠️  Render node has no input edges`);
         }
-      }
       
       return finalComputed;
     }
@@ -725,6 +721,7 @@ export function executeDSL(code: string): THREE.Object3D | null {
     // If it's a MockObject3D, convert it to a real Object3D
     if (result && typeof result === 'object' && 'geometry' in result) {
       let realObject: THREE.Object3D;
+      console.log("result?", result)
       if (result.geometry && result.userData?.material) {
         const geometry = createGeometryFromMock(result.geometry);
         const material = result.userData.material;
@@ -732,6 +729,7 @@ export function executeDSL(code: string): THREE.Object3D | null {
       } else {
         realObject = new THREE.Object3D();
       }
+      console.log("realObject", realObject)
       applyMockToObject3D(realObject, result);
       return realObject;
     }
