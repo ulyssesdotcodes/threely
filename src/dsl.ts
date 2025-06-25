@@ -45,70 +45,78 @@ export function clearAll() {
 let chainObj3d: any = {};
 let chainMath: any = {};
 
+// Helper function for render logic
+const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object3D => {
+  console.log('🎨 Render called:', { objectName, mockObject: mockObject ? 'present' : 'null' });
+  
+  if (!currentScene) {
+    console.warn('No scene available for rendering');
+    const emptyObject = new THREE.Object3D();
+    (emptyObject as any).graphId = objectName;
+    return emptyObject;
+  }
+
+  const actualMockObject = mockObject || { geometry: undefined, userData: undefined };
+  console.log('🎨 Using MockObject3D:', actualMockObject);
+
+  // Check if object already exists in the scene
+  const existingObject = objectRegistry.get(objectName);
+
+  if (existingObject) {
+    // Update the existing object with mock properties
+    applyMockToObject3D(existingObject, actualMockObject);
+    
+    // Set graphId property on the object
+    (existingObject as any).graphId = objectName;
+    
+    console.log(`🎨 Updated existing object: ${objectName}`);
+    return existingObject;
+  } else {
+    // Create a new real THREE.Object3D from the mock
+    let realObject: THREE.Object3D;
+
+    console.log("actmockobj", actualMockObject)
+    
+    if (actualMockObject.geometry && actualMockObject.userData?.material) {
+      // Create a mesh with geometry and material
+      const geometry = createGeometryFromMock(actualMockObject.geometry);
+      const material = actualMockObject.userData.material;
+      realObject = new THREE.Mesh(geometry, material);
+      console.log(`🎨 Created new Mesh: ${objectName}`);
+    } else {
+      // Create a basic Object3D
+      realObject = new THREE.Object3D();
+      console.log(`🎨 Created new Object3D: ${objectName}`);
+    }
+
+    // Apply all mock properties to the real object
+    applyMockToObject3D(realObject, actualMockObject);
+
+    // Add to scene and registry
+    currentScene.add(realObject);
+    objectRegistry.set(objectName, realObject);
+    
+    // Set graphId property on the object
+    (realObject as any).graphId = objectName;
+    
+    console.log(`🎨 Added ${objectName} to scene and registry`);
+    return realObject;
+  }
+};
+
+// Functional render function that returns Node<THREE.Object3D>
+export const render = (objectNode: Node<MockObject3D> | MockObject3D, objectName: Node<string> | string): Node<THREE.Object3D> => {
+  const objectNodeResolved = (objectNode && typeof objectNode === 'object' && !('id' in objectNode) && !('value' in objectNode) && !('dependencies' in objectNode)) 
+    ? createNode(objectNode, [], {}) 
+    : objectNode as Node<MockObject3D>;
+  const objectNameNode = typeof objectName === 'string' ? createNode(objectName, [], {}) : objectName;
+  return apply((mockObject: MockObject3D, name: string) => renderLogic(mockObject, name), [objectNodeResolved, objectNameNode], chainObj3d);
+};
+
 chainObj3d.render = {
   chain: () => chainObj3d, 
-  fn: (mockObject: any, objectName: string) => {
-    console.log('🎨 Render called:', { objectName, mockObject: mockObject ? 'present' : 'null' });
-    
-    if (!currentScene) {
-      console.warn('No scene available for rendering');
-      const emptyObject = new THREE.Object3D();
-      (emptyObject as any).graphId = objectName;
-      return emptyObject;
-    }
-
-    // Handle both Node and direct MockObject3D cases
-    let actualMockObject: MockObject3D;
-    // The render function should only handle rendering, not graph conversion
-    // All Nodysseus graph execution should happen in executeDSL
-    actualMockObject = mockObject || { geometry: undefined, userData: undefined };
-    console.log('🎨 Using MockObject3D:', actualMockObject);
-
-
-    // Check if object already exists in the scene
-    const existingObject = objectRegistry.get(objectName);
-
-    if (existingObject) {
-      // Update the existing object with mock properties
-      applyMockToObject3D(existingObject, actualMockObject);
-      
-      // Set graphId property on the object
-      (existingObject as any).graphId = objectName;
-      
-      console.log(`🎨 Updated existing object: ${objectName}`);
-      return existingObject;
-    } else {
-      // Create a new real THREE.Object3D from the mock
-      let realObject: THREE.Object3D;
-
-      console.log("actmockobj", actualMockObject)
-      
-      if (actualMockObject.geometry && actualMockObject.userData?.material) {
-        // Create a mesh with geometry and material
-        const geometry = createGeometryFromMock(actualMockObject.geometry);
-        const material = actualMockObject.userData.material;
-        realObject = new THREE.Mesh(geometry, material);
-        console.log(`🎨 Created new Mesh: ${objectName}`);
-      } else {
-        // Create a basic Object3D
-        realObject = new THREE.Object3D();
-        console.log(`🎨 Created new Object3D: ${objectName}`);
-      }
-
-      // Apply all mock properties to the real object
-      applyMockToObject3D(realObject, actualMockObject);
-
-      // Add to scene and registry
-      currentScene.add(realObject);
-      objectRegistry.set(objectName, realObject);
-      
-      // Set graphId property on the object
-      (realObject as any).graphId = objectName;
-      
-      console.log(`🎨 Added ${objectName} to scene and registry`);
-      return realObject;
-    }
-  }};
+  fn: render
+};
 
 
 // Functional geometry creation functions that return Node<MockGeometry>
@@ -484,8 +492,7 @@ chainMath.tan = { fn: mathTan, chain: () => chainMath };
 chainMath.tanh = { fn: mathTanh, chain: () => chainMath };
 chainMath.trunc = { fn: mathTrunc, chain: () => chainMath };
 
-// Export the render function for direct use
-export const render = chainObj3d.render.fn;
+// render function is now exported above
 
 // Create a DSL context with all the functional versions
 export const dslContext = {
@@ -593,6 +600,7 @@ export function executeDSL(code: string): THREE.Object3D | null {
       
       // Re-execute with the named graph
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+      console.log("finalComputed", finalComputed)
       
       // Set up watch for frame updates only if graph contains frame nodes AND results in a rendered object
         const objectName = nodysseusGraph.id;
