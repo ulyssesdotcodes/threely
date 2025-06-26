@@ -55,18 +55,14 @@ export function createRunButton(): HTMLElement {
     }
     
     const blockInfo = getBlockAtCursor(view);
-    console.log("Run button pressed", blockInfo);
     
     if (blockInfo && blockInfo.block) {
       const code = blockInfo.block.trim();
-      console.log("Executing DSL code:", code);
       
       try {
         const result = executeDSL(code);
         if (result) {
-          console.log("DSL execution successful, object added to scene:", result);
         } else {
-          console.log("DSL execution returned no result");
         }
       } catch (error) {
         console.error("Error executing DSL code:", error);

@@ -39,7 +39,6 @@ export function clearAll() {
     });
   }
   objectRegistry.clear();
-  console.log('Cleared all objects from scene and registry');
 }
 
 let chainObj3d: any = {};
@@ -47,7 +46,6 @@ let chainMath: any = {};
 
 // Helper function for render logic
 const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object3D => {
-  console.log('🎨 Render called:', { objectName, mockObject: mockObject ? 'present' : 'null' });
   
   if (!currentScene) {
     console.warn('No scene available for rendering');
@@ -57,7 +55,6 @@ const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object
   }
 
   const actualMockObject = mockObject || { geometry: undefined, userData: undefined };
-  console.log('🎨 Using MockObject3D:', actualMockObject);
 
   // Check if object already exists in the scene
   const existingObject = objectRegistry.get(objectName);
@@ -69,24 +66,19 @@ const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object
     // Set graphId property on the object
     (existingObject as any).graphId = objectName;
     
-    console.log(`🎨 Updated existing object: ${objectName}`);
     return existingObject;
   } else {
     // Create a new real THREE.Object3D from the mock
     let realObject: THREE.Object3D;
-
-    console.log("actmockobj", actualMockObject)
     
     if (actualMockObject.geometry && actualMockObject.userData?.material) {
       // Create a mesh with geometry and material
       const geometry = createGeometryFromMock(actualMockObject.geometry);
       const material = actualMockObject.userData.material;
       realObject = new THREE.Mesh(geometry, material);
-      console.log(`🎨 Created new Mesh: ${objectName}`);
     } else {
       // Create a basic Object3D
       realObject = new THREE.Object3D();
-      console.log(`🎨 Created new Object3D: ${objectName}`);
     }
 
     // Apply all mock properties to the real object
@@ -99,7 +91,6 @@ const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object
     // Set graphId property on the object
     (realObject as any).graphId = objectName;
     
-    console.log(`🎨 Added ${objectName} to scene and registry`);
     return realObject;
   }
 };
@@ -112,7 +103,6 @@ export const render = (objectNode: Node<MockObject3D> | MockObject3D, objectName
 
 chainObj3d.render = {
   fn: (objectNode: Node<MockObject3D> | MockObject3D, objectName: Node<string> | string) => {
-    console.log("render input", objectNode, objectName)
     const [objectNodeResolved, objectNameNode] = convertToNodes.mockObjectAndName(objectNode, objectName);
     return apply((mockObject: MockObject3D, name: string) => renderLogic(mockObject, name), [objectNodeResolved, objectNameNode], chainObj3d);
   },
@@ -144,23 +134,12 @@ export const material = (options: any = {}): Node<THREE.MeshBasicMaterial> =>
 export const mesh = (geometryNode: Node<MockGeometry>, materialNode: Node<THREE.Material>): Node<MockObject3D> =>
   apply(
     (mockGeometry: MockGeometry, material: THREE.Material) => {
-      console.log(`📎 mesh function called with:`, { mockGeometry, material });
-      if (mockGeometry) {
-        console.log(`📎 Input mockGeometry type:`, mockGeometry.type);
-        console.log(`📎 Input mockGeometry constructor:`, mockGeometry.constructor?.name);
-      }
-      
       // Return a mock object that will be converted to a real mesh during render
       const result = {
         geometry: mockGeometry,
         userData: { material }
       };
       
-      console.log(`📎 mesh result:`, result);
-      if (result.geometry) {
-        console.log(`📎 Result geometry type:`, result.geometry.type);
-        console.log(`📎 Result geometry constructor:`, result.geometry.constructor?.name);
-      }
       return result;
     },
     [geometryNode, materialNode],
@@ -181,12 +160,6 @@ export const frame = (): Node<any> => {
 
 // Helper function for translateX logic
 const translateXLogic = (mockObject: MockObject3D, distance: number): MockObject3D => {
-  console.log(`📦 translateXLogic called with:`, { mockObject, distance });
-  if (mockObject && mockObject.geometry) {
-    console.log(`📦 Input geometry type:`, mockObject.geometry.type);
-    console.log(`📦 Input geometry constructor:`, mockObject.geometry.constructor?.name);
-  }
-  
   if (!mockObject) {
     return { geometry: undefined, userData: undefined };
   }
@@ -202,11 +175,6 @@ const translateXLogic = (mockObject: MockObject3D, distance: number): MockObject
     }
   };
   
-  console.log(`📦 translateXLogic result:`, result);
-  if (result.geometry) {
-    console.log(`📦 Result geometry type:`, result.geometry.type);
-    console.log(`📦 Result geometry constructor:`, result.geometry.constructor?.name);
-  }
   return result;
 };
 
@@ -344,7 +312,6 @@ export const applyMock = (objectNode: Node<MockObject3D>, mock: MockObject3D): N
 
 // Mathematical operation functions that work with Nodes
 export const multiply = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
-  console.log("mult", a, b);
   const nodeA = typeof a === 'number' ? createNode(a, [], {}) : a;
   const nodeB = typeof b === 'number' ? createNode(b, [], {}) : b;
   return apply((valA: number, valB: number) => valA * valB, [nodeA, nodeB], {});
@@ -645,7 +612,6 @@ export function executeDSL(code: string): THREE.Object3D | null {
     // If the result is a Node, try direct Graph.run execution first
     if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
       // Convert the graph to Nodysseus format
-      console.log("res", result);
       const nodysseusGraph = convertGraphToNodysseus(result);
       // Grab the name and use it as the graph id so that it caches.
       if (result.dependencies && result.dependencies.length > 1 && result.dependencies[1] && result.dependencies[1].value) {
@@ -654,36 +620,22 @@ export function executeDSL(code: string): THREE.Object3D | null {
         // Fallback to generating a unique ID if dependencies[1].value is not available
         nodysseusGraph.id = nodysseusGraph.id || `graph-${Date.now()}`;
       }
-      console.log(nodysseusGraph);
       
       // Re-execute with the named graph
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
-      console.log("finalComputed", finalComputed)
       
       // Set up watch for frame updates only if graph contains frame nodes AND results in a rendered object
+      const graphContainsFrame = JSON.stringify(result).includes('extern.frame');
+      if (graphContainsFrame && finalComputed instanceof THREE.Object3D) {
         const objectName = nodysseusGraph.id;
-        
-        // Find the node that produces MockObject3D (input to the render function)
-        // The render function is the final node, so we need to find its input
         const renderNodeId = nodysseusGraph.out!;
-        const renderNode = nodysseusGraph.nodes[renderNodeId];
-        
-        console.log(`📊 WATCH SETUP - Object: ${objectName}`);
-        console.log(`📊 Render node ID: ${renderNodeId}`);
-        console.log(`📊 Render node:`, renderNode);
-        console.log(`📊 Graph edges_in:`, nodysseusGraph.edges_in);
-        
-        // Find the input edge to the render node (should be the MockObject3D)
         const renderInputEdges = nodysseusGraph.edges_in?.[renderNodeId];
+        
         if (renderInputEdges) {
-          const inputEdgeKeys = Object.keys(renderInputEdges);
-          console.log(`📊 Render input edges:`, inputEdgeKeys);
-          
           // Find the edge that represents the first argument (the MockObject3D)
           let mockObjectNodeId: string | null = null;
           for (const [fromNodeId, edge] of Object.entries(renderInputEdges)) {
-            console.log(`📊 Edge from ${fromNodeId}:`, edge);
-            if (edge.as === 'arg0') { // First argument should be the MockObject3D
+            if (edge.as === 'arg0') {
               mockObjectNodeId = fromNodeId;
               break;
             }
@@ -693,88 +645,29 @@ export function executeDSL(code: string): THREE.Object3D | null {
             const scopeKey = nodysseusGraph.id + "/" + mockObjectNodeId;
             const nodeToWatch = runtime.scope.get(scopeKey);
             
-            console.log(`📊 Found MockObject3D node ID: ${mockObjectNodeId}`);
-            console.log(`📊 ScopeKey: ${scopeKey}`);
-            console.log(`📊 nodeToWatch exists:`, !!nodeToWatch);
-            console.log(`📊 object in registry:`, objectRegistry.has(objectName));
-            
             if (nodeToWatch && objectRegistry.has(objectName)) {
               const watch = runtime.createWatch<MockObject3D>(nodeToWatch);
-              
-              // Get the initial value directly from the node to compare
-              const initialNodeValue = runtime.runNode(nodeToWatch);
-              console.log(`📊 INITIAL NODE VALUE:`, initialNodeValue);
-              if (initialNodeValue && initialNodeValue.geometry) {
-                console.log(`📊 INITIAL geometry type:`, initialNodeValue.geometry.type);
-                console.log(`📊 INITIAL geometry constructor:`, initialNodeValue.geometry.constructor?.name);
-                console.log(`📊 INITIAL geometry object:`, initialNodeValue.geometry);
-              }
               
               // Start watching for frame updates
               (async () => {
                 try {
-                  let watchIteration = 0;
                   for await (const updatedValue of watch) {
-                    watchIteration++;
-                    console.log(`\n=== WATCH CALLBACK #${watchIteration} - Object: ${objectName} ===`);
-                    console.log(`🔄 updatedValue type:`, typeof updatedValue);
-                    console.log(`🔄 updatedValue:`, updatedValue);
-                    console.log(`🔄 updatedValue === initialNodeValue:`, updatedValue === initialNodeValue);
-                    
-                    // Check if the updatedValue is the same object reference as the initial value
-                    if (updatedValue === initialNodeValue) {
-                      console.log(`⚠️  SAME OBJECT REFERENCE - checking for mutation`);
-                    }
-                    
-                    if (updatedValue && updatedValue.geometry) {
-                      console.log(`🔄 updatedValue.geometry type:`, typeof updatedValue.geometry);
-                      console.log(`🔄 updatedValue.geometry:`, updatedValue.geometry);
-                      console.log(`🔄 updatedValue.geometry constructor:`, updatedValue.geometry.constructor?.name);
-                      
-                      // Check if this is a mock geometry or a real THREE.js geometry
-                      if ((updatedValue.geometry as any).type) {
-                        console.log(`🔄 geometry.type:`, (updatedValue.geometry as any).type);
-                        if ((updatedValue.geometry as any).type === 'sphere' || (updatedValue.geometry as any).type === 'box' || (updatedValue.geometry as any).type === 'cylinder') {
-                          console.log(`✅ WATCH: Mock geometry detected - this is GOOD`);
-                        } else if ((updatedValue.geometry as any).type === 'SphereGeometry' || (updatedValue.geometry as any).type === 'BoxGeometry') {
-                          console.log(`❌ WATCH: Real THREE.js geometry detected - this is the MUTATION!`);
-                          console.log(`❌ MUTATION DETECTED! Stack trace:`);
-                          console.trace();
-                        }
-                      }
-                    }
-                    
-                    // Also check the node value directly from the runtime
-                    const currentNodeValue = runtime.runNode(nodeToWatch);
-                    console.log(`🔄 currentNodeValue from runtime:`, currentNodeValue);
-                    if (currentNodeValue !== updatedValue) {
-                      console.log(`⚠️  DIFFERENT VALUES: watch gave us one thing, runtime.runNode gave us another`);
-                    }
-                    
                     const existingObject = objectRegistry.get(objectName);
                     if (existingObject && currentScene) {
-                      console.log(`🔄 Applying updated value to existing object ${objectName}`);
                       applyMockToObject3D(existingObject, updatedValue);
                     } else {
-                      console.log(`🔄 Breaking watch loop - object no longer in registry`);
                       // Break the watch loop if object is no longer in registry
                       break;
                     }
-                    console.log(`=== END WATCH CALLBACK #${watchIteration} ===\n`);
                   }
                 } catch (error) {
                   console.warn('Watch loop error:', error);
                 }
               })();
-            } else {
-              console.log(`⚠️  Cannot set up watch - nodeToWatch: ${!!nodeToWatch}, objectInRegistry: ${objectRegistry.has(objectName)}`);
             }
-          } else {
-            console.log(`⚠️  Could not find MockObject3D input node for render function`);
           }
-        } else {
-          console.log(`⚠️  Render node has no input edges`);
         }
+      }
       
       return finalComputed;
     }
@@ -787,7 +680,6 @@ export function executeDSL(code: string): THREE.Object3D | null {
     // If it's a MockObject3D, convert it to a real Object3D
     if (result && typeof result === 'object' && 'geometry' in result) {
       let realObject: THREE.Object3D;
-      console.log("result?", result)
       if (result.geometry && result.userData?.material) {
         const geometry = createGeometryFromMock(result.geometry);
         const material = result.userData.material;
@@ -795,7 +687,6 @@ export function executeDSL(code: string): THREE.Object3D | null {
       } else {
         realObject = new THREE.Object3D();
       }
-      console.log("realObject", realObject)
       applyMockToObject3D(realObject, result);
       return realObject;
     }

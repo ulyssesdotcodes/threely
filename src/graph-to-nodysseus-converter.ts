@@ -14,8 +14,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
   const edges: Record<string, Edge> = {};
   
   const convertNode = (node: Node<any>): string => {
-    console.log("converting", node)
-    if (visitedNodes.has(node.id)) {
+      if (visitedNodes.has(node.id)) {
       return node.id;
     }
 
@@ -33,8 +32,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
         value: node.value // Store the actual function
       } as RefNode;
     } else if (typeof node.value === 'object' && 'ref' in node.value) {
-      console.log("refnode?", node)
-      // RefNode value: use it directly with the node's ID
+        // RefNode value: use it directly with the node's ID
       const refNodeValue = node.value as RefNode;
       nodysseusNode = {
         id: node.id,
@@ -42,8 +40,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
         value: refNodeValue.value
       } as RefNode;
     } else {
-      console.log("ugh node?", node)
-      // Constant value: create ValueNode
+        // Constant value: create ValueNode
       nodysseusNode = {
         id: node.id,
         value: node.value
@@ -67,7 +64,6 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
 
   // Start conversion from root node
   const rootEval = run(rootNode);
-  console.log("rootEval", rootEval)
   const rootId = convertNode(rootEval as Node<T>);
 
   // Build the complete Graph structure
