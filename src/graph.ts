@@ -2,7 +2,7 @@
 import { GraphPrettyPrinter, PrettyPrintOptions } from './graph-pretty-printer';
 
 // Import RefNode type for external node references
-import { RefNode } from './nodysseus/types';
+import { isNodeRef, NodysseusNode, RefNode } from './nodysseus/types';
 
 /**
  * Type representing a Node in the graph.
@@ -34,7 +34,7 @@ const generateUniqueId = (): string => `node-${++nodeIdCounter}`;
 export const createNode = <T>(
   value: ((...args: any[]) => T) | RefNode | T,
   dependencies: readonly Node<any>[] = [],
-  chain: Record<string,  {fn: (...args: any[]) => any, chain: () => any}> = {},
+  chain: Record<string,  {fn: (...args: any[]) => T, chain: () => any}> = {},
   graphId?: string
 ): Node<T> => (new Proxy({
   id: generateUniqueId(),
@@ -59,7 +59,6 @@ export const createNode = <T>(
  * @returns The computed value
  */
 export const run = <T>(node: Node<T>): T => {
-  // Handle different value types
   if (typeof node.value === 'function') {
     // Function value: resolve dependencies and call function
     const dependencyResults = node.dependencies.map(dep => run(dep));
@@ -67,7 +66,7 @@ export const run = <T>(node: Node<T>): T => {
   } else if (typeof node.value === 'object' && node.value !== null && 'ref' in node.value) {
     // RefNode value: this should be handled by the Nodysseus runtime
     // For now, throw an error since we can't execute RefNodes directly in the functional graph
-    throw new Error(`Cannot execute RefNode '${(node.value as RefNode).ref}' in functional graph. Use NodysseusRuntime instead.`);
+    return node as T
   } else {
     // Constant value: return as-is
     return node.value as T;

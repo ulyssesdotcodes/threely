@@ -14,12 +14,13 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
   const edges: Record<string, Edge> = {};
   
   const convertNode = (node: Node<any>): string => {
+    console.log("converting", node)
     if (visitedNodes.has(node.id)) {
       return node.id;
     }
 
     // Convert dependencies first (depth-first traversal)
-    const dependencyIds = node.dependencies.map(dep => convertNode(dep));
+    const dependencyIds = node.dependencies?.map(dep => convertNode(dep)) ?? [];
 
     let nodysseusNode: NodysseusNode;
 
@@ -31,7 +32,8 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
         ref: "@graph.executable",
         value: node.value // Store the actual function
       } as RefNode;
-    } else if (typeof node.value === 'object' && node.value !== null && 'ref' in node.value) {
+    } else if (typeof node.value === 'object' && 'ref' in node.value) {
+      console.log("refnode?", node)
       // RefNode value: use it directly with the node's ID
       const refNodeValue = node.value as RefNode;
       nodysseusNode = {
@@ -40,6 +42,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
         value: refNodeValue.value
       } as RefNode;
     } else {
+      console.log("ugh node?", node)
       // Constant value: create ValueNode
       nodysseusNode = {
         id: node.id,
@@ -63,7 +66,9 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
   };
 
   // Start conversion from root node
-  const rootId = convertNode(rootNode);
+  const rootEval = run(rootNode);
+  console.log("rootEval", rootEval)
+  const rootId = convertNode(rootEval as Node<T>);
 
   // Build the complete Graph structure
   return {
@@ -106,7 +111,7 @@ export const convertMultipleNodesToGraph = (nodes: Node<any>[]): Graph => {
       return node.id;
     }
 
-    const dependencyIds = node.dependencies.map(dep => convertNode(dep));
+    const dependencyIds = node.dependencies?.map(dep => convertNode(dep)) ?? [];
 
     const refNode: RefNode = {
       id: node.id,
