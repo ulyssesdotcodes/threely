@@ -1,4 +1,4 @@
-import { frame, multiply } from '../src/dsl';
+import { frame, mult } from '../src/dsl';
 
 describe('Math Chain Tests', () => {
   it('should allow chaining math operations on frame()', () => {
@@ -10,13 +10,13 @@ describe('Math Chain Tests', () => {
     expect(frameNode.id).toBeDefined();
     
     // Test that we can chain multiply - the proxy should handle this
-    const multipliedFrame = (frameNode as any).multiply(0.1);
+    const multipliedFrame = (frameNode as any).mult(0.1);
     expect(multipliedFrame).toBeDefined();
     expect(typeof multipliedFrame).toBe('object');
     expect(multipliedFrame.id).toBeDefined();
     
     // Test multiple chaining
-    const complexMath = (frameNode as any).multiply(0.1).add(5).sin().abs();
+    const complexMath = (frameNode as any).mult(0.1).add(5).sin().abs();
     expect(complexMath).toBeDefined();
     expect(typeof complexMath).toBe('object');
     expect(complexMath.id).toBeDefined();
@@ -24,7 +24,7 @@ describe('Math Chain Tests', () => {
 
   it('should work with the old multiply function style', () => {
     const frameNode = frame();
-    const result = multiply(frameNode, 0.1);
+    const result = mult(frameNode, 0.1);
     
     expect(result).toBeDefined();
     expect(typeof result).toBe('object');
@@ -35,12 +35,12 @@ describe('Math Chain Tests', () => {
     const frameNode = frame();
     
     // Test basic arithmetic chains
-    const arithmetic = (frameNode as any).multiply(2).add(10).subtract(5).divide(3);
+    const arithmetic = (frameNode as any).mult(2).add(10).sub(5).div(3);
     expect(arithmetic).toBeDefined();
     expect(arithmetic.id).toBeDefined();
     
     // Test trigonometric chains
-    const trig = (frameNode as any).multiply(0.1).sin().abs();
+    const trig = (frameNode as any).mult(0.1).sin().abs();
     expect(trig).toBeDefined();
     expect(trig.id).toBeDefined();
     

@@ -1,4 +1,4 @@
-import { setScene, executeDSL, clearAll, frame, mesh, sphere, material, render, multiply } from '../src/dsl';
+import { setScene, executeDSL, clearAll, frame, mesh, sphere, material, render, mult } from '../src/dsl';
 import { Graph } from '../src/graph';
 import { convertGraphToNodysseus } from '../src/graph-to-nodysseus-converter';
 import { NodysseusRuntime } from '../src/nodysseus/runtime-core';
@@ -117,7 +117,7 @@ describe('executeDSL Frame Integration Tests', () => {
         mesh(
           sphere(1),
           material({ color: 0xff0000 })
-        ).translateX(multiply(frame(), 0.1)).render('animatedSphere')
+        ).translateX(mult(frame(), 0.1)).render('animatedSphere')
       `;
       
       let result;
@@ -149,8 +149,8 @@ describe('executeDSL Frame Integration Tests', () => {
       
       const dslCode = `
         mesh(sphere(1), material())
-          .translateX(multiply(frame(), 0.01))
-          .rotateY(multiply(frame(), 0.02))
+          .translateX(mult(frame(), 0.01))
+          .rotateY(mult(frame(), 0.02))
           .render('complexAnimation')
       `;
       
@@ -613,7 +613,7 @@ describe('executeDSL Frame Integration Tests', () => {
       // Test sequence: create animated object, trigger updates, check state
       const dslCode = `
         mesh(sphere(1), material({ color: 0x00ff00 }))
-          .translateX(multiply(frame(), 0.1))
+          .translateX(mult(frame(), 0.1))
           .render('testAnimation')
       `;
       

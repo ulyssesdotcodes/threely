@@ -589,7 +589,8 @@ export class ExternalNodeHandler {
           return undefined;
         }
       },
-      undefined,
+      (prev, next) => !compareObjects(prev, next),
+      // undefined,
       nodeGraphId,
       useExisting,
     );
