@@ -311,7 +311,7 @@ export const applyMock = (objectNode: Node<MockObject3D>, mock: MockObject3D): N
   }, [objectNode], chainObj3d);
 
 // Mathematical operation functions that work with Nodes
-export const multiply = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
+export const mult = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
   const nodeA = typeof a === 'number' ? createNode(a, [], {}) : a;
   const nodeB = typeof b === 'number' ? createNode(b, [], {}) : b;
   return apply((valA: number, valB: number) => valA * valB, [nodeA, nodeB], {});
@@ -323,13 +323,13 @@ export const add = (a: Node<number> | number, b: Node<number> | number): Node<nu
   return apply((valA: number, valB: number) => valA + valB, [nodeA, nodeB], {});
 };
 
-export const subtract = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
+export const sub = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
   const nodeA = typeof a === 'number' ? createNode(a, [], {}) : a;
   const nodeB = typeof b === 'number' ? createNode(b, [], {}) : b;
   return apply((valA: number, valB: number) => valA - valB, [nodeA, nodeB], {});
 };
 
-export const divide = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
+export const div = (a: Node<number> | number, b: Node<number> | number): Node<number> => {
   const nodeA = typeof a === 'number' ? createNode(a, [], {}) : a;
   const nodeB = typeof b === 'number' ? createNode(b, [], {}) : b;
   return apply((valA: number, valB: number) => valA / valB, [nodeA, nodeB], {});
@@ -478,10 +478,10 @@ chainObj3d.rotateZ = {
 chainObj3d.applyMock = { fn: applyMock, chain: () => chainObj3d };
 
 // Set up the mathematical chain object
-chainMath.multiply = { fn: multiply, chain: () => chainMath };
+chainMath.mult = { fn: mult, chain: () => chainMath };
 chainMath.add = { fn: add, chain: () => chainMath };
-chainMath.subtract = { fn: subtract, chain: () => chainMath };
-chainMath.divide = { fn: divide, chain: () => chainMath };
+chainMath.sub = { fn: sub, chain: () => chainMath };
+chainMath.div = { fn: div, chain: () => chainMath };
 chainMath.abs = { fn: mathAbs, chain: () => chainMath };
 chainMath.acos = { fn: mathAcos, chain: () => chainMath };
 chainMath.acosh = { fn: mathAcosh, chain: () => chainMath };
@@ -535,10 +535,10 @@ export const dslContext = {
   rotateZ,
   applyMock,
   render,
-  multiply,
+  mult,
   add,
-  subtract,
-  divide,
+  sub,
+  div,
   // Math functions
   mathAbs,
   mathAcos,

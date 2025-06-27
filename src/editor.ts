@@ -83,13 +83,18 @@ export function startEditor(): EditorView {
 
   setCurrentEditorView(view);
 
-  // Set the editor to occupy full height of the screen
+  // Set the editor to occupy full height with mobile support
   document.body.style.margin = '0';
   document.body.style.backgroundColor = 'transparent';
   view.dom.style.height = '100vh';
+  view.dom.style.height = '100dvh'; // Dynamic viewport height for mobile
   view.dom.style.width = '100%';
   view.dom.style.display = 'block';
   view.dom.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  
+  // Mobile-specific styling
+  view.dom.style.fontSize = '16px'; // Prevent zoom on iOS
+  view.dom.style.lineHeight = '1.5'; // Better mobile readability
   
   return view;
 }
@@ -108,32 +113,43 @@ export function setupEditorUI(): void {
   style.textContent = `
     .vim-toggle-container {
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: 16px;
+      right: 16px;
       z-index: 1000;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       background: rgba(0, 0, 0, 0.8);
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 12px 16px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(4px);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
+      font-size: 16px; /* Increased for mobile readability */
       color: white;
       user-select: none;
+      min-height: 44px; /* Minimum touch target */
+      box-sizing: border-box;
     }
     
-    .vim-toggle-container:hover {
+    /* Touch-friendly hover states */
+    .vim-toggle-container:hover,
+    .vim-toggle-container:focus-within {
       background: rgba(0, 0, 0, 0.9);
       border-color: rgba(255, 255, 255, 0.3);
+      transform: scale(1.02);
+    }
+    
+    .vim-toggle-container:active {
+      transform: scale(0.98);
     }
     
     .vim-toggle-container input[type="checkbox"] {
       margin: 0;
       cursor: pointer;
-      transform: scale(1.1);
+      transform: scale(1.3); /* Larger for mobile touch */
+      min-width: 20px;
+      min-height: 20px;
     }
     
     .vim-toggle-container label {
@@ -149,37 +165,41 @@ export function setupEditorUI(): void {
     
     .run-button {
       position: fixed;
-      top: 20px;
-      right: 140px;
+      top: 16px;
+      right: 180px; /* Adjusted for larger Vim toggle */
       z-index: 1000;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       background: rgba(34, 197, 94, 0.9);
       color: white;
       border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 12px 16px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(4px);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
+      font-size: 16px; /* Increased for mobile */
       font-weight: 500;
       cursor: pointer;
       user-select: none;
       transition: all 0.2s ease;
+      min-height: 44px; /* Minimum touch target */
+      box-sizing: border-box;
     }
     
-    .run-button:hover {
+    /* Touch-friendly button states */
+    .run-button:hover,
+    .run-button:focus {
       background: rgba(34, 197, 94, 1);
       border-color: rgba(255, 255, 255, 0.3);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
     }
     
     .run-button:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transform: scale(0.95);
+      box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
     }
     
     .run-button svg {
@@ -188,6 +208,51 @@ export function setupEditorUI(): void {
     
     .run-button span {
       font-weight: 500;
+    }
+    
+    /* Mobile responsive layout */
+    @media (max-width: 768px) {
+      .vim-toggle-container {
+        top: 12px;
+        right: 12px;
+        font-size: 14px;
+        padding: 10px 12px;
+      }
+      
+      .run-button {
+        top: 12px;
+        right: 120px;
+        font-size: 14px;
+        padding: 10px 12px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* Stack buttons vertically on very small screens */
+      .vim-toggle-container {
+        top: 12px;
+        right: 12px;
+      }
+      
+      .run-button {
+        top: 70px; /* Stack below vim toggle */
+        right: 12px;
+      }
+    }
+    
+    /* Improve CodeMirror mobile experience */
+    .cm-editor {
+      font-size: 16px !important; /* Prevent zoom on iOS */
+    }
+    
+    .cm-content {
+      padding: 16px !important; /* More touch-friendly padding */
+      line-height: 1.6 !important;
+    }
+    
+    .cm-focused {
+      outline: 2px solid rgba(34, 197, 94, 0.5) !important;
+      outline-offset: -2px !important;
     }
   `;
   document.head.appendChild(style);
