@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import * as Obj3D from './three/Object3D';
 import * as Mat from './three/Material';
+import {parser} from "@lezer/javascript"
 import { Graph, Node, createNode, apply, prettyPrint } from './graph';
 import { convertGraphToNodysseus } from './graph-to-nodysseus-converter';
 import { NodysseusRuntime } from './nodysseus/runtime-core';
@@ -146,10 +147,71 @@ export const mesh = (geometryNode: Node<MockGeometry>, materialNode: Node<THREE.
     chainObj3d
   );
 
+// Global map to store function call positions and UUIDs
+const functionCallUUIDs = new Map<string, string>();
+
+// Log to the error panel at the bottom of the page
+function logToPanel(message: string, type: 'info' | 'warn' | 'error' = 'info'): void {
+  if (typeof window !== 'undefined' && window.document) {
+    const errorPanel = document.getElementById('error-panel');
+    const errorMessages = document.getElementById('error-messages');
+    
+    if (errorPanel && errorMessages) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `error-message ${type}`;
+      
+      const timestamp = new Date().toLocaleTimeString();
+      const timestampSpan = document.createElement('span');
+      timestampSpan.className = 'error-timestamp';
+      timestampSpan.textContent = `[${timestamp}]`;
+      
+      messageDiv.appendChild(timestampSpan);
+      messageDiv.appendChild(document.createTextNode(` ${message}`));
+      
+      errorMessages.appendChild(messageDiv);
+      errorPanel.classList.add('has-errors');
+      
+      // Auto-scroll to bottom
+      errorMessages.scrollTop = errorMessages.scrollHeight;
+    }
+  }
+  
+  // Also log to console for debugging
+  console.log(`[DSL] ${message}`);
+}
+
+// Simple hash function for browser compatibility
+function simpleHash(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(16);
+}
+
+// Generate deterministic UUID based on position and function name
+function generateFunctionUUID(functionName: string, position: number, code: string): string {
+  const key = `${functionName}:${position}:${code.length}`;
+  if (!functionCallUUIDs.has(key)) {
+    const hash = simpleHash(key);
+    const uuid = `${hash.slice(0, 8)}-${hash.slice(8, 12) || '0000'}-${hash.slice(12, 16) || '0000'}-${hash.slice(16, 20) || '0000'}-${hash.slice(20, 32) || '000000000000'}`;
+    functionCallUUIDs.set(key, uuid);
+    logToPanel(`Generated new UUID for ${functionName} at position ${position}: ${uuid}`);
+  } else {
+    logToPanel(`Reusing existing UUID for ${functionName} at position ${position}: ${functionCallUUIDs.get(key)!}`);
+  }
+  return functionCallUUIDs.get(key)!;
+}
+
+// Export logToPanel for use in other modules
+export { logToPanel };
+
 // Frame counter function that returns a Node with extern.frame RefNode
-export const frame = (): Node<any> => {
+export const frame = (uuid?: string): Node<any> => {
   const frameRefNode: RefNode = {
-    id: `frame-${Date.now()}`,
+    id: uuid || `frame-${Date.now()}`,
     ref: 'extern.frame'
   };
   
@@ -587,15 +649,119 @@ export const dslContext = {
 // Simple DSL parser that evaluates code with functional context
 export function parseDSL(code: string): any {
   try {
+    // Clear previous logs for this parse session
+    logToPanel('🔄 Starting DSL parsing...');
+    
     // Clean up the code by trimming whitespace and handling multiline expressions
     const cleanCode = code.trim();
+    logToPanel(`📝 Input code: ${cleanCode}`);
+    
+    // Parse with @lezer/javascript to get AST
+    logToPanel('🌳 Parsing with Lezer JavaScript parser...');
+    const tree = parser.parse(cleanCode);
+    
+    // Log detailed AST structure
+    logToPanel('=== Lezer Parser Output ===');
+    logToPanel(`AST Root: ${tree.topNode.name} (${tree.topNode.from}-${tree.topNode.to})`);
+    
+    // Walk the entire tree to show structure
+    const astNodes: Array<{name: string, from: number, to: number, depth: number, text: string}> = [];
+    const walkTree = (node: any, depth: number = 0) => {
+      const nodeText = cleanCode.slice(node.from, node.to);
+      astNodes.push({
+        name: node.name,
+        from: node.from,
+        to: node.to,
+        depth: depth,
+        text: nodeText.length > 50 ? nodeText.slice(0, 50) + '...' : nodeText
+      });
+      
+      if (node.firstChild) {
+        let child = node.firstChild;
+        do {
+          walkTree(child, depth + 1);
+          child = child.nextSibling;
+        } while (child);
+      }
+    };
+    
+    walkTree(tree.topNode);
+    
+    // Check for parse errors by looking for error nodes
+    const hasError = astNodes.some(node => node.name === '⚠');
+    if (hasError) {
+      logToPanel('⚠️  Parse tree contains errors!', 'warn');
+    } else {
+      logToPanel('✅ Parse successful!');
+    }
+    
+    // Log AST structure
+    logToPanel('🏗️  AST Structure:');
+    astNodes.forEach(node => {
+      const indent = '  '.repeat(node.depth);
+      logToPanel(`${indent}${node.name} (${node.from}-${node.to}): "${node.text}"`);
+    });
+    
+    // Walk the tree to find function calls and generate UUIDs for frame() calls
+    const functionCalls: Array<{name: string, from: number, to: number, uuid?: string}> = [];
+    let modifiedCode = cleanCode;
+    let offset = 0;
+    
+    tree.cursor().iterate((node) => {
+      if (node.name === 'CallExpression') {
+        const callText = cleanCode.slice(node.from, node.to);
+        // Extract function name from the call expression
+        const funcNameMatch = callText.match(/^(\w+)/);
+        if (funcNameMatch) {
+          const functionName = funcNameMatch[1];
+          const callInfo: {name: string, from: number, to: number, uuid?: string} = {
+            name: functionName,
+            from: node.from,
+            to: node.to
+          };
+          
+          // Generate stable UUID for frame() calls
+          if (functionName === 'frame') {
+            const uuid = generateFunctionUUID(functionName, node.from, cleanCode);
+            callInfo.uuid = uuid;
+            
+            // Replace frame() with frame("uuid") in the code
+            if (callText === 'frame()') {
+              const replacement = `frame("${uuid}")`;
+              const adjustedFrom = node.from + offset;
+              const adjustedTo = node.to + offset;
+              modifiedCode = modifiedCode.slice(0, adjustedFrom) + replacement + modifiedCode.slice(adjustedTo);
+              offset += replacement.length - callText.length;
+            }
+          }
+          
+          functionCalls.push(callInfo);
+        }
+      }
+    });
+    
+    logToPanel('🔍 Function calls found:');
+    functionCalls.forEach(call => {
+      const callText = cleanCode.slice(call.from, call.to);
+      logToPanel(`  📞 ${call.name} at ${call.from}-${call.to}: "${callText}"${call.uuid ? ` -> UUID: ${call.uuid}` : ''}`);
+    });
+    
+    if (modifiedCode !== cleanCode) {
+      logToPanel(`🔄 Modified code: ${modifiedCode}`);
+    }
+    
+    logToPanel('⚡ Executing modified code...');
+    console.log('Function calls found:', functionCalls);
     
     // Create a function that has access to the DSL context
-    const func = new Function(...Object.keys(dslContext), `return ${cleanCode}`);
+    const func = new Function(...Object.keys(dslContext), `return ${modifiedCode}`);
     
     // Execute the function and return the result (which could be a Node<T>)
-    return func(...Object.values(dslContext));
+    const result = func(...Object.values(dslContext));
+    logToPanel('✅ DSL parsing completed successfully!');
+    return result;
   } catch (error) {
+    logToPanel(`❌ DSL parsing error: ${error}`, 'error');
     console.error('DSL parsing error:', error);
     return null;
   }

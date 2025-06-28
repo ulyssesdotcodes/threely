@@ -2,7 +2,14 @@
   "name": "threely",
   "version": "1.0.0",
   "description": "A Three.js DSL library for functional 3D graphics programming",
-  "keywords": ["threejs", "3d", "graphics", "dsl", "functional", "webgl"],
+  "keywords": [
+    "threejs",
+    "3d",
+    "graphics",
+    "dsl",
+    "functional",
+    "webgl"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "repository": {
@@ -36,6 +43,7 @@
     "@codemirror/lang-javascript": "^6.2.4",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.37.1",
+    "@lezer/javascript": "^1.5.1",
     "@replit/codemirror-vim": "^6.3.0",
     "@solidjs/signals": "^0.3.2",
     "codemirror": "^6.0.1",
