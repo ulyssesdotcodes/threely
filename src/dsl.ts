@@ -647,6 +647,7 @@ export function executeDSL(code: string): THREE.Object3D | null {
             const nodeToWatch = runtime.scope.get(scopeKey);
             
             if (nodeToWatch && objectRegistry.has(objectName)) {
+              runtime.stopWatch(nodeToWatch);
               const watch = runtime.createWatch<MockObject3D>(nodeToWatch);
               
               // Start watching for frame updates

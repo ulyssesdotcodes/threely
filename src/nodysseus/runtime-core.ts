@@ -99,6 +99,13 @@ export class NodysseusRuntime {
     }
   }
 
+  public stopWatch(node: any) {
+    // Clear all listeners for a node
+    if (this.watches.has(node.id)) {
+      this.watches.delete(node.id);
+    }
+  }
+
   public addWatchFn<T>(node: any, watch: (output: T) => void) {
     if (!this.watches.has(node.id)) this.watches.set(node.id, []);
     this.watches.get(node.id)?.push(watch as any);
