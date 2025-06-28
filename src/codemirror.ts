@@ -5,6 +5,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { vim } from "@replit/codemirror-vim";
 import { getTextBlockAtPosition } from './text_utils';
 import { executeDSL } from './dsl';
+import { createFunctionCallTaggingExtension } from './codemirror/function-call-extension';
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
@@ -121,6 +122,11 @@ export function createEditorState(content: string = defaultContent): EditorState
       basicSetup,
       javascript(),
       Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
+      createFunctionCallTaggingExtension({
+        debounceMs: 150,
+        tagAllBlocks: false,
+        debug: false
+      }),
     ],
   });
 }
