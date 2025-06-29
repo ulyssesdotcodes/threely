@@ -22,6 +22,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
     const dependencyIds = node.dependencies?.map(dep => convertNode(dep)) ?? [];
 
     let nodysseusNode: NodysseusNode;
+    console.log("converting", node)
 
     // Handle different value types
     if (typeof node.value === 'function') {

@@ -10,6 +10,8 @@ import { getObjectRegistry } from './object3d-chain';
 import * as obj3dChain from './object3d-chain';
 import * as mathChain from './math-chain';
 import { convertLezerToNodysseus, LezerToNodysseusConverter } from './lezer-to-nodysseus-converter';
+import { RangeSet } from '@codemirror/state';
+import {UUIDTag} from "../uuid-tagging"
 
 // Global map to store function call positions and UUIDs
 const functionCallUUIDs = new Map<string, string>();
@@ -109,7 +111,7 @@ export function parseDSLWithLezer(code: string, dslContext: any): any {
 }
 
 // Simple DSL parser that evaluates code with functional context
-export function parseDSL(code: string, dslContext: any): any {
+export function parseDSL(code: string, dslContext: any, ranges: {start: number, end: number, uuid: UUIDTag}[]): any {
   // Choose parsing strategy
   if (USE_LEZER_CONVERTER) {
     return parseDSLWithLezer(code, dslContext);
@@ -175,6 +177,8 @@ export function parseDSL(code: string, dslContext: any): any {
     let offset = 0;
     
     tree.cursor().iterate((node) => {
+          const matchingRange = ranges.find(v => v.start === node.from && v.end === node.to);
+          console.log("matching range", matchingRange)
       if (node.name === 'CallExpression') {
         const callText = cleanCode.slice(node.from, node.to);
         // Extract function name from the call expression
@@ -310,17 +314,18 @@ const defaultDslContext = {
   console
 };
 
-export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D | number | string | boolean | null {
+export function executeDSL(code: string, ranges : {start: number, end: number, uuid: UUIDTag}[], dslContextParam?: any): THREE.Object3D | number | string | boolean | null {
   try {
     const contextToUse = dslContextParam || defaultDslContext;
-    let result = parseDSL(code, contextToUse);
+    console.log(ranges);
+    let result = parseDSL(code, contextToUse, ranges);
     const objectRegistry = getObjectRegistry();
     
     // Handle Lezer-converted results
     if (result && typeof result === 'object' && '__isLezerConverted' in result) {
-      logToPanel('🎯 Processing Lezer-converted graph...');
+      logToPanel('🎯 Processing Lezer-converted graphabc...');
       const nodysseusGraph = result.value;
-      
+
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
       
       let actualResult = finalComputed;

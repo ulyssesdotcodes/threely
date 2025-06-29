@@ -69,9 +69,12 @@ export class LezerToNodysseusConverter {
     const functionalGraph = this.convertASTToFunctionalGraph(tree.topNode, context);
     logToPanel(`🔗 Created functional graph with root node: ${functionalGraph.id}`);
 
+    console.log(functionalGraph)
+
     // Convert functional graph to Nodysseus format
     const nodysseusGraph = convertGraphToNodysseus(functionalGraph);
     logToPanel(`🎯 Converted to Nodysseus graph with ${Object.keys(nodysseusGraph.nodes).length} nodes`);
+    console.log(nodysseusGraph)
 
     return {
       graph: nodysseusGraph,
@@ -250,6 +253,8 @@ export class LezerToNodysseusConverter {
         value: dslFunction,
         ...(uuid && { uuid }) // Add UUID if available for correlation
       };
+
+      console.log("created refNode?", refNode)
       
       currentNode = createNode(refNode, dependencies, this.getChainContext(call.functionName, context));
     }

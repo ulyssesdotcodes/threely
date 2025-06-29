@@ -5,7 +5,7 @@ import { parser } from "@lezer/javascript";
 import { v4 as uuid } from "uuid";
 
 // RangeValue for UUID-tagged function calls
-class UUIDTag extends RangeValue {
+export class UUIDTag extends RangeValue {
   constructor(public uuid: string, public functionName: string) {
     super();
   }
@@ -161,7 +161,7 @@ export function getUUIDsForFunction(functionName: string): string[] {
 
 // ViewPlugin to automatically update UUID RangeSet when document changes significantly
 export const uuidRangeSetPlugin = ViewPlugin.fromClass(class {
-  private lastDocText: string = '';
+   lastDocText: string = '';
   
   constructor(view: EditorView) {
     this.lastDocText = view.state.doc.toString();
@@ -178,7 +178,7 @@ export const uuidRangeSetPlugin = ViewPlugin.fromClass(class {
     }
   }
   
-  private shouldRegenerateUUIDs(update: any, currentDocText: string): boolean {
+   shouldRegenerateUUIDs(update: any, currentDocText: string): boolean {
     // Regenerate if:
     // 1. The document changed and text is different
     // 2. There's no existing UUID RangeSet
@@ -198,7 +198,7 @@ export const uuidRangeSetPlugin = ViewPlugin.fromClass(class {
     return hasNewFunctionCalls;
   }
   
-  private regenerateUUIDs(view: EditorView, text: string) {
+   regenerateUUIDs(view: EditorView, text: string) {
     clearFunctionCallRegistry();
     const { rangeSet } = generateUUIDTags(text);
     

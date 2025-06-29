@@ -11,8 +11,10 @@ import {
   generateUUIDTags, 
   clearFunctionCallRegistry, 
   setUUIDRangeSet,
-  getUUIDFromState
+  getUUIDFromState,
+  UUIDTag
 } from './uuid-tagging';
+import { State } from "./nodysseus/node-types";
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
@@ -54,7 +56,13 @@ const handleCtrlEnter = (view: EditorView): boolean => {
     const code = blockInfo.block.trim();
     
     try {
-      const result = executeDSL(code);
+      const ranges : {start: number, end: number, uuid: UUIDTag}[] = []
+     view.state.field(uuidRangeSetField).between(blockInfo.start, blockInfo.end, (start, end, uuid) => (ranges.push({
+      start: start - blockInfo.start,
+      end: end - blockInfo.start,
+      uuid
+     }), undefined))
+      const result = executeDSL(code, ranges);
       if (result) {
       } else {
       }
@@ -68,21 +76,17 @@ const handleCtrlEnter = (view: EditorView): boolean => {
 };
 
 // Function to get block at cursor position
-export const getBlockAtCursor = (view: EditorView): { block: string } | null => {
+export const getBlockAtCursor = (view: EditorView): { block: string; start: number; end: number } | null => {
   const text = view.state.doc.toString();
   const cursorPos = view.state.selection.ranges[0].from;
 
-  const blockText = getTextBlockAtPosition(text, cursorPos);
-
-  return {
-    block: blockText,
-  };
+  return getTextBlockAtPosition(text, cursorPos);
 };
 
 
 export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
 
-mesh(sphere(), material()).translateX(frame().mult(0.02)).rotateY(45).render("mySphere")
+mesh(sphere(), material()).translateX(frame().mult(0.02).floor()).rotateY(45).render("mySphere")
 
 // Try pressing Ctrl+Enter on the line above!
 // This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene
@@ -125,7 +129,7 @@ export function createEditorState(content: string = defaultContent): EditorState
   // Clear previous UUID registry and generate new tags for the content
   clearFunctionCallRegistry();
   const { rangeSet } = generateUUIDTags(content);
-  
+
   const state = EditorState.create({
     doc: content,
     extensions: [

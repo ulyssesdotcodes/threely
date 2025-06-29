@@ -46,9 +46,13 @@ export const findBlockEnd = (text: string, pos: number): number => {
  * @param pos - The cursor position where we want to get the block
  * @returns The text block at the specified position
  */
-export const getTextBlockAtPosition = (text: string, pos: number): string => {
+export const getTextBlockAtPosition = (text: string, pos: number): {block: string, start: number, end: number} => {
   const start = findBlockStart(text, pos);
   const end = findBlockEnd(text, pos);
 
-  return text.substring(start, end).trim();
+  return {
+    block: text.substring(start, end).trim(),
+    start,
+    end
+  }
 };
