@@ -1,6 +1,6 @@
 export type NodysseusNode = GraphNode | ValueNode | RefNode;
 
-type BaseNode = { id: string; name?: string; category?: string };
+type BaseNode = { id: string; name?: string; category?: string; uuid?: string };
 export type GraphNode = Graph & { value?: any; category?: string };
 export type ValueNode = BaseNode & { value?: string };
 export type RefNode = BaseNode & { ref: string; value?: string | Function };

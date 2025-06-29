@@ -164,6 +164,7 @@ const translateXLogic = (mockObject: MockObject3D, distance: number): MockObject
   if (!mockObject) {
     return { geometry: undefined, userData: undefined };
   }
+  console.log("disatnce", distance)
   const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
   const result = {
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,

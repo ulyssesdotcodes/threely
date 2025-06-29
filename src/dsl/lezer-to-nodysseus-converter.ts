@@ -4,6 +4,7 @@ import { Graph, Node, createNode } from '../graph';
 import { convertGraphToNodysseus } from '../graph-to-nodysseus-converter';
 import { NodysseusNode, RefNode, ValueNode, Graph as NodysseusGraph, Edge } from '../nodysseus/types';
 import { logToPanel } from './parser';
+import { getFunctionCallRegistry, getUUIDAtPosition, getUUIDFromState, FunctionCallInfo } from '../uuid-tagging';
 
 interface ConversionContext {
   dslContext: Record<string, any>;
@@ -24,6 +25,7 @@ interface ConversionLogEntry {
   nodysseusNodeType: 'RefNode' | 'ValueNode';
   functionResolved?: string;
   warnings?: string[];
+  uuid?: string;
 }
 
 export interface LezerToNodysseusResult {
@@ -187,9 +189,15 @@ export class LezerToNodysseusConverter {
     let currentNode: Node<any> | null = null;
     
     for (const call of callChain) {
-      const nodeId = this.generateNodeId(context);
+      // Try to get UUID from function call registry based on AST position
+      const uuid = getUUIDAtPosition(call.astNode.from);
+      const nodeId = uuid || this.generateNodeId(context);
       
-      logToPanel(`🔗 Building call: ${call.functionName}${call.isMethod ? ' (method)' : ' (function)'}`);
+      logToPanel(`🔗 Building call: ${call.functionName}${call.isMethod ? ' (method)' : ' (function)'} (UUID: ${uuid || 'generated'})`);
+      
+      if (uuid) {
+        logToPanel(`✅ Found UUID correlation: ${uuid} for ${call.functionName} at position ${call.astNode.from}-${call.astNode.to}`);
+      }
       
       // Look up function in DSL context or chain context
       let dslFunction = context.dslContext[call.functionName];
@@ -208,7 +216,7 @@ export class LezerToNodysseusConverter {
       
       if (!dslFunction) {
         logToPanel(`❌ Function '${call.functionName}' not found in DSL context`, 'error');
-        this.logConversion(call.astNode, nodeId, 'RefNode', call.functionName, ['Function not found in DSL context']);
+        this.logConversion(call.astNode, nodeId, 'RefNode', call.functionName, ['Function not found in DSL context'], uuid || undefined);
         
         const errorRefNode: RefNode = {
           id: nodeId,
@@ -234,12 +242,13 @@ export class LezerToNodysseusConverter {
       }
       
       // Create the node
-      this.logConversion(call.astNode, nodeId, 'RefNode', resolvedFunctionName);
+      this.logConversion(call.astNode, nodeId, 'RefNode', resolvedFunctionName, undefined, uuid || undefined);
       
       const refNode: RefNode = {
         id: nodeId,
         ref: '@graph.executable',
-        value: dslFunction
+        value: dslFunction,
+        ...(uuid && { uuid }) // Add UUID if available for correlation
       };
       
       currentNode = createNode(refNode, dependencies, this.getChainContext(call.functionName, context));
@@ -284,7 +293,8 @@ export class LezerToNodysseusConverter {
    * Convert variable names to function references or constants
    */
   private convertVariableName(astNode: any, context: ConversionContext): Node<any> {
-    const nodeId = this.generateNodeId(context);
+    const uuid = getUUIDAtPosition(astNode.from);
+    const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const variableName = this.getNodeText(astNode, context);
     
@@ -296,18 +306,19 @@ export class LezerToNodysseusConverter {
     if (dslValue !== undefined) {
       if (typeof dslValue === 'function') {
         // It's a function reference
-        this.logConversion(astNode, nodeId, 'RefNode', variableName);
+        this.logConversion(astNode, nodeId, 'RefNode', variableName, undefined, uuid || undefined);
         const functionRefNode: RefNode = {
           id: nodeId,
           ref: '@dsl.function',
-          value: dslValue
+          value: dslValue,
+          ...(uuid && { uuid }) // Add UUID if available for correlation
         };
         const resultNode = createNode(functionRefNode, [], this.getChainContext(variableName, context));
         context.visitedNodes.set(nodeKey, resultNode.id);
         return resultNode;
       } else {
         // It's a constant value
-        this.logConversion(astNode, nodeId, 'ValueNode', variableName);
+        this.logConversion(astNode, nodeId, 'ValueNode', variableName, undefined, uuid || undefined);
         const resultNode = createNode(dslValue, [], {});
         context.visitedNodes.set(nodeKey, resultNode.id);
         return resultNode;
@@ -315,7 +326,7 @@ export class LezerToNodysseusConverter {
     }
     
     logToPanel(`⚠️ Variable '${variableName}' not found in DSL context`, 'warn');
-    this.logConversion(astNode, nodeId, 'ValueNode', variableName, ['Variable not found in DSL context']);
+    this.logConversion(astNode, nodeId, 'ValueNode', variableName, ['Variable not found in DSL context'], uuid || undefined);
     
     // Return the variable name as a string constant
     const resultNode = createNode(variableName, [], {});
@@ -327,13 +338,14 @@ export class LezerToNodysseusConverter {
    * Convert number literals
    */
   private convertNumber(astNode: any, context: ConversionContext): Node<any> {
-    const nodeId = this.generateNodeId(context);
+    const uuid = getUUIDAtPosition(astNode.from);
+    const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const numberText = this.getNodeText(astNode, context);
     const numberValue = parseFloat(numberText);
     
     logToPanel(`🔢 Converting number: ${numberValue}`);
-    this.logConversion(astNode, nodeId, 'ValueNode');
+    this.logConversion(astNode, nodeId, 'ValueNode', undefined, undefined, uuid || undefined);
     
     const resultNode = createNode(numberValue, [], {});
     context.visitedNodes.set(nodeKey, resultNode.id);
@@ -344,14 +356,15 @@ export class LezerToNodysseusConverter {
    * Convert string literals
    */
   private convertString(astNode: any, context: ConversionContext): Node<any> {
-    const nodeId = this.generateNodeId(context);
+    const uuid = getUUIDAtPosition(astNode.from);
+    const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const stringText = this.getNodeText(astNode, context);
     // Remove quotes from string literal
     const stringValue = stringText.slice(1, -1);
     
     logToPanel(`📝 Converting string: "${stringValue}"`);
-    this.logConversion(astNode, nodeId, 'ValueNode');
+    this.logConversion(astNode, nodeId, 'ValueNode', undefined, undefined, uuid || undefined);
     
     const resultNode = createNode(stringValue, [], {});
     context.visitedNodes.set(nodeKey, resultNode.id);
@@ -359,7 +372,8 @@ export class LezerToNodysseusConverter {
   }
 
   private convertObjectExpression(astNode: any, context: ConversionContext): Node<any> {
-    const nodeId = this.generateNodeId(context);
+    const uuid = getUUIDAtPosition(astNode.from);
+    const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const objectValue: any = {};
     let child = astNode.firstChild;
@@ -383,7 +397,7 @@ export class LezerToNodysseusConverter {
       child = child.nextSibling;
     }
     
-    this.logConversion(astNode, nodeId, 'ValueNode');
+    this.logConversion(astNode, nodeId, 'ValueNode', undefined, undefined, uuid || undefined);
     const resultNode = createNode(objectValue, [], {});
     context.visitedNodes.set(nodeKey, resultNode.id);
     return resultNode;
@@ -476,7 +490,8 @@ export class LezerToNodysseusConverter {
     nodeId: string,
     nodeType: 'RefNode' | 'ValueNode',
     functionResolved?: string,
-    warnings?: string[]
+    warnings?: string[],
+    uuid?: string
   ): void {
     this.conversionLog.push({
       astNodeType: astNode.name,
@@ -484,7 +499,8 @@ export class LezerToNodysseusConverter {
       nodysseusNodeId: nodeId,
       nodysseusNodeType: nodeType,
       functionResolved,
-      warnings
+      warnings,
+      uuid
     });
   }
 }

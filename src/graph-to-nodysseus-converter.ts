@@ -29,7 +29,8 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
       nodysseusNode = {
         id: node.id,
         ref: "@graph.executable",
-        value: node.value // Store the actual function
+        value: node.value, // Store the actual function
+        ...(node.value.uuid && { uuid: node.value.uuid }) // Propagate UUID if available
       } as RefNode;
     } else if (typeof node.value === 'object' && 'ref' in node.value) {
         // RefNode value: use it directly with the node's ID
@@ -37,13 +38,15 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
       nodysseusNode = {
         id: node.id,
         ref: refNodeValue.ref,
-        value: refNodeValue.value
+        value: refNodeValue.value,
+        ...(refNodeValue.uuid && { uuid: refNodeValue.uuid }) // Propagate UUID if available
       } as RefNode;
     } else {
         // Constant value: create ValueNode
       nodysseusNode = {
         id: node.id,
-        value: node.value
+        value: node.value,
+        ...(node.value?.uuid && { uuid: node.value.uuid }) // Propagate UUID if available
       } as ValueNode;
     }
 
