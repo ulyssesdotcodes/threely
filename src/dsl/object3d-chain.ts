@@ -6,6 +6,9 @@ import { MockObject3D, MockGeometry, applyMockToObject3D, mockUtils, createGeome
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
 
+// Export currentScene for static functions
+export { currentScene };
+
 // Object registry to track named objects for updates
 const objectRegistry = new Map<string, THREE.Object3D>();
 
@@ -84,6 +87,7 @@ const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object
     // Set graphId property on the object
     (realObject as any).graphId = objectName;
     
+    console.log('RENDER RESULT:', realObject instanceof THREE.Object3D, typeof realObject);
     return realObject;
   }
 };

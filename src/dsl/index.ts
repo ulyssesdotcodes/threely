@@ -85,10 +85,17 @@ export {
 // Parser exports
 export {
   parseDSL,
+  parseDSLWithLezer,
   executeDSL,
   logToPanel,
   dslContext
 } from './parser';
+
+// Converter exports
+export {
+  LezerToNodysseusConverter,
+  convertLezerToNodysseus
+} from './lezer-to-nodysseus-converter';
 
 // Re-export utilities
 export { MockObject3D, mockUtils, mockPresets };

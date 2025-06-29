@@ -30,6 +30,7 @@ The Developer Guide contains everything needed to quickly pick up development on
 - **Math chains**: `(frameNode as any).multiply(0.1)` syntax for TypeScript
 - **External nodes**: Mock `requestAnimationFrame` from `external-nodes.ts`
 - **DSL integration**: `executeDSL()` may return Node or computed value
+- **Compilation Check**: Don't use npm run build to test compilation. Use the connected IDE, npm run test, or npx tsc --noEmit
 
 ### Critical Fixes Applied
 - ✅ **Reference sharing bug** - Deep copy in transform logic functions

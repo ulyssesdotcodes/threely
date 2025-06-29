@@ -9,6 +9,7 @@ import { MockObject3D, applyMockToObject3D, createGeometryFromMock, mockUtils, m
 import { getObjectRegistry } from './object3d-chain';
 import * as obj3dChain from './object3d-chain';
 import * as mathChain from './math-chain';
+import { convertLezerToNodysseus, LezerToNodysseusConverter } from './lezer-to-nodysseus-converter';
 
 // Global map to store function call positions and UUIDs
 const functionCallUUIDs = new Map<string, string>();
@@ -68,11 +69,55 @@ function generateFunctionUUID(functionName: string, position: number, code: stri
   return functionCallUUIDs.get(key)!;
 }
 
+// Flag to enable Lezer-based parsing (experimental)
+const USE_LEZER_CONVERTER = true;
+
+// Lezer-based DSL parser (experimental)
+export function parseDSLWithLezer(code: string, dslContext: any): any {
+  try {
+    logToPanel('🚀 Using experimental Lezer converter...');
+    
+    const cleanCode = code.trim();
+    logToPanel(`📝 Input code: ${cleanCode}`);
+    
+    // Use the Lezer converter
+    const conversionResult = convertLezerToNodysseus(cleanCode, dslContext);
+    
+    logToPanel(`🎯 Conversion result: ${conversionResult.conversionLog.length} nodes converted`);
+    logToPanel(`📊 Root node: ${conversionResult.rootNodeId}`);
+    
+    // Log conversion details
+    conversionResult.conversionLog.forEach(entry => {
+      const warnings = entry.warnings ? ` (${entry.warnings.join(', ')})` : '';
+      logToPanel(`  🔗 ${entry.astNodeType} -> ${entry.nodysseusNodeType} (${entry.nodysseusNodeId})${warnings}`);
+    });
+    
+    // Return a mock Node that contains the Nodysseus graph
+    // This allows the existing executeDSL to handle it properly
+    return {
+      id: conversionResult.rootNodeId,
+      value: conversionResult.graph,
+      dependencies: [],
+      __isLezerConverted: true
+    };
+    
+  } catch (error) {
+    logToPanel(`❌ Lezer conversion error: ${error}`, 'error');
+    console.error('Lezer conversion error:', error);
+    return null;
+  }
+}
+
 // Simple DSL parser that evaluates code with functional context
 export function parseDSL(code: string, dslContext: any): any {
+  // Choose parsing strategy
+  if (USE_LEZER_CONVERTER) {
+    return parseDSLWithLezer(code, dslContext);
+  }
+  
   try {
     // Clear previous logs for this parse session
-    logToPanel('🔄 Starting DSL parsing...');
+    logToPanel('🔄 Starting DSL parsing (eval-based)...');
     
     // Clean up the code by trimming whitespace and handling multiline expressions
     const cleanCode = code.trim();
@@ -252,6 +297,10 @@ const defaultDslContext = {
   mathTanh: mathChain.mathTanh,
   mathTrunc: mathChain.mathTrunc,
   
+  // Chain objects
+  chainMath: mathChain.chainMath,
+  chainObj3d: obj3dChain.chainObj3d,
+  
   // Utilities
   mockUtils,
   mockPresets,
@@ -264,10 +313,84 @@ const defaultDslContext = {
 export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D | null {
   try {
     const contextToUse = dslContextParam || defaultDslContext;
-    const result = parseDSL(code, contextToUse);
+    let result = parseDSL(code, contextToUse);
     const objectRegistry = getObjectRegistry();
     
-    // If the result is a Node, try direct Graph.run execution first
+    // Handle Lezer-converted results
+    if (result && typeof result === 'object' && '__isLezerConverted' in result) {
+      logToPanel('🎯 Processing Lezer-converted graph...');
+      const nodysseusGraph = result.value;
+      
+      // Execute the Nodysseus graph
+      const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
+      logToPanel(`✅ Lezer graph executed, result: ${typeof finalComputed}`);
+      console.log('finalComputed from runGraphNode:', finalComputed);
+      
+      // If finalComputed is a functional Node, we need to execute it to get the actual result
+      let actualResult = finalComputed;
+      if (finalComputed && typeof finalComputed === 'object' && 'value' in finalComputed && typeof finalComputed.value === 'function') {
+        console.log('finalComputed is a functional Node - this should not happen with runGraphNode');
+        console.log('The graph execution did not complete properly');
+        
+        // The Nodysseus runtime should have executed the function and returned the result
+        // If we're getting a functional Node back, it means the execution didn't complete
+        // For now, return the functional Node and let the normal pipeline handle it
+        actualResult = finalComputed;
+      }
+      
+      console.log('Final actualResult:', actualResult, typeof actualResult);
+      
+      // Set up frame watching if needed (same logic as regular DSL results)
+      const graphContainsFrame = JSON.stringify(nodysseusGraph).includes('extern.frame');
+      if (graphContainsFrame && finalComputed instanceof THREE.Object3D) {
+        const objectName = nodysseusGraph.id;
+        const renderNodeId = nodysseusGraph.out!;
+        const renderInputEdges = nodysseusGraph.edges_in?.[renderNodeId];
+        
+        if (renderInputEdges) {
+          // Find the edge that represents the first argument (the MockObject3D)
+          let mockObjectNodeId: string | null = null;
+          for (const [fromNodeId, edge] of Object.entries(renderInputEdges)) {
+            if (edge && typeof edge === 'object' && 'as' in edge && edge.as === 'arg0') {
+              mockObjectNodeId = fromNodeId;
+              break;
+            }
+          }
+          
+          if (mockObjectNodeId) {
+            const scopeKey = nodysseusGraph.id + "/" + mockObjectNodeId;
+            const nodeToWatch = runtime.scope.get(scopeKey);
+            
+            if (nodeToWatch && objectRegistry.has(objectName)) {
+              runtime.stopWatch(nodeToWatch);
+              const watch = runtime.createWatch<MockObject3D>(nodeToWatch);
+              
+              // Start watching for frame updates
+              (async () => {
+                try {
+                  for await (const updatedValue of watch) {
+                    const existingObject = objectRegistry.get(objectName);
+                    if (existingObject) {
+                      applyMockToObject3D(existingObject, updatedValue);
+                    } else {
+                      // Break the watch loop if object is no longer in registry
+                      break;
+                    }
+                  }
+                } catch (error) {
+                  console.warn('Watch loop error:', error);
+                }
+              })();
+            }
+          }
+        }
+      }
+      
+      // Continue through the normal execution path to handle the final result
+      // The finalComputed should be processed as a functional Node
+      result = actualResult;
+    }
+    
     if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
       // Convert the graph to Nodysseus format
       const nodysseusGraph = convertGraphToNodysseus(result);
@@ -293,7 +416,7 @@ export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D 
           // Find the edge that represents the first argument (the MockObject3D)
           let mockObjectNodeId: string | null = null;
           for (const [fromNodeId, edge] of Object.entries(renderInputEdges)) {
-            if (edge.as === 'arg0') {
+            if (edge && typeof edge === 'object' && 'as' in edge && edge.as === 'arg0') {
               mockObjectNodeId = fromNodeId;
               break;
             }
