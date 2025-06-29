@@ -104,6 +104,9 @@ export class LezerToNodysseusConverter {
       case 'String':
         return this.convertString(astNode, context);
 
+      case 'ObjectExpression':
+        return this.convertObjectExpression(astNode, context);
+
       default:
         logToPanel(`⚠️ Unknown AST node type: ${astNode.name}`, 'warn');
         return this.convertFirstChild(astNode, context);
@@ -351,6 +354,37 @@ export class LezerToNodysseusConverter {
     this.logConversion(astNode, nodeId, 'ValueNode');
     
     const resultNode = createNode(stringValue, [], {});
+    context.visitedNodes.set(nodeKey, resultNode.id);
+    return resultNode;
+  }
+
+  private convertObjectExpression(astNode: any, context: ConversionContext): Node<any> {
+    const nodeId = this.generateNodeId(context);
+    const nodeKey = `${astNode.from}-${astNode.to}`;
+    const objectValue: any = {};
+    let child = astNode.firstChild;
+    
+    while (child) {
+      if (child.name === 'Property') {
+        let propertyKey = '';
+        let propChild = child.firstChild;
+        
+        while (propChild) {
+          if (propChild.name === 'PropertyName') {
+            propertyKey = this.getNodeText(propChild, context);
+          } else if (propChild.name === 'Number') {
+            objectValue[propertyKey] = parseFloat(this.getNodeText(propChild, context));
+          } else if (propChild.name === 'String') {
+            objectValue[propertyKey] = this.getNodeText(propChild, context).slice(1, -1);
+          }
+          propChild = propChild.nextSibling;
+        }
+      }
+      child = child.nextSibling;
+    }
+    
+    this.logConversion(astNode, nodeId, 'ValueNode');
+    const resultNode = createNode(objectValue, [], {});
     context.visitedNodes.set(nodeKey, resultNode.id);
     return resultNode;
   }

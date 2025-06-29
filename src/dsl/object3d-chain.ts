@@ -86,8 +86,6 @@ const renderLogic = (mockObject: MockObject3D, objectName: string): THREE.Object
     
     // Set graphId property on the object
     (realObject as any).graphId = objectName;
-    
-    console.log('RENDER RESULT:', realObject instanceof THREE.Object3D, typeof realObject);
     return realObject;
   }
 };
@@ -166,7 +164,6 @@ const translateXLogic = (mockObject: MockObject3D, distance: number): MockObject
   if (!mockObject) {
     return { geometry: undefined, userData: undefined };
   }
-  console.log("translating", distance)
   const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
   const result = {
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,

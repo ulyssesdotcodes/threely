@@ -310,7 +310,7 @@ const defaultDslContext = {
   console
 };
 
-export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D | null {
+export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D | number | string | boolean | null {
   try {
     const contextToUse = dslContextParam || defaultDslContext;
     let result = parseDSL(code, contextToUse);
@@ -321,24 +321,16 @@ export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D 
       logToPanel('🎯 Processing Lezer-converted graph...');
       const nodysseusGraph = result.value;
       
-      // Execute the Nodysseus graph
       const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
-      logToPanel(`✅ Lezer graph executed, result: ${typeof finalComputed}`);
-      console.log('finalComputed from runGraphNode:', finalComputed);
       
-      // If finalComputed is a functional Node, we need to execute it to get the actual result
       let actualResult = finalComputed;
-      if (finalComputed && typeof finalComputed === 'object' && 'value' in finalComputed && typeof finalComputed.value === 'function') {
-        console.log('finalComputed is a functional Node - this should not happen with runGraphNode');
-        console.log('The graph execution did not complete properly');
-        
-        // The Nodysseus runtime should have executed the function and returned the result
-        // If we're getting a functional Node back, it means the execution didn't complete
-        // For now, return the functional Node and let the normal pipeline handle it
-        actualResult = finalComputed;
+      if (finalComputed && typeof finalComputed === 'object' && 'value' in finalComputed) {
+        if (typeof finalComputed.value === 'function') {
+          actualResult = finalComputed;
+        } else if (finalComputed.value && typeof finalComputed.value === 'object' && 'ref' in finalComputed.value && finalComputed.value.ref === 'extern.frame') {
+          actualResult = 1;
+        }
       }
-      
-      console.log('Final actualResult:', actualResult, typeof actualResult);
       
       // Set up frame watching if needed (same logic as regular DSL results)
       const graphContainsFrame = JSON.stringify(nodysseusGraph).includes('extern.frame');
@@ -386,12 +378,21 @@ export function executeDSL(code: string, dslContextParam?: any): THREE.Object3D 
         }
       }
       
-      // Continue through the normal execution path to handle the final result
-      // The finalComputed should be processed as a functional Node
       result = actualResult;
+      if (result && typeof result === 'object') {
+        (result as any).__wasLezerConverted = true;
+      }
+      
+      if (typeof result === 'number' || typeof result === 'string' || typeof result === 'boolean') {
+        return result;
+      }
+      
+      if (result && typeof result === 'object' && 'value' in result && typeof result.value === 'function') {
+        delete (result as any).__wasLezerConverted;
+      }
     }
     
-    if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result) {
+    if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result && !('__isLezerConverted' in result) && !('__wasLezerConverted' in result)) {
       // Convert the graph to Nodysseus format
       const nodysseusGraph = convertGraphToNodysseus(result);
       // Grab the name and use it as the graph id so that it caches.

@@ -63,8 +63,7 @@ export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string):
   };
 
   // Start conversion from root node
-  const rootEval = run(rootNode);
-  const rootId = convertNode(rootEval as Node<T>);
+  const rootId = convertNode(rootNode);
 
   // Build the complete Graph structure
   return {
