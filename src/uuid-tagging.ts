@@ -113,13 +113,22 @@ export function generateUUIDTags(text: string): {
 }
 
 // Get UUID for a function call at a specific position
+// Returns the most specific (innermost/smallest range) UUID that contains the position
 export function getUUIDAtPosition(position: number): string | null {
+  let bestMatch: FunctionCallInfo | null = null;
+  let smallestRange = Infinity;
+  
   for (const [uuid, info] of functionCallRegistry) {
     if (position >= info.from && position <= info.to) {
-      return uuid;
+      const range = info.to - info.from;
+      if (range < smallestRange) {
+        smallestRange = range;
+        bestMatch = info;
+      }
     }
   }
-  return null;
+  
+  return bestMatch ? bestMatch.uuid : null;
 }
 
 // Get UUID from RangeSet at a specific position

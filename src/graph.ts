@@ -1,4 +1,7 @@
-// graph.ts - Implementation of a functional node-based graph system with TypeScript
+// DEPRECATED: graph.ts - Implementation of a functional node-based graph system with TypeScript
+// This file is deprecated. The DSL now uses direct AST to Nodysseus conversion.
+// The functional graph intermediate layer has been eliminated for better performance.
+
 import { GraphPrettyPrinter, PrettyPrintOptions } from './graph-pretty-printer';
 
 // Import RefNode type for external node references

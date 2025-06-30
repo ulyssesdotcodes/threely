@@ -1,8 +1,7 @@
 // Main DSL exports - combines all chain types and utilities
-import { Graph } from '../graph';
 import { MockObject3D, mockUtils, mockPresets } from '../three/MockObject3D';
 
-// Object3D chain exports
+// Object3D chain exports - pure functions (no Node dependencies)
 export {
   // Scene management
   setScene,
@@ -30,9 +29,9 @@ export {
   
   // Chain object
   chainObj3d
-} from './object3d-chain';
+} from './pure-object3d-functions';
 
-// Math chain exports
+// Math chain exports - pure functions (no Node dependencies)
 export {
   // Basic operations
   mult,
@@ -80,7 +79,7 @@ export {
   
   // Chain object
   chainMath
-} from './math-chain';
+} from './pure-math-functions';
 
 // Parser exports
 export {
@@ -93,9 +92,9 @@ export {
 
 // Converter exports
 export {
-  LezerToNodysseusConverter,
-  convertLezerToNodysseus
-} from './lezer-to-nodysseus-converter';
+  DirectASTToNodysseusConverter,
+  convertASTToNodysseus
+} from './direct-ast-to-nodysseus-converter';
 
 // Re-export utilities
 export { MockObject3D, mockUtils, mockPresets };

@@ -1,13 +1,19 @@
+// DEPRECATED: Functional Graph to Nodysseus Converter
+// This file is deprecated. Use direct-ast-to-nodysseus-converter.ts instead.
+// This converter was part of the old two-stage conversion: AST → Functional Graph → Nodysseus
+
 import { Node, run } from './graph';
 import { Graph, RefNode, Edge, NodysseusNode, ValueNode } from './nodysseus/types';
 import { NodysseusRuntime } from './nodysseus/runtime-core';
 
 /**
- * Convert a functional graph Node to Nodysseus Graph
+ * DEPRECATED: Convert a functional graph Node to Nodysseus Graph
  * 
  * This converter transforms the functional graph system from graph.ts
  * into the Nodysseus graph format, preserving the computational structure
  * and dependencies while integrating with the Nodysseus runtime system.
+ * 
+ * @deprecated Use direct-ast-to-nodysseus-converter.ts for new implementations
  */
 export const convertGraphToNodysseus = <T>(rootNode: Node<T>, graphId?: string): Graph => {
   const visitedNodes = new Map<string, NodysseusNode>();

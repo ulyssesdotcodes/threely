@@ -14,6 +14,12 @@ The Developer Guide contains everything needed to quickly pick up development on
 
 ## 🚀 Quick Reference
 
+### Development Commands
+- **TypeScript Compilation**: `npx tsc --noEmit` (check for compile errors)
+- **Testing**: `npm run test` (run test suite)
+- **Specific Tests**: `npm test -- --testNamePattern="test name"`
+- **❌ NEVER USE**: `npm run build` (this is for production builds, not development)
+
 ### Core Architecture
 - **DSL** (`src/dsl.ts`) - Custom 3D language with chain objects
 - **Nodysseus Runtime** (`src/nodysseus/runtime-core.ts`) - Reactive graph execution
@@ -26,11 +32,13 @@ The Developer Guide contains everything needed to quickly pick up development on
 - **Chain setup pattern** - `chainMath.sin = { fn: mathSin, chain: () => chainMath }`
 - **Dual-mode functions** - Handle both Node<T> and primitive inputs
 
-### Testing
+### Testing and Compilation
+- **Compilation Check**: Always use `npx tsc --noEmit` to check TypeScript compilation
+- **Testing**: Always use `npm run test` for running tests
+- **Build Command**: NEVER use `npm run build` - it's not for development testing
 - **Math chains**: `(frameNode as any).multiply(0.1)` syntax for TypeScript
 - **External nodes**: Mock `requestAnimationFrame` from `external-nodes.ts`
 - **DSL integration**: `executeDSL()` may return Node or computed value
-- **Compilation Check**: Don't use npm run build to test compilation. Use the connected IDE, npm run test, or npx tsc --noEmit
 
 ## Advanced Debugging Strategies
 
@@ -71,7 +79,8 @@ The Developer Guide contains everything needed to quickly pick up development on
 - Watch MockObject3D inputs, not final THREE.Object3D outputs
 
 ## Debugging DSL Issues
-- Use specific test patterns: `npm test -- --testNamePattern="specific test"`
+- **Testing**: Use specific test patterns: `npm test -- --testNamePattern="specific test"`
+- **Compilation**: Use `npx tsc --noEmit` to check for TypeScript errors
 - Check for premature execution of RefNodes in graph conversion
 - Verify object literal parsing with `ObjectExpression` AST nodes
 - Watch for NaN values in frame-based math operations
@@ -86,12 +95,25 @@ The Developer Guide contains everything needed to quickly pick up development on
 
 ## Cleanup Process
 1. Use `git diff` to track changes and verify minimal impact
-2. Test functionality after each cleanup step
-3. Preserve all functional behavior while improving readability
-4. Focus on making code more concise, not just shorter
+2. **Compilation**: Check with `npx tsc --noEmit` after each change
+3. **Testing**: Run `npm test` to verify functionality after each cleanup step
+4. **Never use `npm run build`** for development verification
+5. Preserve all functional behavior while improving readability
+6. Focus on making code more concise, not just shorter
 
 ## What NOT to Clean Up
 - Functional logic that affects behavior
 - Type definitions and interfaces
 - Error handling and validation
 - Domain-specific comments explaining complex algorithms
+
+# Critical Code Requirements
+
+## NEVER Remove These Lines
+- **Full Nodysseus Graph Logging**: The line `console.log(conversionResult.graph)` in `src/dsl/parser.ts` must NEVER be removed. This logs the complete graph object and is essential for debugging graph structure and edge relationships.
+- **Graph Execution**: The graph execution code in `parseDSLWithLezer` must remain active to test actual runtime behavior and identify execution issues.
+
+## Always Maintain
+- Complete graph object logging for debugging edge structures and node relationships
+- Active graph execution to catch runtime errors and infinite loops
+- Full visibility into conversion results for debugging complex graph issues

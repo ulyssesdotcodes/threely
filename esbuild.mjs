@@ -13,6 +13,7 @@ const ctx = await esbuild.context({
   minify: false,
   platform: 'browser',
   format: 'esm',
+  sourcemap: true
 });
 
 await ctx.watch();

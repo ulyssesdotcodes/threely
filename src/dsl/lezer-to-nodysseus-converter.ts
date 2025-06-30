@@ -1,4 +1,6 @@
-// Lezer AST to Nodysseus Node Converter
+// DEPRECATED: Lezer AST to Nodysseus Node Converter
+// This file is deprecated. Use direct-ast-to-nodysseus-converter.ts instead.
+// This converter uses the old two-stage conversion: AST → Functional Graph → Nodysseus
 import { parser } from "@lezer/javascript";
 import { Graph, Node, createNode } from '../graph';
 import { convertGraphToNodysseus } from '../graph-to-nodysseus-converter';

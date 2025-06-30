@@ -2,22 +2,23 @@
 import * as THREE from 'three';
 import { parser } from "@lezer/javascript";
 import { v7 as uuid } from "uuid";
-import { Graph, Node } from '../graph';
 import { convertGraphToNodysseus } from '../graph-to-nodysseus-converter';
 import { NodysseusRuntime } from '../nodysseus/runtime-core';
 import { MockObject3D, applyMockToObject3D, createGeometryFromMock, mockUtils, mockPresets } from '../three/MockObject3D';
-import { getObjectRegistry } from './object3d-chain';
-import * as obj3dChain from './object3d-chain';
-import * as mathChain from './math-chain';
-import { convertLezerToNodysseus, LezerToNodysseusConverter } from './lezer-to-nodysseus-converter';
+// Import object registry from pure functions
+// import { getObjectRegistry } from './object3d-chain';
+// Use pure functions instead of Node-based chains
+import * as pureObj3d from './pure-object3d-functions';
+import * as pureMath from './pure-math-functions';
+import { convertASTToNodysseus } from './direct-ast-to-nodysseus-converter';
 import { RangeSet } from '@codemirror/state';
-import {UUIDTag} from "../uuid-tagging"
+import {UUIDTag, generateUUIDTags} from "../uuid-tagging"
 
 // Global map to store function call positions and UUIDs
 const functionCallUUIDs = new Map<string, string>();
 
 // Log to the error panel at the bottom of the page
-function logToPanel(message: string, type: 'info' | 'warn' | 'error' = 'info'): void {
+function logToPanel(message: string, type: 'info' | 'warn' | 'error' = 'info', ...args): void {
   if (typeof window !== 'undefined' && window.document) {
     const errorPanel = document.getElementById('error-panel');
     const errorMessages = document.getElementById('error-messages');
@@ -43,7 +44,7 @@ function logToPanel(message: string, type: 'info' | 'warn' | 'error' = 'info'): 
   }
   
   // Also log to console for debugging
-  console.log(`[DSL] ${message}`);
+  console.log(`[DSL] ${message}`, ...args);
 }
 
 // Simple hash function for browser compatibility
@@ -74,19 +75,27 @@ function generateFunctionUUID(functionName: string, position: number, code: stri
 // Flag to enable Lezer-based parsing (experimental)
 const USE_LEZER_CONVERTER = true;
 
-// Lezer-based DSL parser (experimental)
+// Direct AST to Nodysseus parser (eliminates functional graph layer)
 export function parseDSLWithLezer(code: string, dslContext: any): any {
   try {
-    logToPanel('🚀 Using experimental Lezer converter...');
+    console.log('🚀 PARSER: Using direct AST to Nodysseus converter for code:', code);
+    logToPanel('🚀 Using direct AST to Nodysseus converter...');
     
     const cleanCode = code.trim();
     logToPanel(`📝 Input code: ${cleanCode}`);
     
-    // Use the Lezer converter
-    const conversionResult = convertLezerToNodysseus(cleanCode, dslContext);
+    // Generate UUID tags for function calls before conversion
+    generateUUIDTags(cleanCode);
     
-    logToPanel(`🎯 Conversion result: ${conversionResult.conversionLog.length} nodes converted`);
+    // Use the direct converter with pure functions (no functional graph layer)
+    const conversionResult = convertASTToNodysseus(cleanCode, dslContext);
+    
+    logToPanel(`🎯 Direct conversion result: ${conversionResult.conversionLog.length} nodes converted`);
     logToPanel(`📊 Root node: ${conversionResult.rootNodeId}`);
+    
+    // LOG THE COMPLETE GRAPH OBJECT
+    console.log('🔍 COMPLETE NODYSSEUS GRAPH OBJECT:');
+    console.log(conversionResult.graph);
     
     // Log conversion details
     conversionResult.conversionLog.forEach(entry => {
@@ -94,24 +103,80 @@ export function parseDSLWithLezer(code: string, dslContext: any): any {
       logToPanel(`  🔗 ${entry.astNodeType} -> ${entry.nodysseusNodeType} (${entry.nodysseusNodeId})${warnings}`);
     });
     
-    // Return a mock Node that contains the Nodysseus graph
-    // This allows the existing executeDSL to handle it properly
-    return {
-      id: conversionResult.rootNodeId,
-      value: conversionResult.graph,
-      dependencies: [],
-      __isLezerConverted: true
-    };
+    // Execute the Nodysseus graph directly and return the result
+    // No need for fake Node wrapper - return the computed result directly
+    console.log('\n🚀 EXECUTING NODYSSEUS GRAPH...');
+    console.log('About to execute graph with root node:', conversionResult.rootNodeId);
+    
+    let finalComputed;
+    try {
+      finalComputed = runtime.runGraphNode(conversionResult.graph, conversionResult.rootNodeId);
+      console.log('✅ Graph execution completed successfully');
+      console.log('Result type:', typeof finalComputed);
+      console.log('Result constructor:', finalComputed?.constructor?.name);
+      console.log('Result:', finalComputed);
+    } catch (error) {
+      console.error('❌ ERROR during graph execution:', error);
+      console.error('Stack trace:', (error as Error).stack);
+      throw error;
+    }
+    
+    // Set up frame watching if needed
+    const graphContainsFrame = JSON.stringify(conversionResult.graph).includes('extern.frame');
+    if (graphContainsFrame && finalComputed instanceof THREE.Object3D) {
+      const objectName = conversionResult.graph.id;
+      const renderNodeId = conversionResult.rootNodeId;
+      const renderInputEdges = conversionResult.graph.edges_in?.[renderNodeId];
+      
+      if (renderInputEdges) {
+        // Find the edge that represents the first argument (the MockObject3D)
+        let mockObjectNodeId: string | null = null;
+        for (const [fromNodeId, edge] of Object.entries(renderInputEdges)) {
+          if (edge && typeof edge === 'object' && 'as' in edge && edge.as === 'arg0') {
+            mockObjectNodeId = fromNodeId;
+            break;
+          }
+        }
+        
+        if (mockObjectNodeId) {
+          const scopeKey = conversionResult.graph.id + "/" + mockObjectNodeId;
+          const nodeToWatch = runtime.scope.get(scopeKey);
+          
+          if (nodeToWatch && pureObj3d.getObjectRegistry().has(objectName)) {
+            runtime.stopWatch(nodeToWatch);
+            const watch = runtime.createWatch<MockObject3D>(nodeToWatch);
+            
+            // Start watching for frame updates
+            (async () => {
+              try {
+                for await (const updatedValue of watch) {
+                  const existingObject = pureObj3d.getObjectRegistry().get(objectName);
+                  if (existingObject) {
+                    applyMockToObject3D(existingObject, updatedValue);
+                  } else {
+                    break;
+                  }
+                }
+              } catch (error) {
+                console.warn('Watch loop error:', error);
+              }
+            })();
+          }
+        }
+      }
+    }
+    
+    return finalComputed;
     
   } catch (error) {
-    logToPanel(`❌ Lezer conversion error: ${error}`, 'error');
-    console.error('Lezer conversion error:', error);
+    logToPanel(`❌ Direct conversion error: ${error}`, 'error');
+    console.error('Direct conversion error:', error);
     return null;
   }
 }
 
 // Simple DSL parser that evaluates code with functional context
-export function parseDSL(code: string, dslContext: any, ranges: {start: number, end: number, uuid: UUIDTag}[]): any {
+export function parseDSL(code: string, dslContext: any, ranges: {start: number, end: number, uuid: UUIDTag}[] = []): any {
   // Choose parsing strategy
   if (USE_LEZER_CONVERTER) {
     return parseDSLWithLezer(code, dslContext);
@@ -242,160 +307,85 @@ export function parseDSL(code: string, dslContext: any, ranges: {start: number, 
 const runtime = new NodysseusRuntime();
 
 // Execute DSL code and run the graph if the result is a Node
-// Create a DSL context with all the functional versions
+// Create a DSL context with pure function versions (no Node dependencies)
 const defaultDslContext = {
-  // Object3D functions
-  sphere: obj3dChain.sphere,
-  box: obj3dChain.box,
-  cylinder: obj3dChain.cylinder,
-  material: obj3dChain.material,
-  mesh: obj3dChain.mesh,
-  translateX: obj3dChain.translateX,
-  translateY: obj3dChain.translateY,
-  translateZ: obj3dChain.translateZ,
-  rotateX: obj3dChain.rotateX,
-  rotateY: obj3dChain.rotateY,
-  rotateZ: obj3dChain.rotateZ,
-  applyMock: obj3dChain.applyMock,
-  render: obj3dChain.render,
+  // Object3D functions - pure functions that return primitive values
+  sphere: pureObj3d.sphere,
+  box: pureObj3d.box,
+  cylinder: pureObj3d.cylinder,
+  material: pureObj3d.material,
+  mesh: pureObj3d.mesh,
+  translateX: pureObj3d.translateX,
+  translateY: pureObj3d.translateY,
+  translateZ: pureObj3d.translateZ,
+  rotateX: pureObj3d.rotateX,
+  rotateY: pureObj3d.rotateY,
+  rotateZ: pureObj3d.rotateZ,
+  applyMock: pureObj3d.applyMock,
+  render: pureObj3d.render,
   
-  // Math functions
-  frame: mathChain.frame,
-  mult: mathChain.mult,
-  add: mathChain.add,
-  sub: mathChain.sub,
-  div: mathChain.div,
-  mathAbs: mathChain.mathAbs,
-  mathAcos: mathChain.mathAcos,
-  mathAcosh: mathChain.mathAcosh,
-  mathAsin: mathChain.mathAsin,
-  mathAsinh: mathChain.mathAsinh,
-  mathAtan: mathChain.mathAtan,
-  mathAtan2: mathChain.mathAtan2,
-  mathAtanh: mathChain.mathAtanh,
-  mathCbrt: mathChain.mathCbrt,
-  mathCeil: mathChain.mathCeil,
-  mathClz32: mathChain.mathClz32,
-  mathCos: mathChain.mathCos,
-  mathCosh: mathChain.mathCosh,
-  mathExp: mathChain.mathExp,
-  mathExpm1: mathChain.mathExpm1,
-  mathFloor: mathChain.mathFloor,
-  mathFround: mathChain.mathFround,
-  mathHypot: mathChain.mathHypot,
-  mathImul: mathChain.mathImul,
-  mathLog: mathChain.mathLog,
-  mathLog10: mathChain.mathLog10,
-  mathLog1p: mathChain.mathLog1p,
-  mathLog2: mathChain.mathLog2,
-  mathMax: mathChain.mathMax,
-  mathMin: mathChain.mathMin,
-  mathPow: mathChain.mathPow,
-  mathRandom: mathChain.mathRandom,
-  mathRound: mathChain.mathRound,
-  mathSign: mathChain.mathSign,
-  mathSin: mathChain.mathSin,
-  mathSinh: mathChain.mathSinh,
-  mathSqrt: mathChain.mathSqrt,
-  mathTan: mathChain.mathTan,
-  mathTanh: mathChain.mathTanh,
-  mathTrunc: mathChain.mathTrunc,
+  // Math functions - pure functions that return primitive values
+  frame: pureMath.frame,
+  mult: pureMath.mult,
+  add: pureMath.add,
+  sub: pureMath.sub,
+  div: pureMath.div,
+  mathAbs: pureMath.mathAbs,
+  mathAcos: pureMath.mathAcos,
+  mathAcosh: pureMath.mathAcosh,
+  mathAsin: pureMath.mathAsin,
+  mathAsinh: pureMath.mathAsinh,
+  mathAtan: pureMath.mathAtan,
+  mathAtan2: pureMath.mathAtan2,
+  mathAtanh: pureMath.mathAtanh,
+  mathCbrt: pureMath.mathCbrt,
+  mathCeil: pureMath.mathCeil,
+  mathClz32: pureMath.mathClz32,
+  mathCos: pureMath.mathCos,
+  mathCosh: pureMath.mathCosh,
+  mathExp: pureMath.mathExp,
+  mathExpm1: pureMath.mathExpm1,
+  mathFloor: pureMath.mathFloor,
+  mathFround: pureMath.mathFround,
+  mathHypot: pureMath.mathHypot,
+  mathImul: pureMath.mathImul,
+  mathLog: pureMath.mathLog,
+  mathLog10: pureMath.mathLog10,
+  mathLog1p: pureMath.mathLog1p,
+  mathLog2: pureMath.mathLog2,
+  mathMax: pureMath.mathMax,
+  mathMin: pureMath.mathMin,
+  mathPow: pureMath.mathPow,
+  mathRandom: pureMath.mathRandom,
+  mathRound: pureMath.mathRound,
+  mathSign: pureMath.mathSign,
+  mathSin: pureMath.mathSin,
+  mathSinh: pureMath.mathSinh,
+  mathSqrt: pureMath.mathSqrt,
+  mathTan: pureMath.mathTan,
+  mathTanh: pureMath.mathTanh,
+  mathTrunc: pureMath.mathTrunc,
   
-  // Chain objects
-  chainMath: mathChain.chainMath,
-  chainObj3d: obj3dChain.chainObj3d,
+  // Chain objects for method resolution
+  chainMath: pureMath.chainMath,
+  chainObj3d: pureObj3d.chainObj3d,
   
   // Utilities
   mockUtils,
   mockPresets,
-  clearAll: obj3dChain.clearAll,
-  Graph,
+  clearAll: pureObj3d.clearAll,
   Math,
   console
 };
 
-export function executeDSL(code: string, ranges : {start: number, end: number, uuid: UUIDTag}[], dslContextParam?: any): THREE.Object3D | number | string | boolean | null {
+export function executeDSL(code: string, ranges : {start: number, end: number, uuid: UUIDTag}[] = [], dslContextParam?: any): THREE.Object3D | number | string | boolean | null {
   try {
     const contextToUse = dslContextParam || defaultDslContext;
     console.log(ranges);
     let result = parseDSL(code, contextToUse, ranges);
-    const objectRegistry = getObjectRegistry();
+    const objectRegistry = pureObj3d.getObjectRegistry();
     
-    // Handle Lezer-converted results
-    if (result && typeof result === 'object' && '__isLezerConverted' in result) {
-      logToPanel('🎯 Processing Lezer-converted graphabc...');
-      const nodysseusGraph = result.value;
-
-      const finalComputed = runtime.runGraphNode(nodysseusGraph, nodysseusGraph.out!);
-      
-      let actualResult = finalComputed;
-      if (finalComputed && typeof finalComputed === 'object' && 'value' in finalComputed) {
-        if (typeof finalComputed.value === 'function') {
-          actualResult = finalComputed;
-        } else if (finalComputed.value && typeof finalComputed.value === 'object' && 'ref' in finalComputed.value && finalComputed.value.ref === 'extern.frame') {
-          actualResult = 1;
-        }
-      }
-      
-      // Set up frame watching if needed (same logic as regular DSL results)
-      const graphContainsFrame = JSON.stringify(nodysseusGraph).includes('extern.frame');
-      if (graphContainsFrame && finalComputed instanceof THREE.Object3D) {
-        const objectName = nodysseusGraph.id;
-        const renderNodeId = nodysseusGraph.out!;
-        const renderInputEdges = nodysseusGraph.edges_in?.[renderNodeId];
-        
-        if (renderInputEdges) {
-          // Find the edge that represents the first argument (the MockObject3D)
-          let mockObjectNodeId: string | null = null;
-          for (const [fromNodeId, edge] of Object.entries(renderInputEdges)) {
-            if (edge && typeof edge === 'object' && 'as' in edge && edge.as === 'arg0') {
-              mockObjectNodeId = fromNodeId;
-              break;
-            }
-          }
-          
-          if (mockObjectNodeId) {
-            const scopeKey = nodysseusGraph.id + "/" + mockObjectNodeId;
-            const nodeToWatch = runtime.scope.get(scopeKey);
-            
-            if (nodeToWatch && objectRegistry.has(objectName)) {
-              runtime.stopWatch(nodeToWatch);
-              const watch = runtime.createWatch<MockObject3D>(nodeToWatch);
-              
-              // Start watching for frame updates
-              (async () => {
-                try {
-                  for await (const updatedValue of watch) {
-                    const existingObject = objectRegistry.get(objectName);
-                    if (existingObject) {
-                      applyMockToObject3D(existingObject, updatedValue);
-                    } else {
-                      // Break the watch loop if object is no longer in registry
-                      break;
-                    }
-                  }
-                } catch (error) {
-                  console.warn('Watch loop error:', error);
-                }
-              })();
-            }
-          }
-        }
-      }
-      
-      result = actualResult;
-      if (result && typeof result === 'object') {
-        (result as any).__wasLezerConverted = true;
-      }
-      
-      if (typeof result === 'number' || typeof result === 'string' || typeof result === 'boolean') {
-        return result;
-      }
-      
-      if (result && typeof result === 'object' && 'value' in result && typeof result.value === 'function') {
-        delete (result as any).__wasLezerConverted;
-      }
-    }
+    // Lezer converter now returns results directly - no wrapper needed
     
     if (result && typeof result === 'object' && 'value' in result && 'dependencies' in result && !('__isLezerConverted' in result) && !('__wasLezerConverted' in result)) {
       // Convert the graph to Nodysseus format
