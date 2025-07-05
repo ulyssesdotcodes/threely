@@ -90,10 +90,7 @@ export {
 } from "./parser";
 
 // Converter exports
-export {
-  DirectASTToNodysseusConverter,
-  convertASTToNodysseus,
-} from "./direct-ast-to-nodysseus-converter";
+export { convertASTToNodysseus } from "./direct-ast-to-nodysseus-converter";
 
 // Re-export utilities
 export { MockObject3D, mockUtils, mockPresets };
