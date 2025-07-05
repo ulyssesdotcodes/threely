@@ -9,11 +9,7 @@ import {
   Edge,
 } from "../nodysseus/types";
 import { logToPanel } from "./parser";
-import {
-  FunctionCallInfo,
-  getUUIDFromRangeSet,
-  UUIDTag,
-} from "../uuid-tagging";
+import { UUIDTag } from "../uuid-tagging";
 import { RangeSet } from "@codemirror/state";
 
 interface DirectConversionContext {
@@ -100,6 +96,25 @@ export class DirectASTToNodysseusConverter {
     };
   }
 
+  private nodeIdFromRangeSet(
+    astNode: any,
+    ranges: RangeSet<UUIDTag>,
+  ): string | null {
+    let nodeRanges: { from: number; to: number; uuid: UUIDTag }[] = [];
+    ranges.between(astNode.from, astNode.to, (from, to, uuid) => {
+      // Only include ranges that overlap with our AST node
+      if (!(to < astNode.from || from > astNode.to)) {
+        nodeRanges.push({ from, to, uuid });
+      }
+    });
+
+    // Sort by range size (smallest first) to find the most specific match
+    const smallestRange = nodeRanges.sort(
+      (a, b) => a.to - a.from - (b.to - b.from),
+    )[0];
+    return smallestRange?.uuid.uuid || null;
+  }
+
   /**
    * Convert AST node directly to Nodysseus node
    */
@@ -120,10 +135,7 @@ export class DirectASTToNodysseusConverter {
       `🔍 Converting AST node: ${astNode.name} (${astNode.from}-${astNode.to})`,
     );
 
-    let nodeRanges: { from: number, to: number, uuid: UUIDTag }[] = [];
-    ranges.between(astNode.to, astNode.from, (from, to, uuid) => (nodeRanges.push({ from, to, uuid }), undefined));
-    // TODO: less hacky
-    let nodeId = nodeRanges.sort((a, b) => (a.to - a.from) - (b.to - b.from))[0]?.uuid.uuid;
+    let nodeId: string;
 
     switch (astNode.name) {
       case "Script":
@@ -261,14 +273,7 @@ export class DirectASTToNodysseusConverter {
       context,
     );
 
-    // Extract UUID for this function call
-    let uuid: string | null = null;
-    ranges.between(astNode.from, astNode.to, (from, to, uuidTag) => {
-      if (from === astNode.from && to === astNode.to) {
-        uuid = uuidTag.uuid;
-        return false;
-      }
-    });
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
     const nodeId = uuid || this.generateNodeId(context);
 
     console.log(
@@ -422,14 +427,7 @@ export class DirectASTToNodysseusConverter {
         context,
       );
 
-      // Extract UUID for this chain call
-      let uuid: string | null = null;
-      ranges.between(callNode.from, callNode.to, (from, to, uuidTag) => {
-        if (from === callNode.from && to === callNode.to) {
-          uuid = uuidTag.uuid;
-          return false;
-        }
-      });
+      const uuid = this.nodeIdFromRangeSet(callNode, ranges);
       currentNodeId = uuid || this.generateNodeId(context);
 
       console.log(
@@ -600,14 +598,7 @@ export class DirectASTToNodysseusConverter {
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
   ): string {
-    // Extract UUID for this variable name
-    let uuid: string | null = null;
-    ranges.between(astNode.from, astNode.to, (from, to, uuidTag) => {
-      if (from === astNode.from && to === astNode.to) {
-        uuid = uuidTag.uuid;
-        return false;
-      }
-    });
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
     const nodeId = uuid || this.generateNodeId(context);
     const variableName = this.getNodeText(astNode, context);
 
@@ -672,14 +663,7 @@ export class DirectASTToNodysseusConverter {
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
   ): string {
-    // Extract UUID for this number literal
-    let uuid: string | null = null;
-    ranges.between(astNode.from, astNode.to, (from, to, uuidTag) => {
-      if (from === astNode.from && to === astNode.to) {
-        uuid = uuidTag.uuid;
-        return false;
-      }
-    });
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
     const nodeId = uuid || this.generateNodeId(context);
     const numberText = this.getNodeText(astNode, context);
     const numberValue = parseFloat(numberText);
@@ -706,14 +690,7 @@ export class DirectASTToNodysseusConverter {
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
   ): string {
-    // Extract UUID for this string literal
-    let uuid: string | null = null;
-    ranges.between(astNode.from, astNode.to, (from, to, uuidTag) => {
-      if (from === astNode.from && to === astNode.to) {
-        uuid = uuidTag.uuid;
-        return false;
-      }
-    });
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
     const nodeId = uuid || this.generateNodeId(context);
     const stringText = this.getNodeText(astNode, context);
     const stringValue = stringText.slice(1, -1); // Remove quotes
@@ -740,14 +717,7 @@ export class DirectASTToNodysseusConverter {
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
   ): string {
-    // Extract UUID for this object expression
-    let uuid: string | null = null;
-    ranges.between(astNode.from, astNode.to, (from, to, uuidTag) => {
-      if (from === astNode.from && to === astNode.to) {
-        uuid = uuidTag.uuid;
-        return false;
-      }
-    });
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
     const nodeId = uuid || this.generateNodeId(context);
     const objectValue: any = {};
 
