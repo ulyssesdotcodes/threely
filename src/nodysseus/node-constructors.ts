@@ -1,17 +1,17 @@
 // Node constructor functions and utilities
 
 import { v4 as uuid } from "uuid";
-import { 
-  State, 
-  VarNode, 
-  MapNode, 
-  BindNode, 
-  AnyNode, 
+import {
+  State,
+  VarNode,
+  MapNode,
+  BindNode,
+  AnyNode,
   isConstNode,
   isVarNode,
   isMapNode,
   isBindNode,
-  isNode
+  isNode,
 } from "./node-types";
 import { ConstNode } from "./types";
 
@@ -55,29 +55,29 @@ const chainNothing = <T, S>(a: any, fn: (a: T) => S): any =>
 
 export class Scope {
   private nodes: Map<string, any> = new Map();
-  
+
   constructor() {}
-  
+
   add(node: any) {
     this.nodes.set(node.id, node);
   }
-  
+
   get<T>(id: string) {
     return this.nodes.get(id) as any;
   }
-  
+
   has(id: string) {
     return this.nodes.has(id);
   }
-  
+
   count() {
     return this.nodes.size;
   }
-  
+
   findKeys(id: string) {
     return Array.from(this.nodes.keys()).filter((k) => k.startsWith(id));
   }
-  
+
   removeAll(id: string) {
     for (const k of Array.from(this.nodes.keys())) {
       if (

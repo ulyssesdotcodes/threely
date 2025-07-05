@@ -46,7 +46,7 @@ export function setComponent(v: Vector3, index: number, value: number): void {
       v.z = value;
       break;
     default:
-      throw new Error('Index out of range');
+      throw new Error("Index out of range");
   }
 }
 
@@ -59,7 +59,7 @@ export function getComponent(v: Vector3, index: number): number {
     case 2:
       return v.z;
     default:
-      throw new Error('Index out of range');
+      throw new Error("Index out of range");
   }
 }
 
@@ -85,7 +85,11 @@ export function addScalar(v: Vector3, s: number): void {
   v.z += s;
 }
 
-export function addVectors(dest: Vector3, a: Vector3Like, b: Vector3Like): void {
+export function addVectors(
+  dest: Vector3,
+  a: Vector3Like,
+  b: Vector3Like,
+): void {
   dest.x = a.x + b.x;
   dest.y = a.y + b.y;
   dest.z = a.z + b.z;
@@ -109,7 +113,11 @@ export function subScalar(v: Vector3, s: number): void {
   v.z -= s;
 }
 
-export function subVectors(dest: Vector3, a: Vector3Like, b: Vector3Like): void {
+export function subVectors(
+  dest: Vector3,
+  a: Vector3Like,
+  b: Vector3Like,
+): void {
   dest.x = a.x - b.x;
   dest.y = a.y - b.y;
   dest.z = a.z - b.z;
@@ -127,7 +135,11 @@ export function multiplyScalar(v: Vector3, s: number): void {
   v.z *= s;
 }
 
-export function multiplyVectors(dest: Vector3, a: Vector3Like, b: Vector3Like): void {
+export function multiplyVectors(
+  dest: Vector3,
+  a: Vector3Like,
+  b: Vector3Like,
+): void {
   dest.x = a.x * b.x;
   dest.y = a.y * b.y;
   dest.z = a.z * b.z;
@@ -264,7 +276,12 @@ export function lerp(dest: Vector3, target: Vector3Like, alpha: number): void {
   dest.z += (target.z - dest.z) * alpha;
 }
 
-export function lerpVectors(dest: Vector3, v1: Vector3Like, v2: Vector3Like, alpha: number): void {
+export function lerpVectors(
+  dest: Vector3,
+  v1: Vector3Like,
+  v2: Vector3Like,
+  alpha: number,
+): void {
   dest.x = v1.x + (v2.x - v1.x) * alpha;
   dest.y = v1.y + (v2.y - v1.y) * alpha;
   dest.z = v1.z + (v2.z - v1.z) * alpha;
@@ -279,7 +296,11 @@ export function cross(dest: Vector3, a: Vector3Like): void {
   dest.z = z;
 }
 
-export function crossVectors(dest: Vector3, a: Vector3Like, b: Vector3Like): void {
+export function crossVectors(
+  dest: Vector3,
+  a: Vector3Like,
+  b: Vector3Like,
+): void {
   dest.x = a.y * b.z - a.z * b.y;
   dest.y = a.z * b.x - a.x * b.z;
   dest.z = a.x * b.y - a.y * b.x;
@@ -344,7 +365,11 @@ export function fromArray(v: Vector3, array: number[], offset?: number): void {
   v.z = array[offset + 2];
 }
 
-export function toArray(v: Vector3, array?: number[], offset?: number): number[] {
+export function toArray(
+  v: Vector3,
+  array?: number[],
+  offset?: number,
+): number[] {
   if (array === undefined) array = [];
   if (offset === undefined) offset = 0;
   array[offset] = v.x;

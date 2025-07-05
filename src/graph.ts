@@ -2,10 +2,10 @@
 // This file is deprecated. The DSL now uses direct AST to Nodysseus conversion.
 // The functional graph intermediate layer has been eliminated for better performance.
 
-import { GraphPrettyPrinter, PrettyPrintOptions } from './graph-pretty-printer';
+import { GraphPrettyPrinter, PrettyPrintOptions } from "./graph-pretty-printer";
 
 // Import RefNode type for external node references
-import { isNodeRef, NodysseusNode, RefNode } from './nodysseus/types';
+import { isNodeRef, NodysseusNode, RefNode } from "./nodysseus/types";
 
 /**
  * Type representing a Node in the graph.
@@ -17,7 +17,7 @@ export type Node<T> = {
   readonly value: ((...args: any[]) => T) | RefNode | T;
   readonly dependencies: readonly Node<any>[];
   readonly graphId?: string;
-}
+};
 
 /**
  * Type definition for a curried function (kept for backward compatibility)
@@ -37,24 +37,32 @@ const generateUniqueId = (): string => `node-${++nodeIdCounter}`;
 export const createNode = <T>(
   value: ((...args: any[]) => T) | RefNode | T,
   dependencies: readonly Node<any>[] = [],
-  chain: Record<string,  {fn: (...args: any[]) => T, chain: () => any}> = {},
-  graphId?: string
-): Node<T> => (new Proxy({
-  id: generateUniqueId(),
-  value,
-  dependencies,
-  ...(graphId && { graphId })
-}, {
-  get(target, p, receiver) {
-    if(target[p]) return target[p]
-    if(chain[p as any]) {
-      return (...args) => {
-        args = args.map(a => a.id ? a : constant(a));
-        return createNode(chain[p as any].fn, [target, ...args], chain[p as any].chain())
-      }
-    }
-  }
-}));
+  chain: Record<string, { fn: (...args: any[]) => T; chain: () => any }> = {},
+  graphId?: string,
+): Node<T> =>
+  new Proxy(
+    {
+      id: generateUniqueId(),
+      value,
+      dependencies,
+      ...(graphId && { graphId }),
+    },
+    {
+      get(target, p, receiver) {
+        if (target[p]) return target[p];
+        if (chain[p as any]) {
+          return (...args) => {
+            args = args.map((a) => (a.id ? a : constant(a)));
+            return createNode(
+              chain[p as any].fn,
+              [target, ...args],
+              chain[p as any].chain(),
+            );
+          };
+        }
+      },
+    },
+  );
 
 /**
  * Execute a node and return its computed value
@@ -62,14 +70,18 @@ export const createNode = <T>(
  * @returns The computed value
  */
 export const run = <T>(node: Node<T>): T => {
-  if (typeof node.value === 'function') {
+  if (typeof node.value === "function") {
     // Function value: resolve dependencies and call function
-    const dependencyResults = node.dependencies.map(dep => run(dep));
+    const dependencyResults = node.dependencies.map((dep) => run(dep));
     return (node.value as (...args: any[]) => T)(...dependencyResults);
-  } else if (typeof node.value === 'object' && node.value !== null && 'ref' in node.value) {
+  } else if (
+    typeof node.value === "object" &&
+    node.value !== null &&
+    "ref" in node.value
+  ) {
     // RefNode value: this should be handled by the Nodysseus runtime
     // For now, throw an error since we can't execute RefNodes directly in the functional graph
-    return node as T
+    return node as T;
   } else {
     // Constant value: return as-is
     return node.value as T;
@@ -78,12 +90,14 @@ export const run = <T>(node: Node<T>): T => {
 
 /**
  * The map function with type (A => B) => Node<A> => Node<B>
- * 
+ *
  * @param fn - Function to transform value A to value B
  * @returns A function that transforms Node<A> to Node<B>
  */
-export const map = <A, B>(fn: (a: A) => B, chain) => (node: Node<A>): Node<B> =>
-  createNode(fn, [node], chain);
+export const map =
+  <A, B>(fn: (a: A) => B, chain) =>
+  (node: Node<A>): Node<B> =>
+    createNode(fn, [node], chain);
 
 /**
  * Apply a function with multiple arguments to multiple nodes
@@ -95,7 +109,7 @@ export const apply = <T>(
   fn: (...args: any[]) => T,
   nodes: readonly Node<any>[],
   chain?: any,
-  graphId?: string
+  graphId?: string,
 ): Node<T> => createNode(fn, nodes, chain, graphId);
 
 /**
@@ -103,13 +117,15 @@ export const apply = <T>(
  * @param value - The constant value
  * @returns Node that always returns the constant value
  */
-export const constant = <T>(value: T): Node<T> => 
-  createNode(value, [], {});
+export const constant = <T>(value: T): Node<T> => createNode(value, [], {});
 
 /**
  * Pretty print a node and its dependencies
  */
-export const prettyPrint = (node: Node<any>, options?: PrettyPrintOptions): string => {
+export const prettyPrint = (
+  node: Node<any>,
+  options?: PrettyPrintOptions,
+): string => {
   const printer = new GraphPrettyPrinter(options);
   return printer.print(node);
 };
@@ -117,7 +133,10 @@ export const prettyPrint = (node: Node<any>, options?: PrettyPrintOptions): stri
 /**
  * Create a compact representation of a node
  */
-export const compact = (node: Node<any>, options?: PrettyPrintOptions): string => {
+export const compact = (
+  node: Node<any>,
+  options?: PrettyPrintOptions,
+): string => {
   const printer = new GraphPrettyPrinter(options);
   return printer.compact(node);
 };

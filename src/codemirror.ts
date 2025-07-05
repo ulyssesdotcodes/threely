@@ -3,29 +3,29 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { vim } from "@replit/codemirror-vim";
-import { getTextBlockAtPosition } from './text_utils';
-import { executeDSL } from './dsl';
-import { 
-  uuidRangeSetField, 
-  uuidRangeSetPlugin, 
-  generateUUIDTags, 
-  clearFunctionCallRegistry, 
+import { getTextBlockAtPosition } from "./text_utils";
+import { executeDSL } from "./dsl";
+import {
+  uuidRangeSetField,
+  uuidRangeSetPlugin,
+  generateUUIDTags,
+  clearFunctionCallRegistry,
   setUUIDRangeSet,
   getUUIDFromState,
-  UUIDTag
-} from './uuid-tagging';
+  UUIDTag,
+} from "./uuid-tagging";
 import { State } from "./nodysseus/node-types";
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
 // Vim mode state management
-const VIM_MODE_KEY = 'three-tree-vim-mode';
+const VIM_MODE_KEY = "three-tree-vim-mode";
 const vimCompartment = new Compartment();
 let currentEditorView: EditorView | null = null;
 
 export function getVimModeEnabled(): boolean {
   try {
-    return localStorage.getItem(VIM_MODE_KEY) === 'true';
+    return localStorage.getItem(VIM_MODE_KEY) === "true";
   } catch {
     return false;
   }
@@ -36,7 +36,7 @@ export function setVimModeEnabled(enabled: boolean): void {
     localStorage.setItem(VIM_MODE_KEY, enabled.toString());
     if (currentEditorView) {
       currentEditorView.dispatch({
-        effects: vimCompartment.reconfigure(enabled ? vim() : [])
+        effects: vimCompartment.reconfigure(enabled ? vim() : []),
       });
     }
   } catch {
@@ -51,17 +51,24 @@ export function getCurrentEditorView(): EditorView | null {
 // Custom command for Ctrl-Enter
 const handleCtrlEnter = (view: EditorView): boolean => {
   const blockInfo = getBlockAtCursor(view);
-  
+
   if (blockInfo && blockInfo.block) {
     const code = blockInfo.block.trim();
-    
+
     try {
-      const ranges : {start: number, end: number, uuid: UUIDTag}[] = []
-     view.state.field(uuidRangeSetField).between(blockInfo.start, blockInfo.end, (start, end, uuid) => (ranges.push({
-      start: start - blockInfo.start,
-      end: end - blockInfo.start,
-      uuid
-     }), undefined))
+      const ranges: { start: number; end: number; uuid: UUIDTag }[] = [];
+      view.state.field(uuidRangeSetField).between(
+        blockInfo.start,
+        blockInfo.end,
+        (start, end, uuid) => (
+          ranges.push({
+            start: start - blockInfo.start,
+            end: end - blockInfo.start,
+            uuid,
+          }),
+          undefined
+        ),
+      );
       const result = executeDSL(code, ranges);
       if (result) {
       } else {
@@ -70,19 +77,20 @@ const handleCtrlEnter = (view: EditorView): boolean => {
       console.error("Error executing DSL code:", error);
     }
   }
-  
+
   // Prevent the default new line behavior by returning true
   return true;
 };
 
 // Function to get block at cursor position
-export const getBlockAtCursor = (view: EditorView): { block: string; start: number; end: number } | null => {
+export const getBlockAtCursor = (
+  view: EditorView,
+): { block: string; start: number; end: number } | null => {
   const text = view.state.doc.toString();
   const cursorPos = view.state.selection.ranges[0].from;
 
   return getTextBlockAtPosition(text, cursorPos);
 };
-
 
 export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
 
@@ -123,9 +131,11 @@ mesh(cylinder(0.5, 1, 2), material({color: 0xffff00})).translateZ(-3).render("cu
 // clearAll()
 `;
 
-export function createEditorState(content: string = defaultContent): EditorState {
+export function createEditorState(
+  content: string = defaultContent,
+): EditorState {
   const vimModeEnabled = getVimModeEnabled();
-  
+
   // Clear previous UUID registry and generate new tags for the content
   clearFunctionCallRegistry();
   const { rangeSet } = generateUUIDTags(content);
@@ -141,10 +151,10 @@ export function createEditorState(content: string = defaultContent): EditorState
       uuidRangeSetPlugin, // Add UUID RangeSet plugin for automatic updates
     ],
   });
-  
+
   // Apply the initial UUID RangeSet
   return state.update({
-    effects: setUUIDRangeSet.of(rangeSet)
+    effects: setUUIDRangeSet.of(rangeSet),
   }).state;
 }
 

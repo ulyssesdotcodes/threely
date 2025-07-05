@@ -1,12 +1,23 @@
 // UUID-based function call tagging for CodeMirror and Lezer correlation
-import { RangeSet, RangeValue, ChangeDesc, StateField, StateEffect, EditorState, Transaction } from "@codemirror/state";
+import {
+  RangeSet,
+  RangeValue,
+  ChangeDesc,
+  StateField,
+  StateEffect,
+  EditorState,
+  Transaction,
+} from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { parser } from "@lezer/javascript";
 import { v4 as uuid } from "uuid";
 
 // RangeValue for UUID-tagged function calls
 export class UUIDTag extends RangeValue {
-  constructor(public uuid: string, public functionName: string) {
+  constructor(
+    public uuid: string,
+    public functionName: string,
+  ) {
     super();
   }
 
@@ -32,7 +43,7 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
   create() {
     return RangeSet.empty;
   },
-  
+
   update(value, tr) {
     // Check for explicit UUID RangeSet updates
     for (let effect of tr.effects) {
@@ -40,14 +51,14 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
         return effect.value;
       }
     }
-    
+
     // Map existing ranges through document changes
     if (tr.docChanged) {
       return value.map(tr.changes);
     }
-    
+
     return value;
-  }
+  },
 });
 
 // Global registry for function call UUIDs
@@ -68,47 +79,47 @@ export function generateUUIDTags(text: string): {
 } {
   const functionCalls: FunctionCallInfo[] = [];
   const ranges: { from: number; to: number; value: UUIDTag }[] = [];
-  
+
   // Parse with Lezer to identify function calls
   const tree = parser.parse(text);
-  
+
   // Walk the tree to find CallExpression nodes
   tree.cursor().iterate((node) => {
-    if (node.name === 'CallExpression') {
+    if (node.name === "CallExpression") {
       const callText = text.slice(node.from, node.to);
-      
+
       // Extract function name from the call expression
       const funcNameMatch = callText.match(/^(\w+)/);
       if (funcNameMatch) {
         const functionName = funcNameMatch[1];
         const callUuid = uuid();
-        
+
         const functionCall: FunctionCallInfo = {
           uuid: callUuid,
           functionName,
           from: node.from,
           to: node.to,
-          astNodeType: node.name
+          astNodeType: node.name,
         };
-        
+
         functionCalls.push(functionCall);
         functionCallRegistry.set(callUuid, functionCall);
-        
+
         // Create UUID tag for this function call
         const uuidTag = new UUIDTag(callUuid, functionName);
-        
+
         ranges.push({
           from: node.from,
           to: node.to,
-          value: uuidTag
+          value: uuidTag,
         });
       }
     }
   });
-  
+
   // Create RangeSet from the ranges
-  const rangeSet = RangeSet.of(ranges.map(r => r.value.range(r.from, r.to)));
-  
+  const rangeSet = RangeSet.of(ranges.map((r) => r.value.range(r.from, r.to)));
+
   return { rangeSet, functionCalls };
 }
 
@@ -117,7 +128,7 @@ export function generateUUIDTags(text: string): {
 export function getUUIDAtPosition(position: number): string | null {
   let bestMatch: FunctionCallInfo | null = null;
   let smallestRange = Infinity;
-  
+
   for (const [uuid, info] of functionCallRegistry) {
     if (position >= info.from && position <= info.to) {
       const range = info.to - info.from;
@@ -127,26 +138,32 @@ export function getUUIDAtPosition(position: number): string | null {
       }
     }
   }
-  
+
   return bestMatch ? bestMatch.uuid : null;
 }
 
 // Get UUID from RangeSet at a specific position
-export function getUUIDFromRangeSet(rangeSet: RangeSet<UUIDTag>, position: number): string | null {
+export function getUUIDFromRangeSet(
+  rangeSet: RangeSet<UUIDTag>,
+  position: number,
+): string | null {
   let foundUuid: string | null = null;
-  
+
   rangeSet.between(position, position, (from, to, value) => {
     if (position >= from && position <= to) {
       foundUuid = value.uuid;
       return false; // Stop iteration
     }
   });
-  
+
   return foundUuid;
 }
 
 // Get UUID from editor state at a specific position
-export function getUUIDFromState(state: EditorState, position: number): string | null {
+export function getUUIDFromState(
+  state: EditorState,
+  position: number,
+): string | null {
   const rangeSet = state.field(uuidRangeSetField, false);
   if (!rangeSet) return null;
   return getUUIDFromRangeSet(rangeSet, position);
@@ -169,66 +186,73 @@ export function getUUIDsForFunction(functionName: string): string[] {
 }
 
 // ViewPlugin to automatically update UUID RangeSet when document changes significantly
-export const uuidRangeSetPlugin = ViewPlugin.fromClass(class {
-   lastDocText: string = '';
-  
-  constructor(view: EditorView) {
-    this.lastDocText = view.state.doc.toString();
-  }
-  
-  update(update: any) {
-    const currentDocText = update.state.doc.toString();
-    
-    // Only regenerate UUIDs if the document content has changed significantly
-    // or if we don't have a UUID RangeSet yet
-    if (this.shouldRegenerateUUIDs(update, currentDocText)) {
-      this.regenerateUUIDs(update.view, currentDocText);
-      this.lastDocText = currentDocText;
+export const uuidRangeSetPlugin = ViewPlugin.fromClass(
+  class {
+    lastDocText: string = "";
+
+    constructor(view: EditorView) {
+      this.lastDocText = view.state.doc.toString();
     }
-  }
-  
-   shouldRegenerateUUIDs(update: any, currentDocText: string): boolean {
-    // Regenerate if:
-    // 1. The document changed and text is different
-    // 2. There's no existing UUID RangeSet
-    // 3. The change was substantial (not just whitespace)
-    
-    if (!update.docChanged) return false;
-    
-    const hasExistingRangeSet = update.state.field(uuidRangeSetField, false) && 
-                               !update.state.field(uuidRangeSetField, false).size;
-    
-    if (!hasExistingRangeSet) return true;
-    
-    // Check if this was a substantial change
-    const textChanged = this.lastDocText !== currentDocText;
-    const hasNewFunctionCalls = /\w+\s*\(/.test(currentDocText) && textChanged;
-    
-    return hasNewFunctionCalls;
-  }
-  
-   regenerateUUIDs(view: EditorView, text: string) {
-    clearFunctionCallRegistry();
-    const { rangeSet } = generateUUIDTags(text);
-    
-    view.dispatch({
-      effects: setUUIDRangeSet.of(rangeSet)
-    });
-  }
-});
+
+    update(update: any) {
+      const currentDocText = update.state.doc.toString();
+
+      // Only regenerate UUIDs if the document content has changed significantly
+      // or if we don't have a UUID RangeSet yet
+      if (this.shouldRegenerateUUIDs(update, currentDocText)) {
+        this.regenerateUUIDs(update.view, currentDocText);
+        this.lastDocText = currentDocText;
+      }
+    }
+
+    shouldRegenerateUUIDs(update: any, currentDocText: string): boolean {
+      // Regenerate if:
+      // 1. The document changed and text is different
+      // 2. There's no existing UUID RangeSet
+      // 3. The change was substantial (not just whitespace)
+
+      if (!update.docChanged) return false;
+
+      const hasExistingRangeSet =
+        update.state.field(uuidRangeSetField, false) &&
+        !update.state.field(uuidRangeSetField, false).size;
+
+      if (!hasExistingRangeSet) return true;
+
+      // Check if this was a substantial change
+      const textChanged = this.lastDocText !== currentDocText;
+      const hasNewFunctionCalls =
+        /\w+\s*\(/.test(currentDocText) && textChanged;
+
+      return hasNewFunctionCalls;
+    }
+
+    regenerateUUIDs(view: EditorView, text: string) {
+      clearFunctionCallRegistry();
+      const { rangeSet } = generateUUIDTags(text);
+
+      view.dispatch({
+        effects: setUUIDRangeSet.of(rangeSet),
+      });
+    }
+  },
+);
 
 // Helper function to create UUID-enabled editor state
-export function createUUIDEnabledState(content: string, baseExtensions: any[] = []): EditorState {
+export function createUUIDEnabledState(
+  content: string,
+  baseExtensions: any[] = [],
+): EditorState {
   const { rangeSet } = generateUUIDTags(content);
-  
+
   return EditorState.create({
     doc: content,
     extensions: [
       ...baseExtensions,
       uuidRangeSetField,
       uuidRangeSetPlugin,
-      setUUIDRangeSet.of(rangeSet)
-    ]
+      setUUIDRangeSet.of(rangeSet),
+    ],
   });
 }
 
@@ -237,9 +261,9 @@ export function updateStateWithUUIDs(state: EditorState): Transaction {
   const content = state.doc.toString();
   clearFunctionCallRegistry();
   const { rangeSet } = generateUUIDTags(content);
-  
+
   return state.update({
-    effects: setUUIDRangeSet.of(rangeSet)
+    effects: setUUIDRangeSet.of(rangeSet),
   });
 }
 

@@ -11,15 +11,15 @@ export type Nothing = { __kind: "nothing" };
 
 export class State<T = any> {
   private _value: T;
-  
+
   constructor(value?: T) {
     this._value = value as T;
   }
-  
+
   read(): T {
     return this._value;
   }
-  
+
   write(value: T): void {
     this._value = value;
   }
@@ -55,14 +55,16 @@ export type BindNode<T, S extends Record<string, unknown>> = {
   isDirty: State<boolean>;
 };
 
-export type AnyNode<T> = Node<NodeKind, T>
+export type AnyNode<T> = Node<NodeKind, T>;
 export type UnwrapNode<T> = T;
 export type AnyNodeMap<T> = Record<string, any>;
 
 // Helper functions for type checking
-export const isNothing = (value: any): value is Nothing => value?.__kind === "nothing";
-export const isNothingOrUndefined = (value: any): value is Nothing | undefined => 
-  value === undefined || isNothing(value);
+export const isNothing = (value: any): value is Nothing =>
+  value?.__kind === "nothing";
+export const isNothingOrUndefined = (
+  value: any,
+): value is Nothing | undefined => value === undefined || isNothing(value);
 
 // Node type guards
 export const isConstNode = <T>(a: any): boolean => a?.__kind === "const";

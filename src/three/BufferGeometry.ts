@@ -1,4 +1,15 @@
-import { BufferAttribute, Box3, Matrix4, Quaternion, Sphere, Vector2, Vector3, EventDispatcher, GLBufferAttribute, InterleavedBufferAttribute } from 'three';
+import {
+  BufferAttribute,
+  Box3,
+  Matrix4,
+  Quaternion,
+  Sphere,
+  Vector2,
+  Vector3,
+  EventDispatcher,
+  GLBufferAttribute,
+  InterleavedBufferAttribute,
+} from "three";
 
 export interface BufferGeometryJSON {
   metadata?: { version: number; type: string; generator: string };
@@ -32,7 +43,10 @@ export function getIndex(geometry: any): any {
   return geometry;
 }
 
-export function setIndex(geometry: any, index: BufferAttribute | number[] | null): any {
+export function setIndex(
+  geometry: any,
+  index: BufferAttribute | number[] | null,
+): any {
   if (Array.isArray(index)) {
     geometry.index = new BufferAttribute(new Float32Array(index), 1);
   } else {
@@ -51,7 +65,11 @@ export function getIndirect(geometry: any): any {
   return geometry;
 }
 
-export function setAttribute<K extends keyof any>(geometry: any, name: K, attribute: any): any {
+export function setAttribute<K extends keyof any>(
+  geometry: any,
+  name: K,
+  attribute: any,
+): any {
   geometry.attributes[name] = attribute;
   return geometry;
 }
@@ -71,7 +89,12 @@ export function hasAttribute(geometry: any, name: string): any {
   return geometry;
 }
 
-export function addGroup(geometry: any, start: number, count: number, materialIndex?: number): any {
+export function addGroup(
+  geometry: any,
+  start: number,
+  count: number,
+  materialIndex?: number,
+): any {
   geometry.groups.push({ start, count, materialIndex });
   return geometry;
 }
@@ -81,7 +104,11 @@ export function clearGroups(geometry: any): any {
   return geometry;
 }
 
-export function setDrawRange(geometry: any, start: number, count: number): void {
+export function setDrawRange(
+  geometry: any,
+  start: number,
+  count: number,
+): void {
   geometry.drawRange = { start, count };
 }
 
@@ -168,7 +195,7 @@ export function lookAt(geometry: any, vector: Vector3): any {
       position.set(
         geometry.attributes.position.getX(i),
         geometry.attributes.position.getY(i),
-        geometry.attributes.position.getZ(i)
+        geometry.attributes.position.getZ(i),
       );
       position.sub(vector);
     }
@@ -190,10 +217,11 @@ export function center(geometry: any): any {
     const position = geometry.attributes.position;
     if (position) {
       for (let i = 0; i < position.count; i++) {
-        position.setXYZ(i,
+        position.setXYZ(
+          i,
           position.getX(i) + offset.x,
           position.getY(i) + offset.y,
-          position.getZ(i) + offset.z
+          position.getZ(i) + offset.z,
         );
       }
     }
@@ -202,17 +230,20 @@ export function center(geometry: any): any {
   return geometry;
 }
 
-export function setFromPoints(geometry: any, points: (Vector3 | Vector2)[]): any {
+export function setFromPoints(
+  geometry: any,
+  points: (Vector3 | Vector2)[],
+): any {
   const positions = new Float32Array(points.length * 3);
   for (let i = 0; i < points.length; i++) {
     const point = points[i];
-    if ('x' in point && 'y' in point && 'z' in point) {
+    if ("x" in point && "y" in point && "z" in point) {
       positions.set([point.x, point.y, point.z], i * 3);
     } else {
       positions.set([point.x, point.y, 0], i * 3);
     }
   }
-  geometry.setAttribute('position', new BufferAttribute(positions, 3));
+  geometry.setAttribute("position", new BufferAttribute(positions, 3));
   return geometry;
 }
 
@@ -225,11 +256,9 @@ export function computeBoundingBox(geometry: any): void {
     bbox.makeEmpty();
 
     for (let i = 0; i < position.count; i++) {
-      bbox.expandByPoint(new Vector3(
-        position.getX(i),
-        position.getY(i),
-        position.getZ(i)
-      ));
+      bbox.expandByPoint(
+        new Vector3(position.getX(i), position.getY(i), position.getZ(i)),
+      );
     }
   }
 }
@@ -246,7 +275,7 @@ export function computeBoundingSphere(geometry: any): void {
       const vertex = new Vector3(
         position.getX(i),
         position.getY(i),
-        position.getZ(i)
+        position.getZ(i),
       );
 
       center.add(vertex);
@@ -265,8 +294,12 @@ export function computeBoundingSphere(geometry: any): void {
 
 export function computeTangents(geometry: any): void {
   // Simplified implementation
-  if (!geometry.index || !geometry.attributes.position ||
-      !geometry.attributes.normal || !geometry.attributes.uv) {
+  if (
+    !geometry.index ||
+    !geometry.attributes.position ||
+    !geometry.attributes.normal ||
+    !geometry.attributes.uv
+  ) {
     return;
   }
 
@@ -278,9 +311,18 @@ export function computeTangents(geometry: any): void {
     const b = geometry.index.getX(i + 1);
     const c = geometry.index.getX(i + 2);
 
-    const v1 = new Vector3().fromBufferAttribute(geometry.attributes.position, a);
-    const v2 = new Vector3().fromBufferAttribute(geometry.attributes.position, b);
-    const v3 = new Vector3().fromBufferAttribute(geometry.attributes.position, c);
+    const v1 = new Vector3().fromBufferAttribute(
+      geometry.attributes.position,
+      a,
+    );
+    const v2 = new Vector3().fromBufferAttribute(
+      geometry.attributes.position,
+      b,
+    );
+    const v3 = new Vector3().fromBufferAttribute(
+      geometry.attributes.position,
+      c,
+    );
 
     const uv1 = new Vector2().fromBufferAttribute(geometry.attributes.uv, a);
     const uv2 = new Vector2().fromBufferAttribute(geometry.attributes.uv, b);
@@ -302,12 +344,12 @@ export function computeTangents(geometry: any): void {
     tan1.set(
       (t2 * x1 - t1 * x2) * r,
       (t2 * y1 - t1 * y2) * r,
-      (t2 * z1 - t1 * z2) * r
+      (t2 * z1 - t1 * z2) * r,
     );
     tan2.set(
       (s1 * x2 - s2 * x1) * r,
       (s1 * y2 - s2 * y1) * r,
-      (s1 * z2 - s2 * z1) * r
+      (s1 * z2 - s2 * z1) * r,
     );
 
     // Add tangents to vertices
@@ -322,9 +364,18 @@ export function computeVertexNormals(geometry: any): void {
     // Non-indexed geometry
     const normals: Vector3[] = [];
     for (let i = 0; i < geometry.attributes.position.count; i += 3) {
-      const a = new Vector3().fromBufferAttribute(geometry.attributes.position, i);
-      const b = new Vector3().fromBufferAttribute(geometry.attributes.position, i + 1);
-      const c = new Vector3().fromBufferAttribute(geometry.attributes.position, i + 2);
+      const a = new Vector3().fromBufferAttribute(
+        geometry.attributes.position,
+        i,
+      );
+      const b = new Vector3().fromBufferAttribute(
+        geometry.attributes.position,
+        i + 1,
+      );
+      const c = new Vector3().fromBufferAttribute(
+        geometry.attributes.position,
+        i + 2,
+      );
 
       const cb = new Vector3().subVectors(c, b);
       const ab = new Vector3().subVectors(a, b);
@@ -338,7 +389,10 @@ export function computeVertexNormals(geometry: any): void {
       flatNormals.push(normal.x, normal.y, normal.z);
     }
 
-    geometry.setAttribute('normal', new BufferAttribute(new Float32Array(flatNormals), 3));
+    geometry.setAttribute(
+      "normal",
+      new BufferAttribute(new Float32Array(flatNormals), 3),
+    );
   } else {
     // Indexed geometry
     const normals: { [key: number]: Vector3 } = {};
@@ -347,9 +401,18 @@ export function computeVertexNormals(geometry: any): void {
       const b = geometry.index.getX(i + 1);
       const c = geometry.index.getX(i + 2);
 
-      const vA = new Vector3().fromBufferAttribute(geometry.attributes.position, a);
-      const vB = new Vector3().fromBufferAttribute(geometry.attributes.position, b);
-      const vC = new Vector3().fromBufferAttribute(geometry.attributes.position, c);
+      const vA = new Vector3().fromBufferAttribute(
+        geometry.attributes.position,
+        a,
+      );
+      const vB = new Vector3().fromBufferAttribute(
+        geometry.attributes.position,
+        b,
+      );
+      const vC = new Vector3().fromBufferAttribute(
+        geometry.attributes.position,
+        c,
+      );
 
       const cb = new Vector3().subVectors(vC, vB);
       const ab = new Vector3().subVectors(vA, vB);
@@ -374,7 +437,10 @@ export function computeVertexNormals(geometry: any): void {
       }
     }
 
-    geometry.setAttribute('normal', new BufferAttribute(new Float32Array(flatNormals), 3));
+    geometry.setAttribute(
+      "normal",
+      new BufferAttribute(new Float32Array(flatNormals), 3),
+    );
   }
 }
 
@@ -404,14 +470,16 @@ export function toNonIndexed(geometry: any): any {
     const nonIndexedPositions = new Float32Array(position.count * 3);
     for (let i = 0; i < indices.length; i++) {
       const index = indices[i];
-      nonIndexedPositions.set([
-        position.getX(index),
-        position.getY(index),
-        position.getZ(index)
-      ], i * 3);
+      nonIndexedPositions.set(
+        [position.getX(index), position.getY(index), position.getZ(index)],
+        i * 3,
+      );
     }
 
-    newGeometry.setAttribute('position', new BufferAttribute(nonIndexedPositions, 3));
+    newGeometry.setAttribute(
+      "position",
+      new BufferAttribute(nonIndexedPositions, 3),
+    );
     newGeometry.index = null;
   }
 
@@ -422,11 +490,11 @@ export function toJSON(geometry: any): BufferGeometryJSON {
   const output = {
     metadata: {
       version: 1,
-      type: 'BufferGeometry',
-      generator: 'BufferGeometry.toJSON'
+      type: "BufferGeometry",
+      generator: "BufferGeometry.toJSON",
     },
-    uuid: geometry.uuid || '',
-    type: geometry.type || ''
+    uuid: geometry.uuid || "",
+    type: geometry.type || "",
   } as BufferGeometryJSON;
 
   if (geometry.name) {
@@ -442,17 +510,17 @@ export function toJSON(geometry: any): BufferGeometryJSON {
     output.data = output.data || { attributes: {} };
 
     const array = position.array;
-    let type = 'Float32Array';
+    let type = "Float32Array";
     if (array.constructor === Float32Array) {
-      type = 'Float32Array';
+      type = "Float32Array";
     } else if (array.constructor === Int32Array) {
-      type = 'Int32Array';
+      type = "Int32Array";
     }
 
     output.data.attributes.position = {
       itemSize: position.itemSize,
       type: type,
-      array: Array.from(array)
+      array: Array.from(array),
     };
   }
 
@@ -489,25 +557,35 @@ export function copy(source: any, target?: any): any {
     target.attributes = {};
     for (const key in source.attributes) {
       const attribute = source.attributes[key];
-      target.attributes[key] = attribute.clone ? attribute.clone() : { ...attribute };
+      target.attributes[key] = attribute.clone
+        ? attribute.clone()
+        : { ...attribute };
     }
   }
 
   if (source.index) {
-    target.index = source.index.clone ? source.index.clone() : { ...source.index };
+    target.index = source.index.clone
+      ? source.index.clone()
+      : { ...source.index };
   }
 
-  target.morphAttributes = JSON.parse(JSON.stringify(source.morphAttributes || {}));
+  target.morphAttributes = JSON.parse(
+    JSON.stringify(source.morphAttributes || {}),
+  );
   target.morphTargetsRelative = source.morphTargetsRelative;
 
   target.groups = source.groups ? [...source.groups] : [];
 
   if (source.boundingBox) {
-    target.boundingBox = source.boundingBox.clone ? source.boundingBox.clone() : { ...source.boundingBox };
+    target.boundingBox = source.boundingBox.clone
+      ? source.boundingBox.clone()
+      : { ...source.boundingBox };
   }
 
   if (source.boundingSphere) {
-    target.boundingSphere = source.boundingSphere.clone ? source.boundingSphere.clone() : { ...source.boundingSphere };
+    target.boundingSphere = source.boundingSphere.clone
+      ? source.boundingSphere.clone()
+      : { ...source.boundingSphere };
   }
 
   target.drawRange = { ...source.drawRange };

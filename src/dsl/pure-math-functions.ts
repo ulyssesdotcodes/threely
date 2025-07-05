@@ -1,7 +1,7 @@
 // Pure Math Functions - No Node dependencies
 // These functions return primitive values and computation functions for direct Nodysseus conversion
 
-import { RefNode } from '../nodysseus/types';
+import { RefNode } from "../nodysseus/types";
 
 // Basic arithmetic operations - return computation functions
 export const mult = (a: number, b: number): number => a * b;
@@ -12,7 +12,7 @@ export const div = (a: number, b: number): number => a / b;
 // Frame function - returns RefNode for external frame reference
 export const frame = (uuid?: string): RefNode => ({
   id: uuid || `frame-${Date.now()}`,
-  ref: 'extern.frame'
+  ref: "extern.frame",
 });
 
 // Math library functions - pure computation functions
@@ -33,15 +33,19 @@ export const mathExp = (val: number): number => Math.exp(val);
 export const mathExpm1 = (val: number): number => Math.expm1(val);
 export const mathFloor = (val: number): number => Math.floor(val);
 export const mathFround = (val: number): number => Math.fround(val);
-export const mathHypot = (val: number, ...args: number[]): number => Math.hypot(val, ...args);
+export const mathHypot = (val: number, ...args: number[]): number =>
+  Math.hypot(val, ...args);
 export const mathImul = (a: number, b: number): number => Math.imul(a, b);
 export const mathLog = (val: number): number => Math.log(val);
 export const mathLog10 = (val: number): number => Math.log10(val);
 export const mathLog1p = (val: number): number => Math.log1p(val);
 export const mathLog2 = (val: number): number => Math.log2(val);
-export const mathMax = (val: number, ...args: number[]): number => Math.max(val, ...args);
-export const mathMin = (val: number, ...args: number[]): number => Math.min(val, ...args);
-export const mathPow = (base: number, exponent: number): number => Math.pow(base, exponent);
+export const mathMax = (val: number, ...args: number[]): number =>
+  Math.max(val, ...args);
+export const mathMin = (val: number, ...args: number[]): number =>
+  Math.min(val, ...args);
+export const mathPow = (base: number, exponent: number): number =>
+  Math.pow(base, exponent);
 export const mathRandom = (): number => Math.random();
 export const mathRound = (val: number): number => Math.round(val);
 export const mathSign = (val: number): number => Math.sign(val);
@@ -58,7 +62,7 @@ export const chainMath = {
   add: { fn: add, chain: () => chainMath },
   sub: { fn: sub, chain: () => chainMath },
   div: { fn: div, chain: () => chainMath },
-  
+
   // Math functions with short names for chaining
   abs: { fn: mathAbs, chain: () => chainMath },
   acos: { fn: mathAcos, chain: () => chainMath },
@@ -94,5 +98,5 @@ export const chainMath = {
   sqrt: { fn: mathSqrt, chain: () => chainMath },
   tan: { fn: mathTan, chain: () => chainMath },
   tanh: { fn: mathTanh, chain: () => chainMath },
-  trunc: { fn: mathTrunc, chain: () => chainMath }
+  trunc: { fn: mathTrunc, chain: () => chainMath },
 };

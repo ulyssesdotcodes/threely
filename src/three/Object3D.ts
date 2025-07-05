@@ -9,11 +9,18 @@ export function applyMatrix4(object: Object3D, matrix: Matrix4): Object3D {
   return object;
 }
 
-export function applyQuaternion(object: Object3D, quaternion: Quaternion): Object3D {
+export function applyQuaternion(
+  object: Object3D,
+  quaternion: Quaternion,
+): Object3D {
   return object.applyQuaternion(quaternion);
 }
 
-export function setRotationFromAxisAngle(object: Object3D, axis: Vector3, angle: number): Object3D {
+export function setRotationFromAxisAngle(
+  object: Object3D,
+  axis: Vector3,
+  angle: number,
+): Object3D {
   object.setRotationFromAxisAngle(axis, angle);
   return object;
 }
@@ -28,16 +35,27 @@ export function setRotationFromMatrix(object: Object3D, m: Matrix4): Object3D {
   return object;
 }
 
-export function setRotationFromQuaternion(object: Object3D, q: Quaternion): Object3D {
+export function setRotationFromQuaternion(
+  object: Object3D,
+  q: Quaternion,
+): Object3D {
   object.setRotationFromQuaternion(q);
   return object;
 }
 
-export function rotateOnAxis(object: Object3D, axis: Vector3, angle: number): Object3D {
+export function rotateOnAxis(
+  object: Object3D,
+  axis: Vector3,
+  angle: number,
+): Object3D {
   return object.rotateOnAxis(axis, angle);
 }
 
-export function rotateOnWorldAxis(object: Object3D, axis: Vector3, angle: number): Object3D {
+export function rotateOnWorldAxis(
+  object: Object3D,
+  axis: Vector3,
+  angle: number,
+): Object3D {
   return object.rotateOnWorldAxis(axis, angle);
 }
 
@@ -53,7 +71,11 @@ export function rotateZ(object: Object3D, angle: number): Object3D {
   return object.rotateZ(angle);
 }
 
-export function translateOnAxis(object: Object3D, axis: Vector3, distance: number): Object3D {
+export function translateOnAxis(
+  object: Object3D,
+  axis: Vector3,
+  distance: number,
+): Object3D {
   return object.translateOnAxis(axis, distance);
 }
 
@@ -89,12 +111,12 @@ export function lookAt(object: Object3D, ...args: any[]): Object3D {
 }
 
 export function add(object: Object3D, ...objects: Object3D[]): Object3D {
-  objects.forEach(obj => object.add(obj));
+  objects.forEach((obj) => object.add(obj));
   return object;
 }
 
 export function remove(object: Object3D, ...objects: Object3D[]): Object3D {
-  objects.forEach(obj => object.remove(obj));
+  objects.forEach((obj) => object.remove(obj));
   return object;
 }
 
@@ -110,19 +132,34 @@ export function attach(object: Object3D, child: Object3D): Object3D {
   return object.attach(child);
 }
 
-export function getObjectById(object: Object3D, id: number): Object3D | undefined {
+export function getObjectById(
+  object: Object3D,
+  id: number,
+): Object3D | undefined {
   return object.getObjectById(id);
 }
 
-export function getObjectByName(object: Object3D, name: string): Object3D | undefined {
+export function getObjectByName(
+  object: Object3D,
+  name: string,
+): Object3D | undefined {
   return object.getObjectByName(name);
 }
 
-export function getObjectByProperty(object: Object3D, name: string, value: any): Object3D | undefined {
+export function getObjectByProperty(
+  object: Object3D,
+  name: string,
+  value: any,
+): Object3D | undefined {
   return object.getObjectByProperty(name, value);
 }
 
-export function getObjectsByProperty(object: Object3D, name: string, value: any, optionalTarget?: Object3D[]): Object3D[] {
+export function getObjectsByProperty(
+  object: Object3D,
+  name: string,
+  value: any,
+  optionalTarget?: Object3D[],
+): Object3D[] {
   return object.getObjectsByProperty(name, value, optionalTarget);
 }
 
@@ -130,7 +167,10 @@ export function getWorldPosition(object: Object3D, target: Vector3): Vector3 {
   return object.getWorldPosition(target);
 }
 
-export function getWorldQuaternion(object: Object3D, target: Quaternion): Quaternion {
+export function getWorldQuaternion(
+  object: Object3D,
+  target: Quaternion,
+): Quaternion {
   return object.getWorldQuaternion(target);
 }
 
@@ -142,20 +182,33 @@ export function getWorldDirection(object: Object3D, target: Vector3): Vector3 {
   return object.getWorldDirection(target);
 }
 
-export function raycast(object: Object3D, raycaster: Raycaster, intersects: Intersection[]): Object3D {
+export function raycast(
+  object: Object3D,
+  raycaster: Raycaster,
+  intersects: Intersection[],
+): Object3D {
   object.raycast(raycaster, intersects);
   return object;
 }
 
-export function traverse(object: Object3D, callback: (object: Object3D) => any): void {
+export function traverse(
+  object: Object3D,
+  callback: (object: Object3D) => any,
+): void {
   object.traverse(callback);
 }
 
-export function traverseVisible(object: Object3D, callback: (object: Object3D) => any): void {
+export function traverseVisible(
+  object: Object3D,
+  callback: (object: Object3D) => any,
+): void {
   object.traverseVisible(callback);
 }
 
-export function traverseAncestors(object: Object3D, callback: (object: Object3D) => any): void {
+export function traverseAncestors(
+  object: Object3D,
+  callback: (object: Object3D) => any,
+): void {
   object.traverseAncestors(callback);
 }
 
@@ -169,7 +222,11 @@ export function updateMatrixWorld(object: Object3D, force?: boolean): Object3D {
   return object;
 }
 
-export function updateWorldMatrix(object: Object3D, updateParents: boolean, updateChildren: boolean): Object3D {
+export function updateWorldMatrix(
+  object: Object3D,
+  updateParents: boolean,
+  updateChildren: boolean,
+): Object3D {
   object.updateWorldMatrix(updateParents, updateChildren);
   return object;
 }
@@ -184,7 +241,11 @@ export function clone(object: Object3D, recursive?: boolean): Object3D {
   return cloned;
 }
 
-export function copy(object: Object3D, source: Object3D, recursive?: boolean): Object3D {
+export function copy(
+  object: Object3D,
+  source: Object3D,
+  recursive?: boolean,
+): Object3D {
   const copied = object.copy(source, recursive);
   return copied;
 }

@@ -42,7 +42,7 @@ export const isGraph = (graph: any): graph is Graph =>
 export const isEdgesInGraph = (graph: Graph | SavedGraph): graph is Graph =>
   graph.hasOwnProperty("edges_in");
 export const isExportedGraph = (
-  g: ExportedGraph | unknown
+  g: ExportedGraph | unknown,
 ): g is ExportedGraph => !!(g && (g as ExportedGraph).graphs?.length > 0);
 
 export type EdgesIn = Record<string, Record<string, Edge>>;
@@ -213,7 +213,7 @@ export class MemoryCache<T = any> {
   private cachedValue: T;
   constructor(
     private recacheFn: (value: T) => boolean,
-    private valueFn: () => T
+    private valueFn: () => T,
   ) {
     this.cachedValue = valueFn();
   }
@@ -294,14 +294,14 @@ export function constNode<T>(value: T): ConstNode<T> {
     id: generateUniqueId(),
     value,
     compute: () => value,
-    dependencies: []
+    dependencies: [],
   };
   return node;
 }
 
 /**
  * The map function with type (A => B) => Node<A> => Node<B>
- * 
+ *
  * @param fn - Function to transform value A to value B
  * @returns A function that transforms Node<A> to Node<B>
  */
@@ -309,7 +309,7 @@ export function map<A, B>(fn: (a: A) => B): (node: Node<A>) => Node<B> {
   return (node: Node<A>) => ({
     id: generateUniqueId(),
     compute: () => fn(node.compute()),
-    dependencies: [node]
+    dependencies: [node],
   });
 }
 
@@ -322,13 +322,17 @@ export function runNode<T>(node: Node<T>): T {
   return node.compute();
 }
 
-
 export type GraphNodeNode = {
-      node: NodysseusNode;
-      edgesIn: Array<Edge>;
-      graph: Graph;
-      previous?: NodysseusNode;
-    }
+  node: NodysseusNode;
+  edgesIn: Array<Edge>;
+  graph: Graph;
+  previous?: NodysseusNode;
+};
 
 // Re-export pub/sub manager for convenience
-export { PubSubManager, globalPubSub, type PubSubMessage, type PubSubSubscriber } from './pubsub-manager';
+export {
+  PubSubManager,
+  globalPubSub,
+  type PubSubMessage,
+  type PubSubSubscriber,
+} from "./pubsub-manager";

@@ -28,7 +28,7 @@ export class PubSubManager {
     if (!this.subscribers.has(channel)) {
       this.subscribers.set(channel, new Set());
     }
-    
+
     this.subscribers.get(channel)!.add(subscriber);
 
     // Return unsubscribe function
@@ -50,17 +50,17 @@ export class PubSubManager {
     const message: PubSubMessage = {
       channel,
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // Add to history
     if (!this.messageHistory.has(channel)) {
       this.messageHistory.set(channel, []);
     }
-    
+
     const history = this.messageHistory.get(channel)!;
     history.push(message);
-    
+
     // Trim history if needed
     if (history.length > this.maxHistorySize) {
       history.shift();
@@ -69,7 +69,7 @@ export class PubSubManager {
     // Notify subscribers
     const channelSubscribers = this.subscribers.get(channel);
     if (channelSubscribers) {
-      channelSubscribers.forEach(subscriber => {
+      channelSubscribers.forEach((subscriber) => {
         try {
           subscriber.callback(message);
         } catch (error) {
@@ -84,7 +84,9 @@ export class PubSubManager {
    */
   getLatestMessage(channel: string): PubSubMessage | undefined {
     const history = this.messageHistory.get(channel);
-    return history && history.length > 0 ? history[history.length - 1] : undefined;
+    return history && history.length > 0
+      ? history[history.length - 1]
+      : undefined;
   }
 
   /**

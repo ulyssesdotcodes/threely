@@ -1,5 +1,5 @@
 // Main DSL exports - combines all chain types and utilities
-import { MockObject3D, mockUtils, mockPresets } from '../three/MockObject3D';
+import { MockObject3D, mockUtils, mockPresets } from "../three/MockObject3D";
 
 // Object3D chain exports - pure functions (no Node dependencies)
 export {
@@ -7,14 +7,14 @@ export {
   setScene,
   getObjectRegistry,
   clearAll,
-  
+
   // Geometry creation
   sphere,
   box,
   cylinder,
   material,
   mesh,
-  
+
   // Transforms
   translateX,
   translateY,
@@ -23,13 +23,13 @@ export {
   rotateY,
   rotateZ,
   applyMock,
-  
+
   // Rendering
   render,
-  
+
   // Chain object
-  chainObj3d
-} from './pure-object3d-functions';
+  chainObj3d,
+} from "./pure-object3d-functions";
 
 // Math chain exports - pure functions (no Node dependencies)
 export {
@@ -39,7 +39,7 @@ export {
   sub,
   div,
   frame,
-  
+
   // Math functions
   mathAbs,
   mathAcos,
@@ -76,10 +76,10 @@ export {
   mathTan,
   mathTanh,
   mathTrunc,
-  
+
   // Chain object
-  chainMath
-} from './pure-math-functions';
+  chainMath,
+} from "./pure-math-functions";
 
 // Parser exports
 export {
@@ -87,14 +87,14 @@ export {
   parseDSLWithLezer,
   executeDSL,
   logToPanel,
-  dslContext
-} from './parser';
+  dslContext,
+} from "./parser";
 
 // Converter exports
 export {
   DirectASTToNodysseusConverter,
-  convertASTToNodysseus
-} from './direct-ast-to-nodysseus-converter';
+  convertASTToNodysseus,
+} from "./direct-ast-to-nodysseus-converter";
 
 // Re-export utilities
 export { MockObject3D, mockUtils, mockPresets };
@@ -114,8 +114,8 @@ import {
   rotateZ,
   applyMock,
   render,
-  clearAll
-} from './object3d-chain';
+  clearAll,
+} from "./object3d-chain";
 
 import {
   mult,
@@ -157,5 +157,5 @@ import {
   mathSqrt,
   mathTan,
   mathTanh,
-  mathTrunc
-} from './math-chain';
+  mathTrunc,
+} from "./math-chain";

@@ -236,11 +236,13 @@ export function blendAlpha(material: any, value: number): void {
   material.blendAlpha = value;
 }
 
-export function blendColor(material: any, value: any): void { // ColorRepresentation
+export function blendColor(material: any, value: any): void {
+  // ColorRepresentation
   material.blendColor = value;
 }
 
-export function blendDst(material: any, value: any): void { // BlendingDstFactor
+export function blendDst(material: any, value: any): void {
+  // BlendingDstFactor
   material.blendDst = value;
 }
 
@@ -248,7 +250,8 @@ export function blendDstAlpha(material: any, value: number): void {
   material.blendDstAlpha = value;
 }
 
-export function blendEquation(material: any, value: any): void { // BlendingEquation
+export function blendEquation(material: any, value: any): void {
+  // BlendingEquation
   material.blendEquation = value;
 }
 
@@ -256,11 +259,13 @@ export function blendEquationAlpha(material: any, value: number): void {
   material.blendEquationAlpha = value;
 }
 
-export function blending(material: any, value: any): void { // Blending
+export function blending(material: any, value: any): void {
+  // Blending
   material.blending = value;
 }
 
-export function blendSrc(material: any, value: any): void { // BlendingSrcFactor | BlendingDstFactor
+export function blendSrc(material: any, value: any): void {
+  // BlendingSrcFactor | BlendingDstFactor
   material.blendSrc = value;
 }
 
@@ -272,7 +277,8 @@ export function clipIntersection(material: any, value: boolean): void {
   material.clipIntersection = value;
 }
 
-export function clippingPlanes(material: any, value: any[]): void { // Plane[]
+export function clippingPlanes(material: any, value: any[]): void {
+  // Plane[]
   material.clippingPlanes = value;
 }
 
@@ -288,7 +294,8 @@ export function defines(material: any, value: any): void {
   material.defines = value;
 }
 
-export function depthFunc(material: any, value: any): void { // DepthModes
+export function depthFunc(material: any, value: any): void {
+  // DepthModes
   material.depthFunc = value;
 }
 
@@ -320,7 +327,10 @@ export function polygonOffsetUnits(material: any, value: number): void {
   material.polygonOffsetUnits = value;
 }
 
-export function precision(material: any, value: "highp" | "mediump" | "lowp" | null): void {
+export function precision(
+  material: any,
+  value: "highp" | "mediump" | "lowp" | null,
+): void {
   material.precision = value;
 }
 
@@ -340,11 +350,13 @@ export function dithering(material: any, value: boolean): void {
   material.dithering = value;
 }
 
-export function side(material: any, value: any): void { // Side
+export function side(material: any, value: any): void {
+  // Side
   material.side = value;
 }
 
-export function shadowSide(material: any, value: any): void { // Side
+export function shadowSide(material: any, value: any): void {
+  // Side
   material.shadowSide = value;
 }
 
@@ -364,7 +376,8 @@ export function visible(material: any, value: boolean): void {
   material.visible = value;
 }
 
-export function format(material: any, value: any): void { // PixelFormat
+export function format(material: any, value: any): void {
+  // PixelFormat
   material.format = value;
 }
 
@@ -372,7 +385,8 @@ export function stencilWrite(material: any, value: boolean): void {
   material.stencilWrite = value;
 }
 
-export function stencilFunc(material: any, value: any): void { // StencilFunc
+export function stencilFunc(material: any, value: any): void {
+  // StencilFunc
   material.stencilFunc = value;
 }
 
@@ -388,15 +402,18 @@ export function stencilFuncMask(material: any, value: number): void {
   material.stencilFuncMask = value;
 }
 
-export function stencilFail(material: any, value: any): void { // StencilOp
+export function stencilFail(material: any, value: any): void {
+  // StencilOp
   material.stencilFail = value;
 }
 
-export function stencilZFail(material: any, value: any): void { // StencilOp
+export function stencilZFail(material: any, value: any): void {
+  // StencilOp
   material.stencilZFail = value;
 }
 
-export function stencilZPass(material: any, value: any): void { // StencilOp
+export function stencilZPass(material: any, value: any): void {
+  // StencilOp
   material.stencilZPass = value;
 }
 
@@ -474,7 +491,8 @@ export function clearcoatNormalMap(material: any, value: string): void {
   material.clearcoatNormalMap = value;
 }
 
-export function clearcoatNormalScale(material: any, value: any): void { // Vector2Tuple
+export function clearcoatNormalScale(material: any, value: any): void {
+  // Vector2Tuple
   material.clearcoatNormalScale = value;
 }
 
@@ -554,11 +572,13 @@ export function normalMap(material: any, value: string): void {
   material.normalMap = value;
 }
 
-export function normalMapType(material: any, value: any): void { // NormalMapTypes
+export function normalMapType(material: any, value: any): void {
+  // NormalMapTypes
   material.normalMapType = value;
 }
 
-export function normalScale(material: any, value: any): void { // Vector2Tuple
+export function normalScale(material: any, value: any): void {
+  // Vector2Tuple
   material.normalScale = value;
 }
 
@@ -602,11 +622,13 @@ export function envMap(material: any, value: string): void {
   material.envMap = value;
 }
 
-export function combine(material: any, value: any): void { // Combine
+export function combine(material: any, value: any): void {
+  // Combine
   material.combine = value;
 }
 
-export function envMapRotation(material: any, value: any): void { // EulerTuple
+export function envMapRotation(material: any, value: any): void {
+  // EulerTuple
   material.envMapRotation = value;
 }
 

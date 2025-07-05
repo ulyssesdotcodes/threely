@@ -15,7 +15,17 @@ import {
   isMapNode,
   isBindNode,
 } from "./node-types";
-import { Graph, Edge, NodysseusNode, ValueNode, GraphNodeNode, isNodeRef, RefNode, isNodeValue, isGraph } from "./types";
+import {
+  Graph,
+  Edge,
+  NodysseusNode,
+  ValueNode,
+  GraphNodeNode,
+  isNodeRef,
+  RefNode,
+  isNodeValue,
+  isGraph,
+} from "./types";
 import {
   Scope,
   constNode,
@@ -25,7 +35,7 @@ import {
   handleError,
   mapEntries,
   nothingValue,
-  chainNothing
+  chainNothing,
 } from "./node-constructors";
 import { ExternalNodeHandler, externs } from "./external-nodes";
 import {
@@ -34,11 +44,10 @@ import {
   wrapPromise,
   wrapPromiseAll,
   newLib,
-  nodeEdgesIn
+  nodeEdgesIn,
 } from "./util";
 
 const NAME_FIELD = new Set(["name"]);
-
 
 export class NodysseusRuntime {
   public scope: Scope = new Scope();
@@ -55,7 +64,7 @@ export class NodysseusRuntime {
   private store = {
     refs: new Map(),
     persist: new Map(),
-    state: new Map()
+    state: new Map(),
   };
   private externalHandler: ExternalNodeHandler;
 
@@ -79,7 +88,12 @@ export class NodysseusRuntime {
             const watch = (a: T) => {
               this.watches
                 .get(node.id)
-                ?.splice(this.watches.get(node.id)?.indexOf(watch as (a: unknown) => void) ?? 0, 1);
+                ?.splice(
+                  this.watches
+                    .get(node.id)
+                    ?.indexOf(watch as (a: unknown) => void) ?? 0,
+                  1,
+                );
               res({ value: a });
             };
             this.addWatchFn(node, watch);
@@ -218,7 +232,7 @@ export class NodysseusRuntime {
     id?: string,
     useExisting: boolean = true,
     dirty = true,
-    unwrapValue = false
+    unwrapValue = false,
   ): any {
     if (useExisting && id && this.scope.has(id)) {
       const node = this.scope.get(id);
@@ -228,9 +242,11 @@ export class NodysseusRuntime {
     const node = varNode<T>(
       (newValueWrapper: T | { value: T }) => {
         const newValue: T =
-          unwrapValue && typeof newValueWrapper === "object" && (newValueWrapper as any).hasOwnProperty("value")
+          unwrapValue &&
+          typeof newValueWrapper === "object" &&
+          (newValueWrapper as any).hasOwnProperty("value")
             ? (newValueWrapper as { value: T }).value
-            : newValueWrapper as T;
+            : (newValueWrapper as T);
 
         const currentValue = node.value.read();
         if (isNothing(currentValue) || !node.compare(currentValue, newValue)) {
@@ -251,7 +267,11 @@ export class NodysseusRuntime {
     return node;
   }
 
-  public addListenerVarNode<T>(nodeGraphId: any, listener: any, stateId = nodeGraphId) {
+  public addListenerVarNode<T>(
+    nodeGraphId: any,
+    listener: any,
+    stateId = nodeGraphId,
+  ) {
     // TODO: implement
   }
 
@@ -329,9 +349,8 @@ export class NodysseusRuntime {
     id: string,
     useExisting: boolean = true,
   ) {
-    const keyOptions: Record<string, any> = mapEntries(
-      inputs,
-      (e) => this.constNode(e[1], id && `${id}-${e[0]}-const`, false)
+    const keyOptions: Record<string, any> = mapEntries(inputs, (e) =>
+      this.constNode(e[1], id && `${id}-${e[0]}-const`, false),
     );
     const binding: any = this.bindNode(
       { key, ...keyOptions } as { key: any } & {
@@ -430,13 +449,17 @@ export class NodysseusRuntime {
         graph,
         nodeId,
         graph.id,
-        closure && this.constNode(closure, appendGraphId(graph.id, nodeId) + "-outerargs"),
+        closure &&
+          this.constNode(
+            closure,
+            appendGraphId(graph.id, nodeId) + "-outerargs",
+          ),
         true,
       ),
     ).value;
   }
 
- private calcNode<T, S extends Record<string, unknown>>(
+  private calcNode<T, S extends Record<string, unknown>>(
     graph: Graph,
     node: NodysseusNode,
     graphId: string,
@@ -450,14 +473,13 @@ export class NodysseusRuntime {
       Object.fromEntries(
         edgesIn.map((e) => [
           e.as,
-          this.fromNodeInternal(graph, e.from, graphId, graphClosure, true)
+          this.fromNodeInternal(graph, e.from, graphId, graphClosure, true),
           // this.bindNode(
-          //   {bound: this.fromNodeInternal(graph, e.from, graphId, graphClosure, true)}, ({bound}) => this.runNode(bound), 
+          //   {bound: this.fromNodeInternal(graph, e.from, graphId, graphClosure, true)}, ({bound}) => this.runNode(bound),
           //   nodeGraphId + `-valmapinput${e.as}`,
           //   undefined,
           //   useExisting
           // )
-          
         ]),
       ) as AnyNodeMap<S>;
     if (isNothing(node)) {
@@ -475,22 +497,32 @@ export class NodysseusRuntime {
       );
     } else if (isNodeValue(node)) {
       // TODO: make this work better
-      return this.mapNode({
-          __graph_value: this.accessor(nodeClosure, "__parent_graph_value", nodeGraphId + "-accessvalue", useExisting)
-        }, ({__graph_value}) => externs.parseValue(__graph_value), 
-        undefined, 
-        nodeGraphId, 
-        useExisting
-      )
-
+      return this.mapNode(
+        {
+          __graph_value: this.accessor(
+            nodeClosure,
+            "__parent_graph_value",
+            nodeGraphId + "-accessvalue",
+            useExisting,
+          ),
+        },
+        ({ __graph_value }) => externs.parseValue(__graph_value),
+        undefined,
+        nodeGraphId,
+        useExisting,
+      );
     } else if (isGraph(node)) {
       return this.fromNodeInternal(
-          node,
-          node.out ?? "out",
-          nodeGraphId,
-          this.constNode(calculateInputs(), nodeGraphId + "-closure", useExisting),
+        node,
+        node.out ?? "out",
+        nodeGraphId,
+        this.constNode(
+          calculateInputs(),
+          nodeGraphId + "-closure",
           useExisting,
-        )
+        ),
+        useExisting,
+      );
     } else {
       return this.mapNode(
         calculateInputs(),
@@ -515,10 +547,7 @@ export class NodysseusRuntime {
       return this.scope.get(nodeGraphId) as AnyNode<T>;
     const staticGraphId = graph.id;
 
-    const compareGraphNodes = (
-      a: any,
-      b: any,
-    ) => {
+    const compareGraphNodes = (a: any, b: any) => {
       if (!a || !b) return false;
       const { node: nodeA, edgesIn: edgesInA, graph: graphA } = a;
       const { node: nodeB, edgesIn: edgesInB, graph: graphB } = b;
@@ -572,16 +601,28 @@ export class NodysseusRuntime {
     //   },
     // );
 
-    const nodeValue =
-      this.mapNode({ graphNodeNode }, ({ graphNodeNode }: { graphNodeNode: { node: ValueNode } }) => (graphNodeNode).node.value
-        , (prev, next) => prev.graphNodeNode.node.value !== next.graphNodeNode.node.value
-        , appendGraphId(nodeGraphId, "-system-values"));
+    const nodeValue = this.mapNode(
+      { graphNodeNode },
+      ({ graphNodeNode }: { graphNodeNode: { node: ValueNode } }) =>
+        graphNodeNode.node.value,
+      (prev, next) =>
+        prev.graphNodeNode.node.value !== next.graphNodeNode.node.value,
+      appendGraphId(nodeGraphId, "-system-values"),
+    );
 
-    const nodeClosure = this.mapNode({ graphClosure }, ({ graphClosure }: any) => ({ ...graphClosure, __parent_graph_value: nodeValue }), undefined, nodeGraphId + "-closure-with-system")
+    const nodeClosure = this.mapNode(
+      { graphClosure },
+      ({ graphClosure }: any) => ({
+        ...graphClosure,
+        __parent_graph_value: nodeValue,
+      }),
+      undefined,
+      nodeGraphId + "-closure-with-system",
+    );
 
     const ret: AnyNode<T> = this.mapNode(
       { graphNodeNode },
-      ({ graphNodeNode }: {graphNodeNode: GraphNodeNode}) => {
+      ({ graphNodeNode }: { graphNodeNode: GraphNodeNode }) => {
         // if ref has changed, remove all current graph nodes
         if (
           graphNodeNode.previous &&
@@ -603,7 +644,7 @@ export class NodysseusRuntime {
             graphNodeNode.edgesIn,
             false,
           ),
-        ).then(v => v).value;
+        ).then((v) => v).value;
       },
       (prev: any, next: any) => {
         if (!prev || !next) return false;
@@ -612,7 +653,7 @@ export class NodysseusRuntime {
         return !compareGraphNodes(graphNodeA, graphNodeB);
       },
       nodeGraphId + "-boundNode",
-    ) as AnyNode<T>
+    ) as AnyNode<T>;
 
     (ret as any).graphId = staticGraphId;
     (ret as any).nodeId = nodeId;
@@ -620,24 +661,19 @@ export class NodysseusRuntime {
     return this.runNodeNode(ret, nodeGraphId, useExisting);
   }
 
-  runNode<T>(
-    innode: any,
-  ): any {
+  runNode<T>(innode: any): any {
     if (isNothing(innode)) return innode;
     const node: any = this.scope.get(innode.id);
     if (!node) return undefined;
 
     const current = node.value?.read();
-    
-    
+
     let result: any;
 
     if (
       node &&
       !isNothing(node) &&
-      (isVarNode(node) ||
-        isConstNode(node) ||
-        !(node as any).isDirty?.read())
+      (isVarNode(node) || isConstNode(node) || !(node as any).isDirty?.read())
     ) {
       result = node.value.read();
     } else if (isMapNode(node) || isBindNode(node)) {
@@ -664,72 +700,71 @@ export class NodysseusRuntime {
         ).value;
       };
 
-      return wrapPromise(inputPromises())
-        .then((next: any) => {
-          const updatedNode = this.scope.get(node.id);
-          if (!updatedNode) {
-            if (this.running.has(node.id)) this.running.delete(node.id);
-            return;
-          }
+      return wrapPromise(inputPromises()).then((next: any) => {
+        const updatedNode = this.scope.get(node.id);
+        if (!updatedNode) {
+          if (this.running.has(node.id)) this.running.delete(node.id);
+          return;
+        }
 
-          if (
-            isNothing(updatedNode.value.read()) ||
-            isNothingOrUndefined(prev) ||
-            updatedNode.isStale(prev, next)
-          ) {
-            const res = isBindNode(node)
-              ? chainNothing(updatedNode.fn, (fn: any) => fn(next)) ?? nothingValue
-              : chainNothing(node.fn, (fn: any) =>
+        if (
+          isNothing(updatedNode.value.read()) ||
+          isNothingOrUndefined(prev) ||
+          updatedNode.isStale(prev, next)
+        ) {
+          const res = isBindNode(node)
+            ? (chainNothing(updatedNode.fn, (fn: any) => fn(next)) ??
+              nothingValue)
+            : chainNothing(node.fn, (fn: any) =>
                 chainNothing(
                   typeof fn === "function" ? fn : fn.read(),
                   (ffn: any) => ffn(next),
                 ),
               );
-            updatedNode.value.write(res);
-            if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
-              updatedNode.cachedInputs.write(next);
-            }
-
-            return wrapPromise(res).then((r: any) => {
-              if (isBindNode(updatedNode) && !isNothing(res) && res)
-                this.scope.add(res);
-
-              updatedNode.value.write(r);
-              if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
-                updatedNode.isDirty.write(false);
-              }
-
-
-              if (this.watches.has(node.id)) {
-                this.watches
-                  .get(node.id)
-                  ?.forEach((fn) => wrapPromise(r).then(fn));
-              }
-
-              const currentRunning = this.running.get(node.id);
-              if (currentRunning === 1) {
-                this.running.delete(node.id);
-              } else this.running.set(node.id, (currentRunning || 0) - 1);
-
-              return r;
-            }).value;
+          updatedNode.value.write(res);
+          if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
+            updatedNode.cachedInputs.write(next);
           }
 
-          result = updatedNode.value.read();
-          return wrapPromise(result).then((result: any) => {
+          return wrapPromise(res).then((r: any) => {
+            if (isBindNode(updatedNode) && !isNothing(res) && res)
+              this.scope.add(res);
+
+            updatedNode.value.write(r);
             if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
               updatedNode.isDirty.write(false);
+            }
+
+            if (this.watches.has(node.id)) {
+              this.watches
+                .get(node.id)
+                ?.forEach((fn) => wrapPromise(r).then(fn));
             }
 
             const currentRunning = this.running.get(node.id);
             if (currentRunning === 1) {
               this.running.delete(node.id);
-              this.checkWatch(node.id);
             } else this.running.set(node.id, (currentRunning || 0) - 1);
 
-            return result;
+            return r;
           }).value;
+        }
+
+        result = updatedNode.value.read();
+        return wrapPromise(result).then((result: any) => {
+          if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
+            updatedNode.isDirty.write(false);
+          }
+
+          const currentRunning = this.running.get(node.id);
+          if (currentRunning === 1) {
+            this.running.delete(node.id);
+            this.checkWatch(node.id);
+          } else this.running.set(node.id, (currentRunning || 0) - 1);
+
+          return result;
         }).value;
+      }).value;
     }
 
     if (this.watches.has(node.id) && current !== result) {
@@ -748,13 +783,11 @@ export class NodysseusRuntime {
     );
     if (current) return this.runNode(current);
     return wrapPromise(this.fromNode(graph, node)).then((nodeNode) =>
-      this.runNode(nodeNode)
+      this.runNode(nodeNode),
     ).value;
   }
 
-  public run<T>(
-    node: any,
-  ): any {
+  public run<T>(node: any): any {
     return wrapPromise(node).then((node) => {
       const nodeid = typeof node === "string" ? node : node.id;
       const resolvedNode = this.scope.get(nodeid);
@@ -763,7 +796,7 @@ export class NodysseusRuntime {
       return res && !isNothing(res) && wrapPromise(res).value;
     }).value;
   }
-private dereference<T, S extends Record<string, unknown>>(
+  private dereference<T, S extends Record<string, unknown>>(
     graph: Graph,
     node: RefNode,
     edgesIn: Edge[],
@@ -789,7 +822,7 @@ private dereference<T, S extends Record<string, unknown>>(
             nodeGraphId,
             closure,
             calculateInputs,
-            useExisting
+            useExisting,
           ) as AnyNode<T>;
         } catch (error) {
           throw new Error(`invalid node ref ${refNode.ref}`);
@@ -797,26 +830,26 @@ private dereference<T, S extends Record<string, unknown>>(
       } else if (isGraph(nodeRef)) {
         const inputs = calculateInputs();
         const graphvalue = this.accessor(
-                  closure,
-                  "__parent_graph_value",
-                  `${nodeGraphId}-internalnodegraphvalue`,
-                  useExisting,
-                );
-          return this.fromNodeInternal(
-            nodeRef,
-            nodeRef.out ?? "out",
-            nodeGraphId,
-            // this.mapNode({graphvalue, ...inputs}, (args) => this.constNode(args, nodeGraphId + "-innergraphclosure", useExisting), undefined, appendGraphId(nodeGraphId, "-graphclosure"), useExisting),
-            this.constNode(
-              {
-                ...inputs,
-                __graph_value: graphvalue,
-              },
-              nodeGraphId + "-args",
-              false,
-            ),
-            useExisting,
-          );
+          closure,
+          "__parent_graph_value",
+          `${nodeGraphId}-internalnodegraphvalue`,
+          useExisting,
+        );
+        return this.fromNodeInternal(
+          nodeRef,
+          nodeRef.out ?? "out",
+          nodeGraphId,
+          // this.mapNode({graphvalue, ...inputs}, (args) => this.constNode(args, nodeGraphId + "-innergraphclosure", useExisting), undefined, appendGraphId(nodeGraphId, "-graphclosure"), useExisting),
+          this.constNode(
+            {
+              ...inputs,
+              __graph_value: graphvalue,
+            },
+            nodeGraphId + "-args",
+            false,
+          ),
+          useExisting,
+        );
       } else {
         return this.dereference(
           graph,
@@ -833,4 +866,3 @@ private dereference<T, S extends Record<string, unknown>>(
     }).value;
   }
 }
-

@@ -1,8 +1,16 @@
 // Pure Object3D Functions - No Node dependencies
 // These functions return primitive values and computation functions for direct Nodysseus conversion
 
-import * as THREE from 'three';
-import { MockObject3D, MockGeometry, applyMockToObject3D, mockUtils, createGeometryFromMock, normalizeVector3Like, normalizeEulerLike } from '../three/MockObject3D';
+import * as THREE from "three";
+import {
+  MockObject3D,
+  MockGeometry,
+  applyMockToObject3D,
+  mockUtils,
+  createGeometryFromMock,
+  normalizeVector3Like,
+  normalizeEulerLike,
+} from "../three/MockObject3D";
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -34,106 +42,149 @@ export function clearAll() {
 }
 
 // Pure geometry creation functions - return MockGeometry directly
-export const sphere = (radius: number = 1, widthSegments: number = 32, heightSegments: number = 16): MockGeometry => 
+export const sphere = (
+  radius: number = 1,
+  widthSegments: number = 32,
+  heightSegments: number = 16,
+): MockGeometry =>
   mockUtils.sphereGeometry(radius, widthSegments, heightSegments);
 
-export const box = (width: number = 1, height: number = 1, depth: number = 1): MockGeometry =>
-  mockUtils.boxGeometry(width, height, depth);
+export const box = (
+  width: number = 1,
+  height: number = 1,
+  depth: number = 1,
+): MockGeometry => mockUtils.boxGeometry(width, height, depth);
 
-export const cylinder = (radiusTop: number = 1, radiusBottom: number = 1, height: number = 1): MockGeometry =>
-  mockUtils.cylinderGeometry(radiusTop, radiusBottom, height);
+export const cylinder = (
+  radiusTop: number = 1,
+  radiusBottom: number = 1,
+  height: number = 1,
+): MockGeometry => mockUtils.cylinderGeometry(radiusTop, radiusBottom, height);
 
 // Pure material creation function - returns computation function
 export const material = (options: any = {}): THREE.MeshBasicMaterial => {
   const defaultOptions = {
     color: 0x00ff00,
-    wireframe: false
+    wireframe: false,
   };
   return new THREE.MeshBasicMaterial({ ...defaultOptions, ...options });
 };
 
 // Pure mesh creation function - returns MockObject3D
-export const mesh = (mockGeometry: MockGeometry, material: THREE.Material): MockObject3D => ({
+export const mesh = (
+  mockGeometry: MockGeometry,
+  material: THREE.Material,
+): MockObject3D => ({
   geometry: { ...mockGeometry }, // Deep copy to avoid reference sharing
-  userData: { material }
+  userData: { material },
 });
 
 // Pure transform functions - return computation functions that modify MockObject3D
-export const translateX = (mockObject: MockObject3D, distance: number): MockObject3D => {
-  const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
+export const translateX = (
+  mockObject: MockObject3D,
+  distance: number,
+): MockObject3D => {
+  const currentPos = normalizeVector3Like(
+    mockObject.position || { x: 0, y: 0, z: 0 },
+  );
   return {
     ...mockObject,
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
     position: {
       x: currentPos.x + distance,
       y: currentPos.y,
-      z: currentPos.z
-    }
+      z: currentPos.z,
+    },
   };
 };
 
-export const translateY = (mockObject: MockObject3D, distance: number): MockObject3D => {
-  const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
+export const translateY = (
+  mockObject: MockObject3D,
+  distance: number,
+): MockObject3D => {
+  const currentPos = normalizeVector3Like(
+    mockObject.position || { x: 0, y: 0, z: 0 },
+  );
   return {
     ...mockObject,
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
     position: {
       x: currentPos.x,
       y: currentPos.y + distance,
-      z: currentPos.z
-    }
+      z: currentPos.z,
+    },
   };
 };
 
-export const translateZ = (mockObject: MockObject3D, distance: number): MockObject3D => {
-  const currentPos = normalizeVector3Like(mockObject.position || { x: 0, y: 0, z: 0 });
+export const translateZ = (
+  mockObject: MockObject3D,
+  distance: number,
+): MockObject3D => {
+  const currentPos = normalizeVector3Like(
+    mockObject.position || { x: 0, y: 0, z: 0 },
+  );
   return {
     ...mockObject,
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
     position: {
       x: currentPos.x,
       y: currentPos.y,
-      z: currentPos.z + distance
-    }
+      z: currentPos.z + distance,
+    },
   };
 };
 
-export const rotateX = (mockObject: MockObject3D, angle: number): MockObject3D => {
-  const currentRot = normalizeEulerLike(mockObject.rotation || { x: 0, y: 0, z: 0 });
+export const rotateX = (
+  mockObject: MockObject3D,
+  angle: number,
+): MockObject3D => {
+  const currentRot = normalizeEulerLike(
+    mockObject.rotation || { x: 0, y: 0, z: 0 },
+  );
   return {
     ...mockObject,
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
     rotation: {
       x: currentRot.x + angle,
       y: currentRot.y,
-      z: currentRot.z
-    }
+      z: currentRot.z,
+    },
   };
 };
 
-export const rotateY = (mockObject: MockObject3D, angle: number): MockObject3D => {
-  const currentRot = normalizeEulerLike(mockObject.rotation || { x: 0, y: 0, z: 0 });
+export const rotateY = (
+  mockObject: MockObject3D,
+  angle: number,
+): MockObject3D => {
+  const currentRot = normalizeEulerLike(
+    mockObject.rotation || { x: 0, y: 0, z: 0 },
+  );
   return {
     ...mockObject,
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
     rotation: {
       x: currentRot.x,
       y: currentRot.y + angle,
-      z: currentRot.z
-    }
+      z: currentRot.z,
+    },
   };
 };
 
-export const rotateZ = (mockObject: MockObject3D, angle: number): MockObject3D => {
-  const currentRot = normalizeEulerLike(mockObject.rotation || { x: 0, y: 0, z: 0 });
+export const rotateZ = (
+  mockObject: MockObject3D,
+  angle: number,
+): MockObject3D => {
+  const currentRot = normalizeEulerLike(
+    mockObject.rotation || { x: 0, y: 0, z: 0 },
+  );
   return {
     ...mockObject,
     geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
     rotation: {
       x: currentRot.x,
       y: currentRot.y,
-      z: currentRot.z + angle
-    }
+      z: currentRot.z + angle,
+    },
   };
 };
 
@@ -141,15 +192,21 @@ export const rotateZ = (mockObject: MockObject3D, angle: number): MockObject3D =
 export const applyMock = (mockObject: MockObject3D): MockObject3D => mockObject;
 
 // Pure render function - returns computation function that creates THREE.Object3D
-export const render = (mockObject: MockObject3D, objectName: string): THREE.Object3D => {
+export const render = (
+  mockObject: MockObject3D,
+  objectName: string,
+): THREE.Object3D => {
   if (!currentScene) {
-    console.warn('No scene available for rendering');
+    console.warn("No scene available for rendering");
     const emptyObject = new THREE.Object3D();
     (emptyObject as any).graphId = objectName;
     return emptyObject;
   }
 
-  const actualMockObject = mockObject || { geometry: undefined, userData: undefined };
+  const actualMockObject = mockObject || {
+    geometry: undefined,
+    userData: undefined,
+  };
 
   // Check if object already exists in the scene
   const existingObject = objectRegistry.get(objectName);
@@ -162,7 +219,7 @@ export const render = (mockObject: MockObject3D, objectName: string): THREE.Obje
   } else {
     // Create a new real THREE.Object3D from the mock
     let realObject: THREE.Object3D;
-    
+
     if (actualMockObject.geometry && actualMockObject.userData?.material) {
       // Create a mesh with geometry and material
       const geometry = createGeometryFromMock(actualMockObject.geometry);
@@ -179,7 +236,7 @@ export const render = (mockObject: MockObject3D, objectName: string): THREE.Obje
     // Add to scene and registry
     currentScene.add(realObject);
     objectRegistry.set(objectName, realObject);
-    
+
     // Set graphId property on the object
     (realObject as any).graphId = objectName;
     return realObject;
@@ -194,5 +251,5 @@ export const chainObj3d = {
   rotateX: { fn: rotateX, chain: () => chainObj3d },
   rotateY: { fn: rotateY, chain: () => chainObj3d },
   rotateZ: { fn: rotateZ, chain: () => chainObj3d },
-  render: { fn: render, chain: () => chainObj3d }
+  render: { fn: render, chain: () => chainObj3d },
 };
