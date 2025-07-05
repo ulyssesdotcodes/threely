@@ -56,7 +56,11 @@ const chainNothing = <T, S>(a: any, fn: (a: T) => S): any =>
 export class Scope {
   private nodes: Map<string, any> = new Map();
 
-  constructor() {}
+  constructor() { }
+
+  all() {
+    return [...this.nodes.values()];
+  }
 
   add(node: any) {
     this.nodes.set(node.id, node);

@@ -83,7 +83,6 @@ export {
 
 // Parser exports
 export {
-  parseDSL,
   parseDSLWithLezer,
   executeDSL,
   logToPanel,

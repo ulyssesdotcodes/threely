@@ -1,6 +1,5 @@
 // Main library exports for npm publishing
 export {
-  parseDSL,
   executeDSL,
   dslContext,
   setScene,

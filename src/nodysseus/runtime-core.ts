@@ -243,8 +243,8 @@ export class NodysseusRuntime {
       (newValueWrapper: T | { value: T }) => {
         const newValue: T =
           unwrapValue &&
-          typeof newValueWrapper === "object" &&
-          (newValueWrapper as any).hasOwnProperty("value")
+            typeof newValueWrapper === "object" &&
+            (newValueWrapper as any).hasOwnProperty("value")
             ? (newValueWrapper as { value: T }).value
             : (newValueWrapper as T);
 
@@ -450,10 +450,10 @@ export class NodysseusRuntime {
         nodeId,
         graph.id,
         closure &&
-          this.constNode(
-            closure,
-            appendGraphId(graph.id, nodeId) + "-outerargs",
-          ),
+        this.constNode(
+          closure,
+          appendGraphId(graph.id, nodeId) + "-outerargs",
+        ),
         true,
       ),
     ).value;
@@ -716,11 +716,11 @@ export class NodysseusRuntime {
             ? (chainNothing(updatedNode.fn, (fn: any) => fn(next)) ??
               nothingValue)
             : chainNothing(node.fn, (fn: any) =>
-                chainNothing(
-                  typeof fn === "function" ? fn : fn.read(),
-                  (ffn: any) => ffn(next),
-                ),
-              );
+              chainNothing(
+                typeof fn === "function" ? fn : fn.read(),
+                (ffn: any) => ffn(next),
+              ),
+            );
           updatedNode.value.write(res);
           if (isMapNode(updatedNode) || isBindNode(updatedNode)) {
             updatedNode.cachedInputs.write(next);
