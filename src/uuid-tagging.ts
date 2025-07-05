@@ -61,8 +61,7 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
   },
 });
 
-
-// Generate UUID tags for function calls in the given text
+// Generate UUID tags for function calls and constants in the given text
 export function generateUUIDTags(text: string): {
   rangeSet: RangeSet<UUIDTag>;
   functionCalls: FunctionCallInfo[];
@@ -70,15 +69,16 @@ export function generateUUIDTags(text: string): {
   const functionCalls: FunctionCallInfo[] = [];
   const ranges: { from: number; to: number; value: UUIDTag }[] = [];
 
-  // Parse with Lezer to identify function calls
+  // Parse with Lezer to identify function calls and constants
   const tree = parser.parse(text);
 
-  // Walk the tree to find CallExpression nodes
+  // Walk the tree to find CallExpression nodes and constants
   tree.cursor().iterate((node) => {
     if (node.name === "CallExpression") {
-      const nameNode = node.node.getChild("MemberExpression")?.getChild("PropertyName") ??
+      const nameNode =
+        node.node.getChild("MemberExpression")?.getChild("PropertyName") ??
         node.node.getChild("VariableName");
-      const functionName = text.slice(nameNode!.from, nameNode!.to)
+      const functionName = text.slice(nameNode!.from, nameNode!.to);
       const callUuid = uuid();
 
       // Extract function name from the call expression
@@ -100,6 +100,33 @@ export function generateUUIDTags(text: string): {
         to: node.to,
         value: uuidTag,
       });
+    } else if (
+      node.name === "Number" ||
+      node.name === "String" ||
+      node.name === "VariableName"
+    ) {
+      // Tag constants and variable names
+      const constantValue = text.slice(node.from, node.to);
+      const constantUuid = uuid();
+
+      const constantInfo: FunctionCallInfo = {
+        uuid: constantUuid,
+        functionName: constantValue,
+        from: node.from,
+        to: node.to,
+        astNodeType: node.name,
+      };
+
+      functionCalls.push(constantInfo);
+
+      // Create UUID tag for this constant
+      const uuidTag = new UUIDTag(constantUuid, constantValue);
+
+      ranges.push({
+        from: node.from,
+        to: node.to,
+        value: uuidTag,
+      });
     }
   });
 
@@ -108,7 +135,6 @@ export function generateUUIDTags(text: string): {
 
   return { rangeSet, functionCalls };
 }
-
 
 // Get UUID from RangeSet at a specific position
 export function getUUIDFromRangeSet(
@@ -136,8 +162,6 @@ export function getUUIDFromState(
   if (!rangeSet) return null;
   return getUUIDFromRangeSet(rangeSet, position);
 }
-
-
 
 // ViewPlugin to automatically update UUID RangeSet when document changes significantly
 export const uuidRangeSetPlugin = ViewPlugin.fromClass(
