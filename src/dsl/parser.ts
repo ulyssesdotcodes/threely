@@ -173,13 +173,17 @@ function setupFrameWatching(
   finalComputed: any,
   objectRegistry: Map<string, any>,
 ): void {
-  const graphContainsFrame = JSON.stringify(graph).includes("extern.frame");
-  if (graphContainsFrame && finalComputed instanceof THREE.Object3D) {
-    const objectName = graph.id;
+  // Set up watching for any object in the registry, regardless of frame usage
+  if (finalComputed instanceof THREE.Object3D) {
+    // Get the object name from the rendered object's graphId property
+    const objectName = (finalComputed as any).graphId;
     const renderNodeId = rootNodeId;
     const renderInputEdges = graph.edges_in?.[renderNodeId];
 
-    if (renderInputEdges) {
+    console.log("Setting up watch for object:", objectName);
+    console.log("Object in registry?", objectRegistry.has(objectName));
+
+    if (renderInputEdges && objectName) {
       // Find the edge that represents the first argument (the MockObject3D)
       let mockObjectNodeId: string | null = null;
       for (const [fromNodeId, edge] of Object.entries(renderInputEdges)) {
@@ -194,9 +198,11 @@ function setupFrameWatching(
         }
       }
 
+      console.log("mockobj", mockObjectNodeId);
       if (mockObjectNodeId) {
         const scopeKey = graph.id + "/" + mockObjectNodeId;
         const nodeToWatch = runtime.scope.get(scopeKey);
+        console.log("watch?", nodeToWatch, objectRegistry.has(objectName));
 
         if (nodeToWatch && objectRegistry.has(objectName)) {
           runtime.stopWatch(nodeToWatch);
