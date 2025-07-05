@@ -17,7 +17,12 @@ import * as pureObj3d from "./pure-object3d-functions";
 import * as pureMath from "./pure-math-functions";
 import { convertASTToNodysseus } from "./direct-ast-to-nodysseus-converter";
 import { RangeSet } from "@codemirror/state";
-import { UUIDTag, generateUUIDTags } from "../uuid-tagging";
+import {
+  FunctionCallInfo,
+  UUIDTag,
+  generateUUIDTags,
+  getUUIDFromState,
+} from "../uuid-tagging";
 
 // Global map to store function call positions and UUIDs
 const functionCallUUIDs = new Map<string, string>();
@@ -91,8 +96,12 @@ function generateFunctionUUID(
 
 // Direct AST to Nodysseus parser (eliminates functional graph layer)
 // Returns the Nodysseus graph for execution by executeDSL
-export function parseDSLWithLezer(code: string, dslContext: any) {
-  console.log("parse");
+export function parseDSLWithLezer(
+  code: string,
+  dslContext: any,
+  ranges: RangeSet<UUIDTag>,
+) {
+  console.log("parse", ranges);
   try {
     console.log(
       "🚀 PARSER: Using direct AST to Nodysseus converter for code:",
@@ -104,10 +113,14 @@ export function parseDSLWithLezer(code: string, dslContext: any) {
     logToPanel(`📝 Input code: ${cleanCode}`);
 
     // Generate UUID tags for function calls before conversion
-    generateUUIDTags(cleanCode);
+    // generateUUIDTags(cleanCode);
 
     // Use the direct converter with pure functions (no functional graph layer)
-    const conversionResult = convertASTToNodysseus(cleanCode, dslContext);
+    const conversionResult = convertASTToNodysseus(
+      cleanCode,
+      ranges,
+      dslContext,
+    );
 
     logToPanel(
       `🎯 Direct conversion result: ${conversionResult.conversionLog.length} nodes converted`,
@@ -303,16 +316,15 @@ const defaultDslContext = {
 
 export function executeDSL(
   code: string,
-  ranges: { start: number; end: number; uuid: UUIDTag }[] = [],
+  ranges: RangeSet<UUIDTag>,
   dslContextParam?: any,
 ): THREE.Object3D | number | string | boolean | null {
   console.log("execute");
   try {
     const contextToUse = dslContextParam || defaultDslContext;
-    console.log(ranges);
 
     // Parse with Lezer converter (returns conversion result with graph)
-    const conversionResult = parseDSLWithLezer(code, contextToUse);
+    const conversionResult = parseDSLWithLezer(code, contextToUse, ranges);
 
     if (!conversionResult) {
       return null;

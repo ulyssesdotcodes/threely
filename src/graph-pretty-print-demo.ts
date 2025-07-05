@@ -1,4 +1,7 @@
-// Demo of the graph pretty printer
+// DISABLED: Demo of the graph pretty printer - uses old Node-based system
+// TODO: Update this demo to work with the new direct AST to Nodysseus system
+
+/*
 import { Graph } from "./graph";
 import { GraphPrettyPrinter } from "./graph-pretty-printer";
 import {
@@ -71,3 +74,4 @@ const mesh2 = mesh(box1, mat2);
 console.log("\nMultiple root nodes:");
 const printer = new GraphPrettyPrinter();
 console.log(printer.printForest([rendered, mesh2]));
+*/

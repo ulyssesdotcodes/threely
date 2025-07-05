@@ -85,8 +85,8 @@ export function generateUUIDTags(text: string): {
       const functionCall: FunctionCallInfo = {
         uuid: callUuid,
         functionName,
-        from: node.from,
-        to: node.to,
+        from: nameNode!.from,
+        to: nameNode!.to,
         astNodeType: node.name,
       };
 

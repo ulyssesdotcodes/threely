@@ -55,20 +55,20 @@ const handleCtrlEnter = (view: EditorView): boolean => {
     const code = blockInfo.block.trim();
 
     try {
-      const ranges: { start: number; end: number; uuid: UUIDTag }[] = [];
-      view.state.field(uuidRangeSetField).between(
-        blockInfo.start,
-        blockInfo.end,
-        (start, end, uuid) => (
-          ranges.push({
-            start: start - blockInfo.start,
-            end: end - blockInfo.start,
-            uuid,
-          }),
-          undefined
-        ),
-      );
-      const result = executeDSL(code, ranges);
+      // const ranges: { start: number; end: number; uuid: UUIDTag }[] = [];
+      // .between(
+      //   blockInfo.start,
+      //   blockInfo.end,
+      //   (start, end, uuid) => (
+      //     ranges.push({
+      //       start: start - blockInfo.start,
+      //       end: end - blockInfo.start,
+      //       uuid,
+      //     }),
+      //     undefined
+      //   ),
+      // );
+      const result = executeDSL(code, view.state.field(uuidRangeSetField));
       if (result) {
       } else {
       }
