@@ -91,6 +91,7 @@ export class DirectASTToNodysseusConverter {
    */
   private convertASTNode(astNode: any, context: DirectConversionContext): string {
     const nodeKey = `${astNode.from}-${astNode.to}`;
+    const nodeText = this.getNodeText(astNode, context);
     
     // Check if already converted
     if (context.visitedNodes.has(nodeKey)) {
@@ -104,8 +105,8 @@ export class DirectASTToNodysseusConverter {
     switch (astNode.name) {
       case 'Script':
       case 'ExpressionStatement':
-        nodeId = this.convertFirstChild(astNode, context);
-        break;
+        // Don't cache wrapper nodes - just return child result directly
+        return this.convertFirstChild(astNode, context);
 
       case 'CallExpression':
         nodeId = this.convertCallExpression(astNode, context);
@@ -133,8 +134,8 @@ export class DirectASTToNodysseusConverter {
 
       default:
         logToPanel(`⚠️ Unknown AST node type: ${astNode.name}`, 'warn');
-        nodeId = this.convertFirstChild(astNode, context);
-        break;
+        // Don't cache unknown wrapper nodes either
+        return this.convertFirstChild(astNode, context);
     }
 
     context.visitedNodes.set(nodeKey, nodeId);
@@ -158,14 +159,72 @@ export class DirectASTToNodysseusConverter {
   }
 
   /**
-   * Convert function call expressions directly to individual RefNodes 
+   * Convert function call expressions with proper method chaining support
    */
   private convertCallExpression(astNode: any, context: DirectConversionContext): string {
+    // Check if this is part of a method chain
+    if (this.isMethodChain(astNode)) {
+      return this.convertMethodChain(astNode, context);
+    } else {
+      return this.convertSingleCall(astNode, context);
+    }
+  }
+
+  /**
+   * Check if a CallExpression is part of a method chain
+   */
+  private isMethodChain(astNode: any): boolean {
+    const { targetNode } = this.extractCallExpressionParts(astNode, {
+      dslContext: {},
+      nodes: {},
+      edges: {},
+      edges_in: {},
+      nodeCounter: 0,
+      sourceCode: '',
+      visitedNodes: new Map()
+    });
+    
+    // If target is a CallExpression, this is method chaining
+    return targetNode && targetNode.name === 'CallExpression';
+  }
+
+  /**
+   * Extract chain calls in dependency order (innermost to outermost)
+   */
+  private extractChainCalls(astNode: any): any[] {
+    const calls: any[] = [];
+    let currentNode = astNode;
+    
+    // Walk up the chain from outermost to innermost
+    while (currentNode && currentNode.name === 'CallExpression') {
+      calls.unshift(currentNode); // Add to beginning for proper order
+      const { targetNode } = this.extractCallExpressionParts(currentNode, {
+        dslContext: {},
+        nodes: {},
+        edges: {},
+        edges_in: {},
+        nodeCounter: 0,
+        sourceCode: '',
+        visitedNodes: new Map()
+      });
+      currentNode = targetNode;
+    }
+    
+    return calls;
+  }
+
+  /**
+   * Convert a single function call (not part of a chain)
+   */
+  private convertSingleCall(astNode: any, context: DirectConversionContext): string {
     // Extract the parts of this specific call expression
     const { functionName, targetNode, args } = this.extractCallExpressionParts(astNode, context);
     
     const uuid = getUUIDAtPosition(astNode.from);
     const nodeId = uuid || this.generateNodeId(context);
+    
+    console.log(`🔧 SINGLE CALL: ${functionName} at ${astNode.from}-${astNode.to}, nodeId: ${nodeId}`);
+    console.log(`   args: ${args.length}, targetNode: ${targetNode ? 'YES' : 'NO'}`);
     
     // Look up function in DSL context or chain context
     let dslFunction = context.dslContext[functionName];
@@ -191,20 +250,30 @@ export class DirectASTToNodysseusConverter {
     }
     
     // Convert arguments to nodes
-    const argNodeIds = args.map((arg: any) => this.convertASTNode(arg, context));
+    console.log(`   Converting ${args.length} arguments for ${functionName}...`);
+    const argNodeIds = args.map((arg: any, index: number) => {
+      const argNodeId = this.convertASTNode(arg, context);
+      console.log(`     arg${index}: ${arg.name} (${arg.from}-${arg.to}) → ${argNodeId}`);
+      return argNodeId;
+    });
     
     // Build dependencies array
     const dependencyNodeIds: string[] = [];
     
     if (targetNode) {
       // Method call: target object result is first argument
+      console.log(`   Processing method call ${functionName} with target`);
       const targetNodeId = this.convertASTNode(targetNode, context);
+      console.log(`     target: ${targetNode.name} (${targetNode.from}-${targetNode.to}) → ${targetNodeId}`);
       dependencyNodeIds.push(targetNodeId);
       dependencyNodeIds.push(...argNodeIds);
     } else {
       // Function call: just the arguments
+      console.log(`   Processing function call ${functionName}`);
       dependencyNodeIds.push(...argNodeIds);
     }
+    
+    console.log(`   ${functionName} dependencies: [${dependencyNodeIds.join(', ')}]`);
     
     // Check if this is a special function that returns a RefNode directly (like frame)
     if (resolvedFunctionName === 'frame' || dslFunction.name === 'frame') {
@@ -219,6 +288,93 @@ export class DirectASTToNodysseusConverter {
     }
     
     return nodeId;
+  }
+
+  /**
+   * Convert method chain with proper sequential dependencies
+   */
+  private convertMethodChain(astNode: any, context: DirectConversionContext): string {
+    const chainCalls = this.extractChainCalls(astNode);
+    console.log(`🔗 METHOD CHAIN: Processing ${chainCalls.length} calls in chain`);
+    
+    let previousNodeId: string | null = null;
+    let currentNodeId: string = '';
+    
+    // Process each call in the chain sequentially
+    for (let i = 0; i < chainCalls.length; i++) {
+      const callNode = chainCalls[i];
+      const { functionName, args } = this.extractCallExpressionParts(callNode, context);
+      
+      const uuid = getUUIDAtPosition(callNode.from);
+      currentNodeId = uuid || this.generateNodeId(context);
+      
+      console.log(`🔗 CHAIN STEP ${i + 1}: ${functionName} at ${callNode.from}-${callNode.to}, nodeId: ${currentNodeId}`);
+      
+      // Look up function in DSL context or chain context
+      let dslFunction = context.dslContext[functionName];
+      let resolvedFunctionName = functionName;
+      
+      // If it's not the first call in chain, try chain context
+      if (!dslFunction && i > 0) {
+        const chainContext = this.getChainContext(functionName, context);
+        if (chainContext && chainContext[functionName] && chainContext[functionName].fn) {
+          dslFunction = chainContext[functionName].fn;
+          resolvedFunctionName = dslFunction.name || functionName;
+          logToPanel(`🔗 Resolved chain method ${functionName} to ${resolvedFunctionName}`);
+        }
+      }
+      
+      if (!dslFunction) {
+        logToPanel(`❌ Function '${functionName}' not found in DSL context`, 'error');
+        this.logConversion(callNode, currentNodeId, 'RefNode', functionName, ['Function not found in DSL context'], uuid || undefined);
+        
+        // Create error RefNode
+        this.createRefNode(currentNodeId, '@error.unknown_function', functionName, context, uuid || undefined);
+        continue;
+      }
+      
+      // Convert arguments to nodes
+      console.log(`   Converting ${args.length} arguments for ${functionName}...`);
+      const argNodeIds = args.map((arg: any, index: number) => {
+        const argNodeId = this.convertASTNode(arg, context);
+        console.log(`     arg${index}: ${arg.name} (${arg.from}-${arg.to}) → ${argNodeId}`);
+        return argNodeId;
+      });
+      
+      // Build dependencies array for this step
+      const dependencyNodeIds: string[] = [];
+      
+      if (previousNodeId) {
+        // Method call in chain: previous result is first dependency
+        console.log(`   Chain method ${functionName} depends on previous: ${previousNodeId}`);
+        dependencyNodeIds.push(previousNodeId);
+        dependencyNodeIds.push(...argNodeIds);
+      } else {
+        // First call in chain: just the arguments
+        console.log(`   First call ${functionName} in chain`);
+        dependencyNodeIds.push(...argNodeIds);
+      }
+      
+      console.log(`   ${functionName} dependencies: [${dependencyNodeIds.join(', ')}]`);
+      
+      // Check if this is a special function that returns a RefNode directly (like frame)
+      if (resolvedFunctionName === 'frame' || dslFunction.name === 'frame') {
+        // Handle frame function specially - create RefNode directly
+        const frameResult = dslFunction(uuid);
+        this.logConversion(callNode, currentNodeId, 'RefNode', resolvedFunctionName, undefined, uuid || undefined);
+        this.createRefNode(currentNodeId, frameResult.ref, frameResult, context, uuid || undefined);
+      } else {
+        // Create the executable RefNode for this individual function call
+        this.logConversion(callNode, currentNodeId, 'RefNode', resolvedFunctionName, undefined, uuid || undefined);
+        this.createExecutableRefNode(currentNodeId, dslFunction, dependencyNodeIds, context, uuid || undefined);
+      }
+      
+      // Update for next iteration
+      previousNodeId = currentNodeId;
+    }
+    
+    console.log(`🔗 METHOD CHAIN COMPLETE: Final node ${currentNodeId}`);
+    return currentNodeId;
   }
 
 
@@ -395,9 +551,13 @@ export class DirectASTToNodysseusConverter {
     context.nodes[nodeId] = refNode;
     
     // Create edges for dependencies (avoid self-referential edges)
+    console.log(`   Creating ${dependencyNodeIds.length} edges for ${fn.name || 'unknown'} (${nodeId})`);
     dependencyNodeIds.forEach((depNodeId, index) => {
       if (depNodeId !== nodeId) {
+        console.log(`     EDGE: ${depNodeId} --arg${index}--> ${nodeId}`);
         this.createEdge(depNodeId, nodeId, `arg${index}`, context);
+      } else {
+        console.log(`     SKIP: self-referential edge for ${nodeId}`);
       }
     });
   }

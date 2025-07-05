@@ -95,7 +95,26 @@ export function parseDSLWithLezer(code: string, dslContext: any): any {
     
     // LOG THE COMPLETE GRAPH OBJECT
     console.log('🔍 COMPLETE NODYSSEUS GRAPH OBJECT:');
-    console.log(conversionResult.graph);
+    console.log('📊 GRAPH SUMMARY:');
+    console.log(`   Nodes: ${Object.keys(conversionResult.graph.nodes).length}`);
+    console.log(`   Edges: ${Object.keys(conversionResult.graph.edges).length}`);
+    console.log(`   Root: ${conversionResult.rootNodeId}`);
+    
+    console.log('📝 NODE DETAILS:');
+    Object.entries(conversionResult.graph.nodes).forEach(([id, node]) => {
+      const type = 'ref' in node ? 'RefNode' : 'ValueNode';
+      const ref = 'ref' in node ? node.ref : undefined;
+      const valueDesc = typeof node.value === 'function' ? `[Function: ${node.value.name}]` : JSON.stringify(node.value).substring(0, 50);
+      console.log(`   ${id}: ${type} ${ref ? `(${ref})` : ''} = ${valueDesc}`);
+    });
+    
+    console.log('🔗 EDGE STRUCTURE:');
+    Object.entries(conversionResult.graph.edges_in || {}).forEach(([nodeId, edges]) => {
+      const deps = Object.keys(edges);
+      console.log(`   ${nodeId} ← [${deps.join(', ')}]`);
+    });
+    
+    console.log('Raw graph object:', conversionResult.graph);
     
     // Log conversion details
     conversionResult.conversionLog.forEach(entry => {
@@ -112,9 +131,14 @@ export function parseDSLWithLezer(code: string, dslContext: any): any {
     try {
       finalComputed = runtime.runGraphNode(conversionResult.graph, conversionResult.rootNodeId);
       console.log('✅ Graph execution completed successfully');
-      console.log('Result type:', typeof finalComputed);
-      console.log('Result constructor:', finalComputed?.constructor?.name);
-      console.log('Result:', finalComputed);
+      console.log('🎯 EXECUTION RESULT ANALYSIS:');
+      console.log('   Type:', typeof finalComputed);
+      console.log('   Constructor:', finalComputed?.constructor?.name);
+      console.log('   Is THREE.Object3D:', finalComputed instanceof THREE.Object3D);
+      console.log('   Has geometry:', finalComputed?.geometry ? 'YES' : 'NO');
+      console.log('   Has material:', finalComputed?.material ? 'YES' : 'NO');
+      console.log('   Position:', finalComputed?.position);
+      console.log('   Full result:', finalComputed);
     } catch (error) {
       console.error('❌ ERROR during graph execution:', error);
       console.error('Stack trace:', (error as Error).stack);
