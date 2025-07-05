@@ -1,8 +1,6 @@
 // Test UUID correlation between CodeMirror, Lezer, and Nodysseus
 import {
   generateUUIDTags,
-  clearFunctionCallRegistry,
-  getFunctionCallRegistry,
   getUUIDFromRangeSet,
   uuidRangeSetField,
   setUUIDRangeSet,
@@ -12,10 +10,6 @@ import { dslContext } from "../src/dsl";
 import { EditorState } from "@codemirror/state";
 
 describe("UUID Correlation System", () => {
-  beforeEach(() => {
-    clearFunctionCallRegistry();
-  });
-
   test("should generate UUIDs for function calls in RangeSet", () => {
     const code = 'sphere().render("test")';
     const { rangeSet, functionCalls } = generateUUIDTags(code);
@@ -84,29 +78,6 @@ describe("UUID Correlation System", () => {
       uuidsFromConversion.includes(uuid),
     );
     expect(matchingUuids.length).toBeGreaterThan(0);
-  });
-
-  test("should populate function call registry correctly", () => {
-    const code = "mesh(sphere(), material())";
-    generateUUIDTags(code);
-
-    const registry = getFunctionCallRegistry();
-    expect(registry.size).toBe(3); // mesh, sphere, material
-
-    const registryEntries = Array.from(registry.values());
-    const functionNames = registryEntries.map((entry) => entry.functionName);
-
-    expect(functionNames).toContain("mesh");
-    expect(functionNames).toContain("sphere");
-    expect(functionNames).toContain("material");
-
-    // Each entry should have proper position data
-    registryEntries.forEach((entry) => {
-      expect(entry.from).toBeGreaterThanOrEqual(0);
-      expect(entry.to).toBeGreaterThan(entry.from);
-      expect(entry.uuid).toBeDefined();
-      expect(entry.astNodeType).toBe("CallExpression");
-    });
   });
 
   test("should handle complex chains with proper UUID assignment", () => {

@@ -34,11 +34,11 @@ import { globalPubSub, PubSubMessage } from "./pubsub-manager";
 
 // Missing dependencies - adding placeholder implementations
 const nolib: any = {
-  no: { runtime: { addListener: () => {}, publish: () => {} } },
+  no: { runtime: { addListener: () => { }, publish: () => { } } },
 };
 const nolibLib: any = {};
 export const requestAnimationFrame: any =
-  globalThis.requestAnimationFrame || (() => {});
+  globalThis.requestAnimationFrame || (() => { });
 export const externs: any = {
   parseValue: (value: any) => {
     if (typeof value !== "string") {
@@ -93,8 +93,8 @@ const get = (obj: any, path: string) => {
   }
   return result;
 };
-const node_extern = () => {};
-const create_fn = () => {};
+const node_extern = () => { };
+const create_fn = () => { };
 
 export class ExternalNodeHandler {
   private runtime: any;
@@ -240,7 +240,7 @@ export class ExternalNodeHandler {
       handleError(e, nodeGraphId);
       if (this.runtime.scope.has(nodeGraphId))
         return this.runtime.scope.get(nodeGraphId);
-      scriptFn = () => {};
+      scriptFn = () => { };
     }
 
     return this.runtime.mapNode(
@@ -449,11 +449,11 @@ export class ExternalNodeHandler {
         object === undefined
           ? object
           : wrapPromiseReduce(
-              initial,
-              Array.isArray(object) ? object : Object.entries(object),
-              fn,
-              0,
-            ),
+            initial,
+            Array.isArray(object) ? object : Object.entries(object),
+            fn,
+            0,
+          ),
       undefined,
       nodeGraphId,
       useExisting,

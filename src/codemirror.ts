@@ -9,7 +9,6 @@ import {
   uuidRangeSetField,
   uuidRangeSetPlugin,
   generateUUIDTags,
-  clearFunctionCallRegistry,
   setUUIDRangeSet,
   getUUIDFromState,
   UUIDTag,
@@ -136,8 +135,7 @@ export function createEditorState(
 ): EditorState {
   const vimModeEnabled = getVimModeEnabled();
 
-  // Clear previous UUID registry and generate new tags for the content
-  clearFunctionCallRegistry();
+  // Generate new tags for the content
   const { rangeSet } = generateUUIDTags(content);
 
   const state = EditorState.create({

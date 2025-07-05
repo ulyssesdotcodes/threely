@@ -61,16 +61,6 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
   },
 });
 
-// Global registry for function call UUIDs
-const functionCallRegistry = new Map<string, FunctionCallInfo>();
-
-export function getFunctionCallRegistry(): Map<string, FunctionCallInfo> {
-  return functionCallRegistry;
-}
-
-export function clearFunctionCallRegistry(): void {
-  functionCallRegistry.clear();
-}
 
 // Generate UUID tags for function calls in the given text
 export function generateUUIDTags(text: string): {
@@ -86,7 +76,6 @@ export function generateUUIDTags(text: string): {
   // Walk the tree to find CallExpression nodes
   tree.cursor().iterate((node) => {
     if (node.name === "CallExpression") {
-      const callText = text.slice(node.from, node.to);
       const nameNode = node.node.getChild("MemberExpression")?.getChild("PropertyName") ??
         node.node.getChild("VariableName");
       const functionName = text.slice(nameNode!.from, nameNode!.to)
@@ -102,7 +91,6 @@ export function generateUUIDTags(text: string): {
       };
 
       functionCalls.push(functionCall);
-      functionCallRegistry.set(callUuid, functionCall);
 
       // Create UUID tag for this function call
       const uuidTag = new UUIDTag(callUuid, functionName);
@@ -121,24 +109,6 @@ export function generateUUIDTags(text: string): {
   return { rangeSet, functionCalls };
 }
 
-// Get UUID for a function call at a specific position
-// Returns the most specific (innermost/smallest range) UUID that contains the position
-export function getUUIDAtPosition(position: number): string | null {
-  let bestMatch: FunctionCallInfo | null = null;
-  let smallestRange = Infinity;
-
-  for (const [uuid, info] of functionCallRegistry) {
-    if (position >= info.from && position <= info.to) {
-      const range = info.to - info.from;
-      if (range < smallestRange) {
-        smallestRange = range;
-        bestMatch = info;
-      }
-    }
-  }
-
-  return bestMatch ? bestMatch.uuid : null;
-}
 
 // Get UUID from RangeSet at a specific position
 export function getUUIDFromRangeSet(
@@ -167,21 +137,7 @@ export function getUUIDFromState(
   return getUUIDFromRangeSet(rangeSet, position);
 }
 
-// Get function call info by UUID
-export function getFunctionCallByUUID(uuid: string): FunctionCallInfo | null {
-  return functionCallRegistry.get(uuid) || null;
-}
 
-// Get all UUIDs for a given function name
-export function getUUIDsForFunction(functionName: string): string[] {
-  const uuids: string[] = [];
-  for (const [uuid, info] of functionCallRegistry) {
-    if (info.functionName === functionName) {
-      uuids.push(uuid);
-    }
-  }
-  return uuids;
-}
 
 // ViewPlugin to automatically update UUID RangeSet when document changes significantly
 export const uuidRangeSetPlugin = ViewPlugin.fromClass(
@@ -226,7 +182,6 @@ export const uuidRangeSetPlugin = ViewPlugin.fromClass(
     }
 
     regenerateUUIDs(view: EditorView, text: string) {
-      clearFunctionCallRegistry();
       const { rangeSet } = generateUUIDTags(text);
 
       view.dispatch({
@@ -257,7 +212,6 @@ export function createUUIDEnabledState(
 // Helper function to update existing state with UUID tags
 export function updateStateWithUUIDs(state: EditorState): Transaction {
   const content = state.doc.toString();
-  clearFunctionCallRegistry();
   const { rangeSet } = generateUUIDTags(content);
 
   return state.update({

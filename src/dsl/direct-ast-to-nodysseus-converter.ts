@@ -9,12 +9,7 @@ import {
   Edge,
 } from "../nodysseus/types";
 import { logToPanel } from "./parser";
-import {
-  getFunctionCallRegistry,
-  getUUIDAtPosition,
-  getUUIDFromState,
-  FunctionCallInfo,
-} from "../uuid-tagging";
+import { FunctionCallInfo } from "../uuid-tagging";
 
 interface DirectConversionContext {
   dslContext: Record<string, any>; // DSL functions and variables
@@ -69,9 +64,7 @@ export class DirectASTToNodysseusConverter {
     logToPanel("🚀 Starting direct AST to Nodysseus conversion...");
     logToPanel(`📝 Source code: ${context.sourceCode}`);
 
-    // Check UUID registry
-    const registry = getFunctionCallRegistry();
-    console.log(`🔍 UUID registry: ${registry.size} entries`);
+    // UUID registry removed
 
     // Parse with Lezer
     const tree = parser.parse(context.sourceCode);
@@ -255,7 +248,7 @@ export class DirectASTToNodysseusConverter {
       context,
     );
 
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
 
     console.log(
@@ -408,7 +401,7 @@ export class DirectASTToNodysseusConverter {
         context,
       );
 
-      const uuid = getUUIDAtPosition(callNode.from);
+      const uuid = null;
       currentNodeId = uuid || this.generateNodeId(context);
 
       console.log(
@@ -577,7 +570,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     context: DirectConversionContext,
   ): string {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const variableName = this.getNodeText(astNode, context);
 
@@ -641,7 +634,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     context: DirectConversionContext,
   ): string {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const numberText = this.getNodeText(astNode, context);
     const numberValue = parseFloat(numberText);
@@ -667,7 +660,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     context: DirectConversionContext,
   ): string {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const stringText = this.getNodeText(astNode, context);
     const stringValue = stringText.slice(1, -1); // Remove quotes
@@ -693,7 +686,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     context: DirectConversionContext,
   ): string {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const objectValue: any = {};
 

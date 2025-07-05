@@ -12,12 +12,7 @@ import {
   Edge,
 } from "../nodysseus/types";
 import { logToPanel } from "./parser";
-import {
-  getFunctionCallRegistry,
-  getUUIDAtPosition,
-  getUUIDFromState,
-  FunctionCallInfo,
-} from "../uuid-tagging";
+import { FunctionCallInfo } from "../uuid-tagging";
 
 interface ConversionContext {
   dslContext: Record<string, any>;
@@ -233,8 +228,8 @@ export class LezerToNodysseusConverter {
     let currentNode: Node<any> | null = null;
 
     for (const call of callChain) {
-      // Try to get UUID from function call registry based on AST position
-      const uuid = getUUIDAtPosition(call.astNode.from);
+      // Generate UUID for node ID
+      const uuid = null;
       const nodeId = uuid || this.generateNodeId(context);
 
       logToPanel(
@@ -321,8 +316,10 @@ export class LezerToNodysseusConverter {
         id: nodeId,
         ref: "@graph.executable",
         value: dslFunction,
-        ...(uuid && { uuid }), // Add UUID if available for correlation
       };
+      if (uuid) {
+        (refNode as any).uuid = uuid;
+      }
 
       console.log("created refNode?", refNode);
 
@@ -378,7 +375,7 @@ export class LezerToNodysseusConverter {
     astNode: any,
     context: ConversionContext,
   ): Node<any> {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const variableName = this.getNodeText(astNode, context);
@@ -403,8 +400,10 @@ export class LezerToNodysseusConverter {
           id: nodeId,
           ref: "@dsl.function",
           value: dslValue,
-          ...(uuid && { uuid }), // Add UUID if available for correlation
         };
+        if (uuid) {
+          (functionRefNode as any).uuid = uuid;
+        }
         const resultNode = createNode(
           functionRefNode,
           [],
@@ -451,7 +450,7 @@ export class LezerToNodysseusConverter {
    * Convert number literals
    */
   private convertNumber(astNode: any, context: ConversionContext): Node<any> {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const numberText = this.getNodeText(astNode, context);
@@ -476,7 +475,7 @@ export class LezerToNodysseusConverter {
    * Convert string literals
    */
   private convertString(astNode: any, context: ConversionContext): Node<any> {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const stringText = this.getNodeText(astNode, context);
@@ -502,7 +501,7 @@ export class LezerToNodysseusConverter {
     astNode: any,
     context: ConversionContext,
   ): Node<any> {
-    const uuid = getUUIDAtPosition(astNode.from);
+    const uuid = null;
     const nodeId = uuid || this.generateNodeId(context);
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const objectValue: any = {};
