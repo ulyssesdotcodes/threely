@@ -68,7 +68,12 @@ const handleCtrlEnter = (view: EditorView): boolean => {
       //     undefined
       //   ),
       // );
-      const result = executeDSL(code, view.state.field(uuidRangeSetField));
+      const result = executeDSL(
+        code,
+        view.state.field(uuidRangeSetField),
+        undefined,
+        blockInfo.start,
+      );
       if (result) {
       } else {
       }

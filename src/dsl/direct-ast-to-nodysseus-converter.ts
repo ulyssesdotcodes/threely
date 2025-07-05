@@ -52,6 +52,7 @@ export class DirectASTToNodysseusConverter {
     sourceCode: string,
     ranges: RangeSet<UUIDTag>,
     dslContext?: Record<string, any>,
+    startOffset: number = 0,
   ): DirectASTToNodysseusResult {
     const context: DirectConversionContext = {
       dslContext: dslContext || {},
@@ -73,7 +74,12 @@ export class DirectASTToNodysseusConverter {
     logToPanel("🌳 Parsed AST with Lezer", "info", tree);
 
     // Convert AST directly to Nodysseus
-    const rootNodeId = this.convertASTNode(tree.topNode, ranges, context);
+    const rootNodeId = this.convertASTNode(
+      tree.topNode,
+      ranges,
+      context,
+      startOffset,
+    );
     logToPanel(`🎯 Created Nodysseus graph with root node: ${rootNodeId}`);
 
     // Build the complete graph
@@ -99,11 +105,16 @@ export class DirectASTToNodysseusConverter {
   private nodeIdFromRangeSet(
     astNode: any,
     ranges: RangeSet<UUIDTag>,
+    startOffset: number = 0,
   ): string | null {
     let nodeRanges: { from: number; to: number; uuid: UUIDTag }[] = [];
-    ranges.between(astNode.from, astNode.to, (from, to, uuid) => {
-      // Only include ranges that overlap with our AST node
-      if (!(to < astNode.from || from > astNode.to)) {
+    // Adjust the AST node positions by the start offset when searching ranges
+    const adjustedFrom = astNode.from + startOffset;
+    const adjustedTo = astNode.to + startOffset;
+
+    ranges.between(adjustedFrom, adjustedTo, (from, to, uuid) => {
+      // Only include ranges that overlap with our adjusted AST node
+      if (!(to < adjustedFrom || from > adjustedTo)) {
         nodeRanges.push({ from, to, uuid });
       }
     });
@@ -122,6 +133,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
     const nodeKey = `${astNode.from}-${astNode.to}`;
     const nodeText = this.getNodeText(astNode, context);
@@ -141,36 +153,56 @@ export class DirectASTToNodysseusConverter {
       case "Script":
       case "ExpressionStatement":
         // Don't cache wrapper nodes - just return child result directly
-        return this.convertFirstChild(astNode, ranges, context);
+        return this.convertFirstChild(astNode, ranges, context, startOffset);
 
       case "CallExpression":
-        nodeId = this.convertCallExpression(astNode, ranges, context);
+        nodeId = this.convertCallExpression(
+          astNode,
+          ranges,
+          context,
+          startOffset,
+        );
         break;
 
       case "MemberExpression":
-        nodeId = this.convertMemberExpression(astNode, ranges, context);
+        nodeId = this.convertMemberExpression(
+          astNode,
+          ranges,
+          context,
+          startOffset,
+        );
         break;
 
       case "VariableName":
-        nodeId = this.convertVariableName(astNode, ranges, context);
+        nodeId = this.convertVariableName(
+          astNode,
+          ranges,
+          context,
+          startOffset,
+        );
         break;
 
       case "Number":
-        nodeId = this.convertNumber(astNode, ranges, context);
+        nodeId = this.convertNumber(astNode, ranges, context, startOffset);
         break;
 
       case "String":
-        nodeId = this.convertString(astNode, ranges, context);
+        nodeId = this.convertString(astNode, ranges, context, startOffset);
         break;
 
       case "ObjectExpression":
-        nodeId = this.convertObjectExpression(astNode, ranges, context);
+        nodeId = this.convertObjectExpression(
+          astNode,
+          ranges,
+          context,
+          startOffset,
+        );
         break;
 
       default:
         logToPanel(`⚠️ Unknown AST node type: ${astNode.name}`, "warn");
         // Don't cache unknown wrapper nodes either
-        return this.convertFirstChild(astNode, ranges, context);
+        return this.convertFirstChild(astNode, ranges, context, startOffset);
     }
 
     context.visitedNodes.set(nodeKey, nodeId);
@@ -184,9 +216,15 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
     if (astNode.firstChild) {
-      return this.convertASTNode(astNode.firstChild, ranges, context);
+      return this.convertASTNode(
+        astNode.firstChild,
+        ranges,
+        context,
+        startOffset,
+      );
     }
 
     // Fallback to null constant
@@ -207,12 +245,13 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
     // Check if this is part of a method chain
     if (this.isMethodChain(astNode)) {
-      return this.convertMethodChain(astNode, ranges, context);
+      return this.convertMethodChain(astNode, ranges, context, startOffset);
     } else {
-      return this.convertSingleCall(astNode, ranges, context);
+      return this.convertSingleCall(astNode, ranges, context, startOffset);
     }
   }
 
@@ -266,6 +305,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
     // Extract the parts of this specific call expression
     const { functionName, targetNode, args } = this.extractCallExpressionParts(
@@ -273,7 +313,7 @@ export class DirectASTToNodysseusConverter {
       context,
     );
 
-    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges, startOffset);
     const nodeId = uuid || this.generateNodeId(context);
 
     console.log(
@@ -333,7 +373,7 @@ export class DirectASTToNodysseusConverter {
       `   Converting ${args.length} arguments for ${functionName}...`,
     );
     const argNodeIds = args.map((arg: any, index: number) => {
-      const argNodeId = this.convertASTNode(arg, ranges, context);
+      const argNodeId = this.convertASTNode(arg, ranges, context, startOffset);
       console.log(
         `     arg${index}: ${arg.name} (${arg.from}-${arg.to}) → ${argNodeId}`,
       );
@@ -346,7 +386,12 @@ export class DirectASTToNodysseusConverter {
     if (targetNode) {
       // Method call: target object result is first argument
       console.log(`   Processing method call ${functionName} with target`);
-      const targetNodeId = this.convertASTNode(targetNode, ranges, context);
+      const targetNodeId = this.convertASTNode(
+        targetNode,
+        ranges,
+        context,
+        startOffset,
+      );
       console.log(
         `     target: ${targetNode.name} (${targetNode.from}-${targetNode.to}) → ${targetNodeId}`,
       );
@@ -410,6 +455,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
     const chainCalls = this.extractChainCalls(astNode);
     console.log(
@@ -427,7 +473,7 @@ export class DirectASTToNodysseusConverter {
         context,
       );
 
-      const uuid = this.nodeIdFromRangeSet(callNode, ranges);
+      const uuid = this.nodeIdFromRangeSet(callNode, ranges, startOffset);
       currentNodeId = uuid || this.generateNodeId(context);
 
       console.log(
@@ -484,7 +530,12 @@ export class DirectASTToNodysseusConverter {
         `   Converting ${args.length} arguments for ${functionName}...`,
       );
       const argNodeIds = args.map((arg: any, index: number) => {
-        const argNodeId = this.convertASTNode(arg, ranges, context);
+        const argNodeId = this.convertASTNode(
+          arg,
+          ranges,
+          context,
+          startOffset,
+        );
         console.log(
           `     arg${index}: ${arg.name} (${arg.from}-${arg.to}) → ${argNodeId}`,
         );
@@ -564,6 +615,7 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
     logToPanel(`🔗 Member expression: ${this.getNodeText(astNode, context)}`);
 
@@ -582,12 +634,17 @@ export class DirectASTToNodysseusConverter {
     }
 
     if (objectNode) {
-      const baseNodeId = this.convertASTNode(objectNode, ranges, context);
+      const baseNodeId = this.convertASTNode(
+        objectNode,
+        ranges,
+        context,
+        startOffset,
+      );
       logToPanel(`🔗 Member access: ${propertyName} on node ${baseNodeId}`);
       return baseNodeId; // Return the base node; property access handled by parent CallExpression
     }
 
-    return this.convertFirstChild(astNode, ranges, context);
+    return this.convertFirstChild(astNode, ranges, context, startOffset);
   }
 
   /**
@@ -597,8 +654,9 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
-    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges, startOffset);
     const nodeId = uuid || this.generateNodeId(context);
     const variableName = this.getNodeText(astNode, context);
 
@@ -662,8 +720,9 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
-    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges, startOffset);
     const nodeId = uuid || this.generateNodeId(context);
     const numberText = this.getNodeText(astNode, context);
     const numberValue = parseFloat(numberText);
@@ -689,8 +748,9 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
-    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges, startOffset);
     const nodeId = uuid || this.generateNodeId(context);
     const stringText = this.getNodeText(astNode, context);
     const stringValue = stringText.slice(1, -1); // Remove quotes
@@ -716,8 +776,9 @@ export class DirectASTToNodysseusConverter {
     astNode: any,
     ranges: RangeSet<UUIDTag>,
     context: DirectConversionContext,
+    startOffset: number = 0,
   ): string {
-    const uuid = this.nodeIdFromRangeSet(astNode, ranges);
+    const uuid = this.nodeIdFromRangeSet(astNode, ranges, startOffset);
     const nodeId = uuid || this.generateNodeId(context);
     const objectValue: any = {};
 
@@ -1011,7 +1072,8 @@ export function convertASTToNodysseus(
   sourceCode: string,
   ranges: RangeSet<UUIDTag>,
   dslContext?: Record<string, any>,
+  startOffset: number = 0,
 ): DirectASTToNodysseusResult {
   const converter = new DirectASTToNodysseusConverter();
-  return converter.convert(sourceCode, ranges, dslContext);
+  return converter.convert(sourceCode, ranges, dslContext, startOffset);
 }

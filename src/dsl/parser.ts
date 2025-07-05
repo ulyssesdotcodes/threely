@@ -100,6 +100,7 @@ export function parseDSLWithLezer(
   code: string,
   dslContext: any,
   ranges: RangeSet<UUIDTag>,
+  startOffset: number = 0,
 ) {
   console.log("parse", ranges);
   try {
@@ -120,6 +121,7 @@ export function parseDSLWithLezer(
       cleanCode,
       ranges,
       dslContext,
+      startOffset,
     );
 
     logToPanel(
@@ -316,15 +318,21 @@ const defaultDslContext = {
 
 export function executeDSL(
   code: string,
-  ranges: RangeSet<UUIDTag>,
+  ranges: RangeSet<UUIDTag> = RangeSet.empty,
   dslContextParam?: any,
+  startOffset: number = 0,
 ): THREE.Object3D | number | string | boolean | null {
   console.log("execute");
   try {
     const contextToUse = dslContextParam || defaultDslContext;
 
     // Parse with Lezer converter (returns conversion result with graph)
-    const conversionResult = parseDSLWithLezer(code, contextToUse, ranges);
+    const conversionResult = parseDSLWithLezer(
+      code,
+      contextToUse,
+      ranges,
+      startOffset,
+    );
 
     if (!conversionResult) {
       return null;
