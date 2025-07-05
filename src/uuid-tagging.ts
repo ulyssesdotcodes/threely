@@ -87,33 +87,31 @@ export function generateUUIDTags(text: string): {
   tree.cursor().iterate((node) => {
     if (node.name === "CallExpression") {
       const callText = text.slice(node.from, node.to);
+      const nameNode = node.node.getChild("MemberExpression")?.getChild("PropertyName") ??
+        node.node.getChild("VariableName");
+      const functionName = text.slice(nameNode!.from, nameNode!.to)
+      const callUuid = uuid();
 
       // Extract function name from the call expression
-      const funcNameMatch = callText.match(/^(\w+)/);
-      if (funcNameMatch) {
-        const functionName = funcNameMatch[1];
-        const callUuid = uuid();
+      const functionCall: FunctionCallInfo = {
+        uuid: callUuid,
+        functionName,
+        from: node.from,
+        to: node.to,
+        astNodeType: node.name,
+      };
 
-        const functionCall: FunctionCallInfo = {
-          uuid: callUuid,
-          functionName,
-          from: node.from,
-          to: node.to,
-          astNodeType: node.name,
-        };
+      functionCalls.push(functionCall);
+      functionCallRegistry.set(callUuid, functionCall);
 
-        functionCalls.push(functionCall);
-        functionCallRegistry.set(callUuid, functionCall);
+      // Create UUID tag for this function call
+      const uuidTag = new UUIDTag(callUuid, functionName);
 
-        // Create UUID tag for this function call
-        const uuidTag = new UUIDTag(callUuid, functionName);
-
-        ranges.push({
-          from: node.from,
-          to: node.to,
-          value: uuidTag,
-        });
-      }
+      ranges.push({
+        from: node.from,
+        to: node.to,
+        value: uuidTag,
+      });
     }
   });
 
