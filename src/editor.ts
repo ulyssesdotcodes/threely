@@ -11,6 +11,7 @@ import {
 } from "./codemirror";
 import { executeDSL } from "./dsl";
 import { uuidRangeSetField, UUIDTag } from "./uuid-tagging";
+import { RangeSet } from "@codemirror/state";
 
 export function createVimToggle(): HTMLElement {
   const container = document.createElement("div");
@@ -61,22 +62,12 @@ export function createRunButton(): HTMLElement {
       const code = blockInfo.block.trim();
 
       try {
-        // Extract UUID ranges for the block (same as codemirror.ts)
-        const ranges: { start: number; end: number; uuid: UUIDTag }[] = [];
-        view.state.field(uuidRangeSetField).between(
+        const result = executeDSL(
+          code,
+          view.state.field(uuidRangeSetField, false) || RangeSet.empty,
+          undefined,
           blockInfo.start,
-          blockInfo.end,
-          (start, end, uuid) => (
-            ranges.push({
-              start: start - blockInfo.start,
-              end: end - blockInfo.start,
-              uuid,
-            }),
-            undefined
-          ),
         );
-
-        const result = executeDSL(code, ranges);
         if (result) {
         } else {
         }

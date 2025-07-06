@@ -99,7 +99,7 @@ function generateFunctionUUID(
 export function parseDSLWithLezer(
   code: string,
   dslContext: any,
-  ranges: RangeSet<UUIDTag>,
+  ranges: RangeSet<UUIDTag> = RangeSet.empty,
   startOffset: number = 0,
 ) {
   console.log("parse", ranges);
@@ -165,7 +165,7 @@ export function parseDSLWithLezer(
     conversionResult.conversionLog.forEach((entry) => {
       const warnings = entry.warnings ? ` (${entry.warnings.join(", ")})` : "";
       logToPanel(
-        `  🔗 ${entry.astNodeType} -> ${entry.nodysseusNodeType} (${entry.nodysseusNodeId})${warnings}`,
+        `  🔗 ${entry.astNodeType} -> ${entry.nodysseusNodeType} (${entry.nodysseusNodeId})${warnings} ${entry.nodeText}`,
       );
     });
 
@@ -322,7 +322,6 @@ export function executeDSL(
   dslContextParam?: any,
   startOffset: number = 0,
 ): THREE.Object3D | number | string | boolean | null {
-  console.log("execute");
   try {
     const contextToUse = dslContextParam || defaultDslContext;
 

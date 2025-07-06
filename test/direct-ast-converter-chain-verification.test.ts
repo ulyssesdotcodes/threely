@@ -1,6 +1,7 @@
 // Direct AST to Nodysseus Converter - Method Chain Edge Structure Verification
 import { convertASTToNodysseus } from "../src/dsl/direct-ast-to-nodysseus-converter";
 import { dslContext } from "../src/dsl";
+import { RangeSet } from "@codemirror/state";
 
 describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () => {
   /**
@@ -119,7 +120,11 @@ describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () =
       'mesh(sphere(), material()).translateX(1).render("test")';
     console.log(`\n🧪 Testing: ${expression}`);
 
-    const result = convertASTToNodysseus(expression, dslContext);
+    const result = convertASTToNodysseus(
+      expression,
+      RangeSet.empty,
+      dslContext,
+    );
     expect(result.graph).toBeDefined();
     expect(result.rootNodeId).toBeDefined();
 
@@ -185,7 +190,11 @@ describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () =
       'mesh(sphere()).rotateY(45).translateX(1).render("test")';
     console.log(`\n🧪 Testing: ${expression}`);
 
-    const result = convertASTToNodysseus(expression, dslContext);
+    const result = convertASTToNodysseus(
+      expression,
+      RangeSet.empty,
+      dslContext,
+    );
     expect(result.graph).toBeDefined();
     expect(result.rootNodeId).toBeDefined();
 
@@ -218,7 +227,11 @@ describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () =
     const expression = "sphere()";
     console.log(`\n🧪 Testing simple call: ${expression}`);
 
-    const result = convertASTToNodysseus(expression, dslContext);
+    const result = convertASTToNodysseus(
+      expression,
+      RangeSet.empty,
+      dslContext,
+    );
     expect(result.graph).toBeDefined();
     expect(result.rootNodeId).toBeDefined();
 
@@ -240,7 +253,11 @@ describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () =
     const expression = "mesh(sphere(), material()).translateX(1)";
     console.log(`\n🧪 Testing mixed scenario: ${expression}`);
 
-    const result = convertASTToNodysseus(expression, dslContext);
+    const result = convertASTToNodysseus(
+      expression,
+      RangeSet.empty,
+      dslContext,
+    );
     expect(result.graph).toBeDefined();
     expect(result.rootNodeId).toBeDefined();
 
@@ -302,7 +319,11 @@ describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () =
       'mesh(sphere(), material()).translateX(1).rotateY(45).render("test")';
     console.log(`\n🧪 Testing for flattened edge patterns: ${expression}`);
 
-    const result = convertASTToNodysseus(expression, dslContext);
+    const result = convertASTToNodysseus(
+      expression,
+      RangeSet.empty,
+      dslContext,
+    );
     const analysis = analyzeChainStructure(result.graph, expression);
 
     // Check that no single node has dependencies on ALL other nodes
@@ -331,7 +352,11 @@ describe("Direct AST to Nodysseus Converter - Method Chain Edge Structure", () =
       'mesh(sphere(), material()).translateX(1).render("test")';
     console.log(`\n🧪 Detailed conversion analysis: ${expression}`);
 
-    const result = convertASTToNodysseus(expression, dslContext);
+    const result = convertASTToNodysseus(
+      expression,
+      RangeSet.empty,
+      dslContext,
+    );
 
     console.log("\n📋 Conversion Log:");
     result.conversionLog.forEach((entry, index) => {

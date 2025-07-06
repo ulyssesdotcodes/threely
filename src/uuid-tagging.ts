@@ -72,13 +72,14 @@ export function generateUUIDTags(text: string): {
   // Parse with Lezer to identify function calls and constants
   const tree = parser.parse(text);
 
-  // Walk the tree to find CallExpression nodes and constants
+  // Walk the tree to find all node types the converter processes
   tree.cursor().iterate((node) => {
     if (node.name === "CallExpression") {
       const nameNode =
         node.node.getChild("MemberExpression")?.getChild("PropertyName") ??
         node.node.getChild("VariableName");
       const functionName = text.slice(nameNode!.from, nameNode!.to);
+      console.log("got functionName", functionName)
       const callUuid = uuid();
 
       // Extract function name from the call expression
@@ -101,26 +102,29 @@ export function generateUUIDTags(text: string): {
         value: uuidTag,
       });
     } else if (
+      node.name === "MemberExpression" ||
+      node.name === "VariableName" ||
       node.name === "Number" ||
       node.name === "String" ||
-      node.name === "VariableName"
+      node.name === "ObjectExpression"
     ) {
-      // Tag constants and variable names
-      const constantValue = text.slice(node.from, node.to);
-      const constantUuid = uuid();
+      const nodeText = text.slice(node.from, node.to);
+      const nodeUuid = uuid();
+      console.log("got node", nodeText)
 
-      const constantInfo: FunctionCallInfo = {
-        uuid: constantUuid,
-        functionName: constantValue,
+      // Create function call info
+      const functionCall: FunctionCallInfo = {
+        uuid: nodeUuid,
+        functionName: nodeText,
         from: node.from,
         to: node.to,
         astNodeType: node.name,
       };
 
-      functionCalls.push(constantInfo);
+      functionCalls.push(functionCall);
 
-      // Create UUID tag for this constant
-      const uuidTag = new UUIDTag(constantUuid, constantValue);
+      // Create UUID tag for this node
+      const uuidTag = new UUIDTag(nodeUuid, nodeText);
 
       ranges.push({
         from: node.from,

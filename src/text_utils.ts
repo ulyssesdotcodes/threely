@@ -53,9 +53,19 @@ export const getTextBlockAtPosition = (
   const start = findBlockStart(text, pos);
   const end = findBlockEnd(text, pos);
 
+  // Extract the raw block text
+  const rawBlock = text.substring(start, end);
+  const trimmedBlock = rawBlock.trim();
+
+  // Calculate how much leading whitespace was trimmed
+  const leadingWhitespaceLength = rawBlock.length - rawBlock.trimStart().length;
+
+  // Adjust start position to account for trimmed leading whitespace
+  const adjustedStart = start + leadingWhitespaceLength;
+
   return {
-    block: text.substring(start, end).trim(),
-    start,
+    block: trimmedBlock,
+    start: adjustedStart,
     end,
   };
 };

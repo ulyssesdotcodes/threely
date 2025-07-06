@@ -30,6 +30,7 @@ export type DirectConversionResult = {
 
 export type ConversionLogEntry = {
   astNodeType: string;
+  nodeText: string;
   position: { from: number; to: number };
   nodysseusNodeId: string;
   nodysseusNodeType: "RefNode" | "ValueNode";
@@ -112,9 +113,9 @@ function nodeIdFromRangeSet(
 
   ranges.between(adjustedFrom, adjustedTo, (from, to, uuid) => {
     // Only include ranges that overlap with our adjusted AST node
-    if (!(to < adjustedFrom || from > adjustedTo)) {
-      nodeRanges.push({ from, to, uuid });
-    }
+    // if (!(to < adjustedFrom || from > adjustedTo)) {
+    nodeRanges.push({ from, to, uuid });
+    // }
   });
 
   // Sort by range size (smallest first) to find the most specific match
@@ -136,6 +137,7 @@ function logConversion(
   astNode: any,
   nodeId: string,
   nodeType: "RefNode" | "ValueNode",
+  nodeText: string,
   context: DirectConversionContext,
   functionResolved?: string,
   warnings?: string[],
@@ -143,6 +145,7 @@ function logConversion(
 ): void {
   context.conversionLog.push({
     astNodeType: astNode.name,
+    nodeText,
     position: { from: astNode.from, to: astNode.to },
     nodysseusNodeId: nodeId,
     nodysseusNodeType: nodeType,
@@ -332,8 +335,19 @@ export function convertASTNode(
       );
       break;
 
+    case "UnaryExpression":
+      nodeId = convertUnaryExpression(
+        astNode,
+        ranges,
+        context,
+        startOffset,
+        actualNodeText,
+      );
+      break;
+
     default:
       logToPanel(`⚠️ Unknown AST node type: ${astNode.name}`, "warn");
+      debugger;
       // Don't cache unknown wrapper nodes either
       return convertFirstChild(
         astNode,
@@ -431,6 +445,9 @@ function convertSingleCall(
     context,
   );
 
+  const nameNode = astNode.node.getChild("VariableName");
+  console.log("got nameNode - single", getNodeText(astNode, context), getNodeText(nameNode, context));
+
   const uuid = nodeIdFromRangeSet(astNode, ranges, startOffset);
   const nodeId = uuid || generateNodeId(context);
 
@@ -470,6 +487,7 @@ function convertSingleCall(
       astNode,
       nodeId,
       "RefNode",
+      getNodeText(astNode, context),
       context,
       functionName,
       ["Function not found in DSL context"],
@@ -532,6 +550,7 @@ function convertSingleCall(
       astNode,
       nodeId,
       "RefNode",
+      getNodeText(astNode, context),
       context,
       resolvedFunctionName,
       undefined,
@@ -550,6 +569,7 @@ function convertSingleCall(
       astNode,
       nodeId,
       "RefNode",
+      getNodeText(astNode, context),
       context,
       resolvedFunctionName,
       undefined,
@@ -579,6 +599,7 @@ function convertMethodChain(
     `🔗 METHOD CHAIN: Processing ${chainCalls.length} calls in chain`,
   );
 
+
   let previousNodeId: string | null = null;
   let currentNodeId: string = "";
 
@@ -590,7 +611,12 @@ function convertMethodChain(
       context,
     );
 
-    const uuid = nodeIdFromRangeSet(callNode, ranges, startOffset);
+    const nameNode = callNode.node.getChild("MemberExpression")?.getChild("PropertyName") ??
+      callNode.node.getChild("VariableName");
+    ;
+    console.log("got nameNode - method - chain", getNodeText(callNode, context), getNodeText(nameNode, context));
+
+    const uuid = nodeIdFromRangeSet(nameNode, ranges, startOffset);
     currentNodeId = uuid || generateNodeId(context);
 
     console.log(
@@ -626,6 +652,7 @@ function convertMethodChain(
         callNode,
         currentNodeId,
         "RefNode",
+        getNodeText(astNode, context),
         context,
         functionName,
         ["Function not found in DSL context"],
@@ -683,6 +710,7 @@ function convertMethodChain(
         callNode,
         currentNodeId,
         "RefNode",
+        getNodeText(astNode, context),
         context,
         resolvedFunctionName,
         undefined,
@@ -701,6 +729,7 @@ function convertMethodChain(
         callNode,
         currentNodeId,
         "RefNode",
+        getNodeText(astNode, context),
         context,
         resolvedFunctionName,
         undefined,
@@ -779,6 +808,7 @@ function convertVariableName(
         astNode,
         nodeId,
         "RefNode",
+        getNodeText(astNode, context),
         context,
         variableName,
         undefined,
@@ -797,6 +827,7 @@ function convertVariableName(
         astNode,
         nodeId,
         "ValueNode",
+        getNodeText(astNode, context),
         context,
         variableName,
         undefined,
@@ -813,6 +844,7 @@ function convertVariableName(
       astNode,
       nodeId,
       "ValueNode",
+      getNodeText(astNode, context),
       context,
       variableName,
       ["Variable not found in DSL context"],
@@ -841,6 +873,7 @@ function convertNumber(
     astNode,
     nodeId,
     "ValueNode",
+    getNodeText(astNode, context),
     context,
     undefined,
     undefined,
@@ -848,6 +881,34 @@ function convertNumber(
   );
 
   createValueNode(nodeId, numberValue, context, uuid || undefined);
+  return nodeId;
+}
+
+function convertUnaryExpression(
+  astNode: any,
+  ranges: RangeSet<UUIDTag>,
+  context: DirectConversionContext,
+  startOffset: number = 0,
+  nodeText?: string,
+): string {
+  const uuid = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = generateNodeId(context);
+  const unaryText = getNodeText(astNode, context);
+  const value = eval(unaryText)
+
+  logToPanel(`🔢 Converting UnaryExpression: ${value}`);
+  logConversion(
+    astNode,
+    nodeId,
+    "ValueNode",
+    getNodeText(astNode, context),
+    context,
+    undefined,
+    undefined,
+    uuid || undefined,
+  );
+
+  createValueNode(nodeId, value, context, uuid || undefined);
   return nodeId;
 }
 
@@ -868,6 +929,7 @@ function convertString(
     astNode,
     nodeId,
     "ValueNode",
+    getNodeText(astNode, context),
     context,
     undefined,
     undefined,
@@ -920,6 +982,7 @@ function convertObjectExpression(
     astNode,
     nodeId,
     "ValueNode",
+    getNodeText(astNode, context),
     context,
     undefined,
     undefined,

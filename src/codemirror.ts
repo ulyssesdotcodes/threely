@@ -1,4 +1,4 @@
-import { EditorState, Prec, Compartment } from "@codemirror/state";
+import { EditorState, Prec, Compartment, RangeSet } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
@@ -52,22 +52,9 @@ const handleCtrlEnter = (view: EditorView): boolean => {
   const blockInfo = getBlockAtCursor(view);
 
   if (blockInfo && blockInfo.block) {
-    const code = blockInfo.block.trim();
+    const code = blockInfo.block;
 
     try {
-      // const ranges: { start: number; end: number; uuid: UUIDTag }[] = [];
-      // .between(
-      //   blockInfo.start,
-      //   blockInfo.end,
-      //   (start, end, uuid) => (
-      //     ranges.push({
-      //       start: start - blockInfo.start,
-      //       end: end - blockInfo.start,
-      //       uuid,
-      //     }),
-      //     undefined
-      //   ),
-      // );
       const result = executeDSL(
         code,
         view.state.field(uuidRangeSetField),
@@ -96,9 +83,10 @@ export const getBlockAtCursor = (
   return getTextBlockAtPosition(text, cursorPos);
 };
 
-export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
+export const defaultContent = `mesh(sphere(), material()).translateX(frame().mult(0.02).floor()).rotateY(45).render("mySphere")
 
-mesh(sphere(), material()).translateX(frame().mult(0.02).floor()).rotateY(45).render("mySphere")
+mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
+
 
 // Try pressing Ctrl+Enter on the line above!
 // This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene

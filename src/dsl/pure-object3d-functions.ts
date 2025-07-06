@@ -84,6 +84,7 @@ export const translateX = (
   mockObject: MockObject3D,
   distance: number,
 ): MockObject3D => {
+  console.log("distance", distance)
   const currentPos = normalizeVector3Like(
     mockObject.position || { x: 0, y: 0, z: 0 },
   );
