@@ -69,7 +69,6 @@ export function convertASTToNodysseus(
     conversionLog: [],
   };
 
-
   // Parse with Lezer
   const tree = parser.parse(context.sourceCode);
 
@@ -84,7 +83,6 @@ export function convertASTToNodysseus(
     edges: context.edges,
     edges_in: context.edges_in,
   };
-
 
   return {
     graph,
@@ -155,7 +153,6 @@ function createValueNode(
   context: DirectConversionContext,
   uuid?: string,
 ): void {
-
   const valueNode: ValueNode = {
     id: nodeId,
     value: value,
@@ -240,7 +237,6 @@ export function convertASTNode(
   if (context.visitedNodes.has(nodeKey)) {
     return context.visitedNodes.get(nodeKey)!;
   }
-
 
   let nodeId: string;
 
@@ -426,7 +422,6 @@ function convertSingleCall(
   const uuid = nodeIdFromRangeSet(astNode, ranges, startOffset);
   const nodeId = uuid || generateNodeId(context);
 
-
   // Look up function in DSL context or chain context
   let dslFunction = context.dslContext[functionName];
   let resolvedFunctionName = functionName;
@@ -490,7 +485,6 @@ function convertSingleCall(
     // Function call: just the arguments
     dependencyNodeIds.push(...argNodeIds);
   }
-
 
   // Check if this is a special function that returns a RefNode directly (like frame)
   if (resolvedFunctionName === "frame" || dslFunction.name === "frame") {
@@ -563,7 +557,6 @@ function convertMethodChain(
     const uuid = nodeIdFromRangeSet(nameNode, ranges, startOffset);
     currentNodeId = uuid || generateNodeId(context);
 
-
     // Look up function in DSL context or chain context
     let dslFunction = context.dslContext[functionName];
     let resolvedFunctionName = functionName;
@@ -619,8 +612,8 @@ function convertMethodChain(
       dependencyNodeIds.push(...argNodeIds);
     } else {
       // First call in chain: just the arguments
+      dependencyNodeIds.push(...argNodeIds);
     }
-
 
     // Check if this is a special function that returns a RefNode directly (like frame)
     if (resolvedFunctionName === "frame" || dslFunction.name === "frame") {
@@ -678,7 +671,6 @@ function convertMemberExpression(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-
   // Find the property name and object
   let propertyName = "";
   let objectNode = null;
@@ -711,7 +703,6 @@ function convertVariableName(
   const uuid = nodeIdFromRangeSet(astNode, ranges, startOffset);
   const nodeId = uuid || generateNodeId(context);
   const variableName = nodeText || getNodeText(astNode, context);
-
 
   const dslValue = context.dslContext[variableName];
 
