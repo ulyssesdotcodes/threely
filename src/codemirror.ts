@@ -54,12 +54,17 @@ const handleCtrlEnter = (view: EditorView): boolean => {
     const code = blockInfo.block;
 
     try {
-      const result = executeDSL(
-        code,
-        view.state.field(uuidRangeSetField),
-        undefined,
-        blockInfo.start,
-      );
+      // Get existing range set and recalculate UUIDs (preserving existing ones)
+      const existingRangeSet = view.state.field(uuidRangeSetField, false);
+      const fullText = view.state.doc.toString();
+      const { rangeSet } = generateUUIDTags(fullText, existingRangeSet);
+
+      // Update the editor state with the recalculated range set
+      view.dispatch({
+        effects: setUUIDRangeSet.of(rangeSet),
+      });
+
+      const result = executeDSL(code, rangeSet, undefined, blockInfo.start);
       if (result) {
       } else {
       }

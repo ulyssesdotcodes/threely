@@ -46,11 +46,18 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
 
   update(value, tr) {
     if (value.size === 0) {
-      return generateUUIDTags(tr.state.doc.toString()).rangeSet
+      return generateUUIDTags(tr.state.doc.toString()).rangeSet;
     }
     // Map existing ranges through document changes
     if (tr.docChanged) {
       return value.map(tr.changes);
+    }
+
+    // Apply any explicit range set updates
+    for (let effect of tr.effects) {
+      if (effect.is(setUUIDRangeSet)) {
+        return effect.value;
+      }
     }
 
     return value;
@@ -58,12 +65,40 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
 });
 
 // Generate UUID tags for function calls and constants in the given text
-export function generateUUIDTags(text: string): {
+export function generateUUIDTags(
+  text: string,
+  existingRangeSet?: RangeSet<UUIDTag>,
+): {
   rangeSet: RangeSet<UUIDTag>;
   functionCalls: FunctionCallInfo[];
 } {
   const functionCalls: FunctionCallInfo[] = [];
   const ranges: { from: number; to: number; value: UUIDTag }[] = [];
+
+  // Helper function to find existing UUID at a position
+  const findExistingUUID = (
+    from: number,
+    to: number,
+    nodeText: string,
+  ): string | null => {
+    if (!existingRangeSet) return null;
+
+    let foundUuid: string | null = null;
+
+    existingRangeSet.between(from, to, (rangeFrom, rangeTo, value) => {
+      // Check if this range matches our node position and content
+      if (
+        rangeFrom === from &&
+        rangeTo === to &&
+        value.functionName === nodeText
+      ) {
+        foundUuid = value.uuid;
+        return false; // Stop iteration
+      }
+    });
+
+    return foundUuid;
+  };
 
   // Parse with Lezer to identify function calls and constants
   const tree = parser.parse(text);
@@ -75,8 +110,14 @@ export function generateUUIDTags(text: string): {
         node.node.getChild("MemberExpression")?.getChild("PropertyName") ??
         node.node.getChild("VariableName");
       const functionName = text.slice(nameNode!.from, nameNode!.to);
-      console.log("got functionName", functionName)
-      const callUuid = uuid();
+
+      // Try to find existing UUID first
+      const existingUuid = findExistingUUID(
+        nameNode!.from,
+        nameNode!.to,
+        functionName,
+      );
+      const callUuid = existingUuid || uuid();
 
       // Extract function name from the call expression
       const functionCall: FunctionCallInfo = {
@@ -93,20 +134,20 @@ export function generateUUIDTags(text: string): {
       const uuidTag = new UUIDTag(callUuid, functionName);
 
       ranges.push({
-        from: node.from,
-        to: node.to,
+        from: nameNode!.from,
+        to: nameNode!.to,
         value: uuidTag,
       });
     } else if (
-      node.name === "MemberExpression" ||
-      node.name === "VariableName" ||
       node.name === "Number" ||
       node.name === "String" ||
       node.name === "ObjectExpression"
     ) {
       const nodeText = text.slice(node.from, node.to);
-      const nodeUuid = uuid();
-      console.log("got node", nodeText)
+
+      // Try to find existing UUID first
+      const existingUuid = findExistingUUID(node.from, node.to, nodeText);
+      const nodeUuid = existingUuid || uuid();
 
       // Create function call info
       const functionCall: FunctionCallInfo = {
@@ -131,7 +172,11 @@ export function generateUUIDTags(text: string): {
   });
 
   // Create RangeSet from the ranges
-  const rangeSet = RangeSet.of(ranges.map((r) => r.value.range(r.from, r.to)));
+  const rangeSet = RangeSet.of(
+    ranges
+      .sort((ra, rb) => ra.from - rb.from)
+      .map((r) => r.value.range(r.from, r.to)),
+  );
 
   return { rangeSet, functionCalls };
 }
