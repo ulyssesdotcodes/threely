@@ -82,7 +82,7 @@ export function convertASTToNodysseus(
 
   // Build the complete graph
   const graph: NodysseusGraph = {
-    id: `direct-nodysseus-graph-${Date.now()}`,
+    id: `direct-nodysseus-graph-${rootNodeId}`,
     out: rootNodeId,
     nodes: context.nodes,
     edges: context.edges,

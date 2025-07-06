@@ -7,7 +7,6 @@ import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
 import {
   uuidRangeSetField,
-  uuidRangeSetPlugin,
   generateUUIDTags,
   setUUIDRangeSet,
   getUUIDFromState,
@@ -139,7 +138,6 @@ export function createEditorState(
       javascript(),
       Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
       uuidRangeSetField, // Add UUID RangeSet field
-      uuidRangeSetPlugin, // Add UUID RangeSet plugin for automatic updates
     ],
   });
 

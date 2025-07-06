@@ -8,7 +8,7 @@ import {
   EditorState,
   Transaction,
 } from "@codemirror/state";
-import { EditorView, ViewPlugin } from "@codemirror/view";
+import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { parser } from "@lezer/javascript";
 import { v4 as uuid } from "uuid";
 
@@ -45,13 +45,9 @@ export const uuidRangeSetField = StateField.define<RangeSet<UUIDTag>>({
   },
 
   update(value, tr) {
-    // Check for explicit UUID RangeSet updates
-    for (let effect of tr.effects) {
-      if (effect.is(setUUIDRangeSet)) {
-        return effect.value;
-      }
+    if (value.size === 0) {
+      return generateUUIDTags(tr.state.doc.toString()).rangeSet
     }
-
     // Map existing ranges through document changes
     if (tr.docChanged) {
       return value.map(tr.changes);
@@ -167,58 +163,6 @@ export function getUUIDFromState(
   return getUUIDFromRangeSet(rangeSet, position);
 }
 
-// ViewPlugin to automatically update UUID RangeSet when document changes significantly
-export const uuidRangeSetPlugin = ViewPlugin.fromClass(
-  class {
-    lastDocText: string = "";
-
-    constructor(view: EditorView) {
-      this.lastDocText = view.state.doc.toString();
-    }
-
-    update(update: any) {
-      const currentDocText = update.state.doc.toString();
-
-      // Only regenerate UUIDs if the document content has changed significantly
-      // or if we don't have a UUID RangeSet yet
-      if (this.shouldRegenerateUUIDs(update, currentDocText)) {
-        this.regenerateUUIDs(update.view, currentDocText);
-        this.lastDocText = currentDocText;
-      }
-    }
-
-    shouldRegenerateUUIDs(update: any, currentDocText: string): boolean {
-      // Regenerate if:
-      // 1. The document changed and text is different
-      // 2. There's no existing UUID RangeSet
-      // 3. The change was substantial (not just whitespace)
-
-      if (!update.docChanged) return false;
-
-      const hasExistingRangeSet =
-        update.state.field(uuidRangeSetField, false) &&
-        !update.state.field(uuidRangeSetField, false).size;
-
-      if (!hasExistingRangeSet) return true;
-
-      // Check if this was a substantial change
-      const textChanged = this.lastDocText !== currentDocText;
-      const hasNewFunctionCalls =
-        /\w+\s*\(/.test(currentDocText) && textChanged;
-
-      return hasNewFunctionCalls;
-    }
-
-    regenerateUUIDs(view: EditorView, text: string) {
-      const { rangeSet } = generateUUIDTags(text);
-
-      view.dispatch({
-        effects: setUUIDRangeSet.of(rangeSet),
-      });
-    }
-  },
-);
-
 // Helper function to create UUID-enabled editor state
 export function createUUIDEnabledState(
   content: string,
@@ -231,7 +175,6 @@ export function createUUIDEnabledState(
     extensions: [
       ...baseExtensions,
       uuidRangeSetField,
-      uuidRangeSetPlugin,
       setUUIDRangeSet.of(rangeSet),
     ],
   });

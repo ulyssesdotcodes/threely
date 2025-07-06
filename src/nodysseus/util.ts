@@ -53,33 +53,33 @@ export const wrapPromise = <T, S>(
   (isWrappedPromise(t)
     ? t
     : {
-        __kind: WRAPPED_KIND,
-        then: <S>(
-          fn: (tt: FlattenPromise<typeof t>) => S | WrappedPromise<S>,
-        ) =>
-          wrapPromise(
-            ispromise(t)
-              ? c
-                ? t
-                    .then(
-                      fn as (
-                        value: unknown,
-                      ) => S | PromiseLike<S> | WrappedPromise<S>,
-                    )
-                    .then((v) => (isWrappedPromise(v) ? v.value : v))
-                    .catch(c)
-                : t
-                    .then(
-                      fn as (
-                        value: unknown,
-                      ) => S | PromiseLike<S> | WrappedPromise<S>,
-                    )
-                    .then((v) => (isWrappedPromise(v) ? v.value : v))
-              : tryCatch(fn, t, c),
-            c,
-          ),
-        value: t,
-      }) as WrappedPromise<FlattenWrappedPromise<T>>;
+      __kind: WRAPPED_KIND,
+      then: <S>(
+        fn: (tt: FlattenPromise<typeof t>) => S | WrappedPromise<S>,
+      ) =>
+        wrapPromise(
+          ispromise(t)
+            ? c
+              ? t
+                .then(
+                  fn as (
+                    value: unknown,
+                  ) => S | PromiseLike<S> | WrappedPromise<S>,
+                )
+                .then((v) => (isWrappedPromise(v) ? v.value : v))
+                .catch(c)
+              : t
+                .then(
+                  fn as (
+                    value: unknown,
+                  ) => S | PromiseLike<S> | WrappedPromise<S>,
+                )
+                .then((v) => (isWrappedPromise(v) ? v.value : v))
+            : tryCatch(fn, t, c),
+          c,
+        ),
+      value: t,
+    }) as WrappedPromise<FlattenWrappedPromise<T>>;
 
 export const wrapPromiseAll = <T>(
   wrappedPromises: Array<WrappedPromise<T> | T>,
@@ -98,10 +98,10 @@ export const wrapPromiseAll = <T>(
   return wrapPromise(
     hasPromise
       ? Promise.all(
-          wrappedPromises.map((wp) =>
-            Promise.resolve(isWrappedPromise(wp) ? wp.value : wp),
-          ),
-        )
+        wrappedPromises.map((wp) =>
+          Promise.resolve(isWrappedPromise(wp) ? wp.value : wp),
+        ),
+      )
       : wrappedPromises.map((wp) => (isWrappedPromise(wp) ? wp.value : wp)),
     c,
   );
@@ -179,37 +179,37 @@ export const flattenNode = (
   !isNodeGraph(graph) || !graph.nodes || levels <= 0
     ? graph
     : Object.values(graph.nodes)
-        .map((g) => flattenNode(g as GraphNode, levels - 1))
-        .reduce(
-          (
-            acc: {
-              flat_nodes: Record<string, NodysseusNode>;
-              flat_edges: Record<string, Edge>;
-            },
-            n,
-          ) =>
-            isFlattenedGraph(n)
-              ? Object.assign({}, acc, {
-                  flat_nodes: Object.assign(
-                    acc.flat_nodes,
-                    Object.fromEntries(
-                      Object.values(n.flat_nodes).map((fn) => {
-                        // adjust for easy graph renaming
-                        if (fn.id === (graph.out || "out") && graph.name) {
-                          fn.name = graph.name;
-                        }
-                        return [fn.id, fn];
-                      }),
-                    ),
-                  ),
-                  flat_edges: Object.assign(acc.flat_edges, n.flat_edges),
-                })
-              : acc,
-          {
-            flat_nodes: graph.nodes,
-            flat_edges: graph.edges,
+      .map((g) => flattenNode(g as GraphNode, levels - 1))
+      .reduce(
+        (
+          acc: {
+            flat_nodes: Record<string, NodysseusNode>;
+            flat_edges: Record<string, Edge>;
           },
-        );
+          n,
+        ) =>
+          isFlattenedGraph(n)
+            ? Object.assign({}, acc, {
+              flat_nodes: Object.assign(
+                acc.flat_nodes,
+                Object.fromEntries(
+                  Object.values(n.flat_nodes).map((fn) => {
+                    // adjust for easy graph renaming
+                    if (fn.id === (graph.out || "out") && graph.name) {
+                      fn.name = graph.name;
+                    }
+                    return [fn.id, fn];
+                  }),
+                ),
+              ),
+              flat_edges: Object.assign(acc.flat_edges, n.flat_edges),
+            })
+            : acc,
+        {
+          flat_nodes: graph.nodes,
+          flat_edges: graph.edges,
+        },
+      );
 
 export const expand_node = (data: {
   nolib: Record<string, any>;
@@ -233,12 +233,12 @@ export const expand_node = (data: {
 
   const new_id_map = isFlattenedGraph(flattened)
     ? Object.values(flattened.flat_nodes).reduce(
-        (acc, n) =>
-          nolib.no.runtime.get_node(data.editingGraph, n.id)
-            ? ((acc[n.id] = create_randid(data.editingGraph)), acc)
-            : n,
-        {} as Record<string, any>,
-      )
+      (acc, n) =>
+        nolib.no.runtime.get_node(data.editingGraph, n.id)
+          ? ((acc[n.id] = create_randid(data.editingGraph)), acc)
+          : n,
+      {} as Record<string, any>,
+    )
     : flattened;
 
   isFlattenedGraph(flattened) &&
@@ -465,12 +465,12 @@ export const descendantGraph = <T>(
 ): Record<string, T> =>
   graph.edges[nodeId]
     ? {
-        [graph.edges[nodeId].to]: traverse(
-          graph.edges[nodeId].to,
-          graph.edges[nodeId],
-        ),
-        ...descendantGraph(graph.edges[nodeId].to, graph, traverse),
-      }
+      [graph.edges[nodeId].to]: traverse(
+        graph.edges[nodeId].to,
+        graph.edges[nodeId],
+      ),
+      ...descendantGraph(graph.edges[nodeId].to, graph, traverse),
+    }
     : {};
 
 /*
@@ -507,17 +507,17 @@ export const newLib = (data: any): Lib => ({ __kind: "lib", data });
 export const mergeLib = (a: Record<string, any> | Lib, b: Lib): Lib =>
   a
     ? {
-        __kind: "lib",
-        // data: a.data && b.data && a.data !== b.data ? mergeDeep(a.data, b.data) : a.data ?? b.data
-        data:
-          a.data && b.data && a.data !== b.data
-            ? {
-                ...b.data,
-                ...a.data,
-                extern: { ...a.data.extern, ...b.data.extern },
-              }
-            : (a.data ?? b.data),
-      }
+      __kind: "lib",
+      // data: a.data && b.data && a.data !== b.data ? mergeDeep(a.data, b.data) : a.data ?? b.data
+      data:
+        a.data && b.data && a.data !== b.data
+          ? {
+            ...b.data,
+            ...a.data,
+            extern: { ...a.data.extern, ...b.data.extern },
+          }
+          : (a.data ?? b.data),
+    }
     : b;
 
 // const MERGE_KEYS = ["extern"];
@@ -555,6 +555,8 @@ export function compareObjects(
   isUpdate = false,
   excludedFields: Set<string> = emptySet,
 ) {
+  if (value1 === value2) return true;
+  if (typeof value1 !== "object" || typeof value2 !== "object") return false;
   const keys1 = Object.keys(value1);
   const keys2 = !isUpdate ? Object.keys(value2) : [];
 
@@ -564,7 +566,7 @@ export function compareObjects(
 
   for (const key of keys1) {
     if (excludedFields.has(key)) continue;
-    if (value1[key] === value2[key]) {
+    if (compareObjects(value1[key], value2[key])) {
       continue;
     }
 

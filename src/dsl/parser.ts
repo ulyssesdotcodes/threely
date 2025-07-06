@@ -1,7 +1,6 @@
 // DSL Parser and execution engine
 import * as THREE from "three";
 import { parser } from "@lezer/javascript";
-import { convertGraphToNodysseus } from "../graph-to-nodysseus-converter";
 import { NodysseusRuntime } from "../nodysseus/runtime-core";
 import {
   MockObject3D,

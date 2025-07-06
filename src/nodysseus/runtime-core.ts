@@ -439,6 +439,7 @@ export class NodysseusRuntime {
   public fromNode<T, D, M, S extends Record<string, unknown>>(
     graph: Graph | string,
     nodeId: string,
+    useExisting = false,
     closure?: any,
   ): any {
     closure = closure ?? ({} as any);
@@ -454,7 +455,7 @@ export class NodysseusRuntime {
           closure,
           appendGraphId(graph.id, nodeId) + "-outerargs",
         ),
-        true,
+        useExisting,
       ),
     ).value;
   }
@@ -473,7 +474,7 @@ export class NodysseusRuntime {
       Object.fromEntries(
         edgesIn.map((e) => [
           e.as,
-          this.fromNodeInternal(graph, e.from, graphId, graphClosure, true),
+          this.fromNodeInternal(graph, e.from, graphId, graphClosure, useExisting),
           // this.bindNode(
           //   {bound: this.fromNodeInternal(graph, e.from, graphId, graphClosure, true)}, ({bound}) => this.runNode(bound),
           //   nodeGraphId + `-valmapinput${e.as}`,
@@ -543,8 +544,19 @@ export class NodysseusRuntime {
   ): AnyNode<T> {
     const node = graph.nodes[nodeId];
     const nodeGraphId = appendGraphId(graphId, nodeId);
-    if (useExisting && this.scope.has(nodeGraphId))
-      return this.scope.get(nodeGraphId) as AnyNode<T>;
+    if (useExisting && this.scope.has(nodeGraphId)) {
+      const graphNodeNode = this.scope.get(nodeGraphId + "-graphnode") as AnyNode<T>;
+      (graphNodeNode as unknown as VarNode<GraphNodeNode>).set({
+        graph, node: graph.nodes[node.id],
+        edgesIn: graph.edges_in?.[node.id]
+          ? Object.values(graph.edges_in?.[node.id])
+          : Object.values<Edge>(graph.edges).filter(
+            (e: Edge) => e.to === node.id,
+          ),
+      })
+      return this.scope.get(nodeGraphId)
+    }
+
     const staticGraphId = graph.id;
 
     const compareGraphNodes = (a: any, b: any) => {
@@ -558,6 +570,7 @@ export class NodysseusRuntime {
         edgesInA.length !== edgesInB.length
       )
         return false;
+
       const sortedEdgesA = edgesInA.sort((a, b) => a.as.localeCompare(b.as));
       const sortedEdgesB = edgesInB.sort((a, b) => a.as.localeCompare(b.as));
       return sortedEdgesA.every((e, i) => compareObjects(e, sortedEdgesB[i]));
@@ -571,8 +584,9 @@ export class NodysseusRuntime {
       },
       compareGraphNodes,
       nodeGraphId + "-graphnode",
-      true,
+      useExisting,
     );
+
 
     // TODO: Add back in for graph updates
     // nolib.no.runtime.addListener(
@@ -774,15 +788,17 @@ export class NodysseusRuntime {
     return result;
   }
 
-  public runGraphNode<T>(graph: Graph | string, node: string): any {
+  public runGraphNode<T>(graph: Graph, node: string): any {
     const current = this.scope.get(
       `${appendGraphId(
         typeof graph === "string" ? graph : graph.id,
         node,
       )}-boundNode`,
     );
-    if (current) return this.runNode(current);
-    return wrapPromise(this.fromNode(graph, node)).then((nodeNode) =>
+
+    Object.keys(graph.nodes).forEach(node => this.fromNode(graph, node, false))
+
+    return wrapPromise(this.fromNode(graph, node, true)).then((nodeNode) =>
       this.runNode(nodeNode),
     ).value;
   }
