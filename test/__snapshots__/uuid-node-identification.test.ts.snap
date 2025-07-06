@@ -1,0 +1,220 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UUID-based Node Identification AST to Nodysseus Conversion Snapshots should convert chained method calls consistently 1`] = `
+{
+  "edges": {},
+  "edges_in": {},
+  "id": "direct-nodysseus-graph-0fe9d32d-f149-4cba-a31c-0e41b77ec485",
+  "nodes": {
+    "0fe9d32d-f149-4cba-a31c-0e41b77ec485": {
+      "id": "0fe9d32d-f149-4cba-a31c-0e41b77ec485",
+      "ref": "@error.unknown_function",
+      "uuid": "0fe9d32d-f149-4cba-a31c-0e41b77ec485",
+      "value": "rotateY",
+    },
+    "8ed075bb-28a0-4df9-9248-aca3784617bb": {
+      "id": "8ed075bb-28a0-4df9-9248-aca3784617bb",
+      "ref": "@error.unknown_function",
+      "uuid": "8ed075bb-28a0-4df9-9248-aca3784617bb",
+      "value": "sphere",
+    },
+    "e5a3b2be-f387-42c2-ae5e-d4bce1daf920": {
+      "id": "e5a3b2be-f387-42c2-ae5e-d4bce1daf920",
+      "ref": "@error.unknown_function",
+      "uuid": "e5a3b2be-f387-42c2-ae5e-d4bce1daf920",
+      "value": "translateX",
+    },
+  },
+  "out": "0fe9d32d-f149-4cba-a31c-0e41b77ec485",
+}
+`;
+
+exports[`UUID-based Node Identification AST to Nodysseus Conversion Snapshots should convert complex nested expressions consistently 1`] = `
+{
+  "edges": {},
+  "edges_in": {},
+  "id": "direct-nodysseus-graph-83650e11-14e1-4d00-9e05-5d9931aeeae0",
+  "nodes": {
+    "4eab8308-6f3f-4243-a66d-412a03745b94": {
+      "id": "4eab8308-6f3f-4243-a66d-412a03745b94",
+      "ref": "@error.unknown_function",
+      "uuid": "4eab8308-6f3f-4243-a66d-412a03745b94",
+      "value": "box",
+    },
+    "83650e11-14e1-4d00-9e05-5d9931aeeae0": {
+      "id": "83650e11-14e1-4d00-9e05-5d9931aeeae0",
+      "ref": "@error.unknown_function",
+      "uuid": "83650e11-14e1-4d00-9e05-5d9931aeeae0",
+      "value": "translateX",
+    },
+  },
+  "out": "83650e11-14e1-4d00-9e05-5d9931aeeae0",
+}
+`;
+
+exports[`UUID-based Node Identification AST to Nodysseus Conversion Snapshots should convert math expressions consistently 1`] = `
+{
+  "edges": {},
+  "edges_in": {},
+  "id": "direct-nodysseus-graph-ddee4e47-cfd8-45f2-8641-9e12304eb1da",
+  "nodes": {
+    "ddee4e47-cfd8-45f2-8641-9e12304eb1da": {
+      "id": "ddee4e47-cfd8-45f2-8641-9e12304eb1da",
+      "ref": "@error.unknown_function",
+      "uuid": "ddee4e47-cfd8-45f2-8641-9e12304eb1da",
+      "value": "sin",
+    },
+  },
+  "out": "ddee4e47-cfd8-45f2-8641-9e12304eb1da",
+}
+`;
+
+exports[`UUID-based Node Identification AST to Nodysseus Conversion Snapshots should convert object expressions consistently 1`] = `
+{
+  "edges": {},
+  "edges_in": {},
+  "id": "direct-nodysseus-graph-fallback-0-1-_",
+  "nodes": {
+    "fallback-0-1-_": {
+      "id": "fallback-0-1-_",
+      "value": null,
+    },
+  },
+  "out": "fallback-0-1-_",
+}
+`;
+
+exports[`UUID-based Node Identification AST to Nodysseus Conversion Snapshots should convert simple function calls consistently 1`] = `
+{
+  "edges": {},
+  "edges_in": {},
+  "id": "direct-nodysseus-graph-83e9d78b-9034-4e02-bf6a-b8c168bbe4c8",
+  "nodes": {
+    "83e9d78b-9034-4e02-bf6a-b8c168bbe4c8": {
+      "id": "83e9d78b-9034-4e02-bf6a-b8c168bbe4c8",
+      "ref": "@error.unknown_function",
+      "uuid": "83e9d78b-9034-4e02-bf6a-b8c168bbe4c8",
+      "value": "sphere",
+    },
+  },
+  "out": "83e9d78b-9034-4e02-bf6a-b8c168bbe4c8",
+}
+`;
+
+exports[`UUID-based Node Identification UUID Generation Snapshots should generate consistent UUIDs for chained method calls 1`] = `
+[
+  {
+    "astNodeType": "CallExpression",
+    "from": 24,
+    "functionName": "rotateY",
+    "to": 31,
+    "uuid": "8576ea16-b7a8-4fc8-abf3-141687cd4634",
+  },
+  {
+    "astNodeType": "CallExpression",
+    "from": 10,
+    "functionName": "translateX",
+    "to": 20,
+    "uuid": "86691f96-6d74-4d3d-accf-3ce2645bda2d",
+  },
+  {
+    "astNodeType": "CallExpression",
+    "from": 0,
+    "functionName": "sphere",
+    "to": 6,
+    "uuid": "febaf0bc-9c8d-4ad7-b6d9-a62e565b8246",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 7,
+    "functionName": "1",
+    "to": 8,
+    "uuid": "e943f582-07ec-4a76-8ccc-ec32e6435adc",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 21,
+    "functionName": "2",
+    "to": 22,
+    "uuid": "3126aaf1-b5ff-4453-a76e-d0d2e0edf914",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 32,
+    "functionName": "0.5",
+    "to": 35,
+    "uuid": "f6e56f8c-0b20-4791-afd4-f20ef7f3f03d",
+  },
+]
+`;
+
+exports[`UUID-based Node Identification UUID Generation Snapshots should generate consistent UUIDs for math expressions 1`] = `
+[
+  {
+    "astNodeType": "CallExpression",
+    "from": 5,
+    "functionName": "sin",
+    "to": 8,
+    "uuid": "56c8e7e3-ecd3-4e54-b656-c392824ffa06",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 9,
+    "functionName": "3.14",
+    "to": 13,
+    "uuid": "33444940-f645-4224-9a9a-be7d1e748f9d",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 16,
+    "functionName": "2",
+    "to": 17,
+    "uuid": "e8a23617-0968-47bd-a391-7424bcc9332f",
+  },
+]
+`;
+
+exports[`UUID-based Node Identification UUID Generation Snapshots should generate consistent UUIDs for object expressions 1`] = `
+[
+  {
+    "astNodeType": "Number",
+    "from": 5,
+    "functionName": "1",
+    "to": 6,
+    "uuid": "1622a1ea-28e5-43ad-969f-d9982d97d625",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 11,
+    "functionName": "2",
+    "to": 12,
+    "uuid": "a5dc5f0c-e094-465e-809f-c05446fa6bc1",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 17,
+    "functionName": "3",
+    "to": 18,
+    "uuid": "0a775fc5-b568-482c-a6b8-7e637ffbe9c6",
+  },
+]
+`;
+
+exports[`UUID-based Node Identification UUID Generation Snapshots should generate consistent UUIDs for simple function calls 1`] = `
+[
+  {
+    "astNodeType": "CallExpression",
+    "from": 0,
+    "functionName": "sphere",
+    "to": 6,
+    "uuid": "3c009e9f-78a1-4378-be19-d331fa9a1060",
+  },
+  {
+    "astNodeType": "Number",
+    "from": 7,
+    "functionName": "1",
+    "to": 8,
+    "uuid": "70fd8ea9-c79c-49bd-8cfc-0ed90cf0215e",
+  },
+]
+`;
