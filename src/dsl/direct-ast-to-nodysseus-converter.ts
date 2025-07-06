@@ -96,6 +96,7 @@ function nodeIdFromRangeSet(
   astNode: any,
   ranges: RangeSet<UUIDTag>,
   startOffset: number = 0,
+  context?: DirectConversionContext,
 ): string {
   let nodeRanges: { from: number; to: number; uuid: UUIDTag }[] = [];
   // Adjust the AST node positions by the start offset when searching ranges
@@ -119,7 +120,9 @@ function nodeIdFromRangeSet(
   }
 
   // If no UUID found, generate one based on position and content
-  const nodeText = context.sourceCode.slice(astNode.from, astNode.to);
+  const nodeText =
+    context?.sourceCode?.slice(astNode.from, astNode.to) ||
+    `${astNode.from}-${astNode.to}`;
   const fallbackId = `fallback-${astNode.from}-${astNode.to}-${nodeText.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20)}`;
   return fallbackId;
 }
@@ -360,7 +363,7 @@ function convertFirstChild(
   }
 
   // Fallback to null constant
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
 
   createValueNode(nodeId, null, context);
   return nodeId;
@@ -422,7 +425,7 @@ function convertSingleCall(
 
   const nameNode = astNode.node.getChild("VariableName");
 
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
   const uuid = nodeId;
 
   // Look up function in DSL context or chain context
@@ -551,7 +554,7 @@ function convertMethodChain(
     const nameNode =
       callNode.node.getChild("MemberExpression")?.getChild("PropertyName") ??
       callNode.node.getChild("VariableName");
-    currentNodeId = nodeIdFromRangeSet(nameNode, ranges, startOffset);
+    currentNodeId = nodeIdFromRangeSet(nameNode, ranges, startOffset, context);
     const uuid = currentNodeId;
 
     // Look up function in DSL context or chain context
@@ -691,7 +694,7 @@ function convertVariableName(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
   const uuid = nodeId;
   const variableName = nodeText || getNodeText(astNode, context);
 
@@ -749,7 +752,7 @@ function convertNumber(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
   const uuid = nodeId;
   const numberText = nodeText || getNodeText(astNode, context);
   const numberValue = parseFloat(numberText);
@@ -776,7 +779,7 @@ function convertUnaryExpression(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
   const uuid = nodeId;
   const unaryText = getNodeText(astNode, context);
   const value = eval(unaryText);
@@ -803,7 +806,7 @@ function convertString(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
   const uuid = nodeId;
   const stringText = nodeText || getNodeText(astNode, context);
   const stringValue = stringText.slice(1, -1); // Remove quotes
@@ -830,7 +833,7 @@ function convertObjectExpression(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset);
+  const nodeId = nodeIdFromRangeSet(astNode, ranges, startOffset, context);
   const uuid = nodeId;
   const objectValue: any = {};
 
