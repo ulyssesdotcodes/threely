@@ -151,10 +151,44 @@ export function parseDSLWithLezer(
     });
 
     console.log("🔗 EDGE STRUCTURE:");
+
+    // Helper function to get a readable name for a node
+    const getNodeName = (nodeId: string): string => {
+      const node = conversionResult.graph.nodes[nodeId];
+      if (!node) return nodeId;
+
+      if ("ref" in node) {
+        // RefNode - try to get function name
+        if (typeof node.value === "function" && node.value.name) {
+          return node.value.name;
+        }
+        if (
+          node.ref === "@graph.executable" &&
+          typeof node.value === "function"
+        ) {
+          return node.value.name || "unknown_function";
+        }
+        if (node.ref === "@extern.frame") {
+          return "frame";
+        }
+        return node.ref.replace("@", "");
+      } else {
+        // ValueNode - show the value
+        if (typeof node.value === "string") {
+          return `"${node.value}"`;
+        }
+        if (typeof node.value === "number") {
+          return node.value.toString();
+        }
+        return JSON.stringify(node.value).substring(0, 20);
+      }
+    };
+
     Object.entries(conversionResult.graph.edges_in || {}).forEach(
       ([nodeId, edges]) => {
-        const deps = Object.keys(edges);
-        console.log(`   ${nodeId} ← [${deps.join(", ")}]`);
+        const targetName = getNodeName(nodeId);
+        const depNames = Object.keys(edges).map((depId) => getNodeName(depId));
+        console.log(`   ${targetName} ← [${depNames.join(", ")}]`);
       },
     );
 
