@@ -69,16 +69,12 @@ export function convertASTToNodysseus(
     conversionLog: [],
   };
 
-  logToPanel("🚀 Starting direct AST to Nodysseus conversion...");
-  logToPanel(`📝 Source code: ${context.sourceCode}`);
 
   // Parse with Lezer
   const tree = parser.parse(context.sourceCode);
-  logToPanel("🌳 Parsed AST with Lezer", "info", tree);
 
   // Convert AST directly to Nodysseus
   const rootNodeId = convertASTNode(tree.topNode, ranges, context, startOffset);
-  logToPanel(`🎯 Created Nodysseus graph with root node: ${rootNodeId}`);
 
   // Build the complete graph
   const graph: NodysseusGraph = {
@@ -89,9 +85,6 @@ export function convertASTToNodysseus(
     edges_in: context.edges_in,
   };
 
-  logToPanel(
-    `✅ Conversion complete: ${Object.keys(context.nodes).length} nodes, ${Object.keys(context.edges).length} edges`,
-  );
 
   return {
     graph,
@@ -162,9 +155,6 @@ function createValueNode(
   context: DirectConversionContext,
   uuid?: string,
 ): void {
-  console.log(
-    `📦 Creating ValueNode ${nodeId}: ${typeof value} = ${JSON.stringify(value)}`,
-  );
 
   const valueNode: ValueNode = {
     id: nodeId,
@@ -210,15 +200,9 @@ function createExecutableRefNode(
   context.nodes[nodeId] = refNode;
 
   // Create edges for dependencies (avoid self-referential edges)
-  console.log(
-    `   Creating ${dependencyNodeIds.length} edges for ${fn.name || "unknown"} (${nodeId})`,
-  );
   dependencyNodeIds.forEach((depNodeId, index) => {
     if (depNodeId !== nodeId) {
-      console.log(`     EDGE: ${depNodeId} --arg${index}--> ${nodeId}`);
       createEdge(depNodeId, nodeId, `arg${index}`, context);
-    } else {
-      console.log(`     SKIP: self-referential edge for ${nodeId}`);
     }
   });
 }
@@ -257,9 +241,6 @@ export function convertASTNode(
     return context.visitedNodes.get(nodeKey)!;
   }
 
-  logToPanel(
-    `🔍 Converting AST node: ${astNode.name} (${astNode.from}-${astNode.to})`,
-  );
 
   let nodeId: string;
 
@@ -346,7 +327,6 @@ export function convertASTNode(
       break;
 
     default:
-      logToPanel(`⚠️ Unknown AST node type: ${astNode.name}`, "warn");
       debugger;
       // Don't cache unknown wrapper nodes either
       return convertFirstChild(
@@ -382,10 +362,6 @@ function convertFirstChild(
 
   // Fallback to null constant
   const nodeId = generateNodeId(context);
-  logToPanel(
-    `⚠️ No child found for ${astNode.name}, creating null constant`,
-    "warn",
-  );
 
   createValueNode(nodeId, null, context);
   return nodeId;
@@ -446,17 +422,10 @@ function convertSingleCall(
   );
 
   const nameNode = astNode.node.getChild("VariableName");
-  console.log("got nameNode - single", getNodeText(astNode, context), getNodeText(nameNode, context));
 
   const uuid = nodeIdFromRangeSet(astNode, ranges, startOffset);
   const nodeId = uuid || generateNodeId(context);
 
-  console.log(
-    `🔧 SINGLE CALL: ${functionName} at ${astNode.from}-${astNode.to}, nodeId: ${nodeId}`,
-  );
-  console.log(
-    `   args: ${args.length}, targetNode: ${targetNode ? "YES" : "NO"}`,
-  );
 
   // Look up function in DSL context or chain context
   let dslFunction = context.dslContext[functionName];
@@ -472,17 +441,10 @@ function convertSingleCall(
     ) {
       dslFunction = chainContext[functionName].fn;
       resolvedFunctionName = dslFunction.name || functionName;
-      logToPanel(
-        `🔗 Resolved chain method ${functionName} to ${resolvedFunctionName}`,
-      );
     }
   }
 
   if (!dslFunction) {
-    logToPanel(
-      `❌ Function '${functionName}' not found in DSL context`,
-      "error",
-    );
     logConversion(
       astNode,
       nodeId,
@@ -506,12 +468,8 @@ function convertSingleCall(
   }
 
   // Convert arguments to nodes
-  console.log(`   Converting ${args.length} arguments for ${functionName}...`);
   const argNodeIds = args.map((arg: any, index: number) => {
     const argNodeId = convertASTNode(arg, ranges, context, startOffset);
-    console.log(
-      `     arg${index}: ${arg.name} (${arg.from}-${arg.to}) → ${argNodeId}`,
-    );
     return argNodeId;
   });
 
@@ -520,27 +478,19 @@ function convertSingleCall(
 
   if (targetNode) {
     // Method call: target object result is first argument
-    console.log(`   Processing method call ${functionName} with target`);
     const targetNodeId = convertASTNode(
       targetNode,
       ranges,
       context,
       startOffset,
     );
-    console.log(
-      `     target: ${targetNode.name} (${targetNode.from}-${targetNode.to}) → ${targetNodeId}`,
-    );
     dependencyNodeIds.push(targetNodeId);
     dependencyNodeIds.push(...argNodeIds);
   } else {
     // Function call: just the arguments
-    console.log(`   Processing function call ${functionName}`);
     dependencyNodeIds.push(...argNodeIds);
   }
 
-  console.log(
-    `   ${functionName} dependencies: [${dependencyNodeIds.join(", ")}]`,
-  );
 
   // Check if this is a special function that returns a RefNode directly (like frame)
   if (resolvedFunctionName === "frame" || dslFunction.name === "frame") {
@@ -595,10 +545,6 @@ function convertMethodChain(
   nodeText?: string,
 ): string {
   const chainCalls = extractChainCalls(astNode, context);
-  console.log(
-    `🔗 METHOD CHAIN: Processing ${chainCalls.length} calls in chain`,
-  );
-
 
   let previousNodeId: string | null = null;
   let currentNodeId: string = "";
@@ -611,17 +557,12 @@ function convertMethodChain(
       context,
     );
 
-    const nameNode = callNode.node.getChild("MemberExpression")?.getChild("PropertyName") ??
+    const nameNode =
+      callNode.node.getChild("MemberExpression")?.getChild("PropertyName") ??
       callNode.node.getChild("VariableName");
-    ;
-    console.log("got nameNode - method - chain", getNodeText(callNode, context), getNodeText(nameNode, context));
-
     const uuid = nodeIdFromRangeSet(nameNode, ranges, startOffset);
     currentNodeId = uuid || generateNodeId(context);
 
-    console.log(
-      `🔗 CHAIN STEP ${i + 1}: ${functionName} at ${callNode.from}-${callNode.to}, nodeId: ${currentNodeId}`,
-    );
 
     // Look up function in DSL context or chain context
     let dslFunction = context.dslContext[functionName];
@@ -637,17 +578,10 @@ function convertMethodChain(
       ) {
         dslFunction = chainContext[functionName].fn;
         resolvedFunctionName = dslFunction.name || functionName;
-        logToPanel(
-          `🔗 Resolved chain method ${functionName} to ${resolvedFunctionName}`,
-        );
       }
     }
 
     if (!dslFunction) {
-      logToPanel(
-        `❌ Function '${functionName}' not found in DSL context`,
-        "error",
-      );
       logConversion(
         callNode,
         currentNodeId,
@@ -671,14 +605,8 @@ function convertMethodChain(
     }
 
     // Convert arguments to nodes
-    console.log(
-      `   Converting ${args.length} arguments for ${functionName}...`,
-    );
     const argNodeIds = args.map((arg: any, index: number) => {
       const argNodeId = convertASTNode(arg, ranges, context, startOffset);
-      console.log(
-        `     arg${index}: ${arg.name} (${arg.from}-${arg.to}) → ${argNodeId}`,
-      );
       return argNodeId;
     });
 
@@ -687,20 +615,12 @@ function convertMethodChain(
 
     if (previousNodeId) {
       // Method call in chain: previous result is first dependency
-      console.log(
-        `   Chain method ${functionName} depends on previous: ${previousNodeId}`,
-      );
       dependencyNodeIds.push(previousNodeId);
       dependencyNodeIds.push(...argNodeIds);
     } else {
       // First call in chain: just the arguments
-      console.log(`   First call ${functionName} in chain`);
-      dependencyNodeIds.push(...argNodeIds);
     }
 
-    console.log(
-      `   ${functionName} dependencies: [${dependencyNodeIds.join(", ")}]`,
-    );
 
     // Check if this is a special function that returns a RefNode directly (like frame)
     if (resolvedFunctionName === "frame" || dslFunction.name === "frame") {
@@ -748,7 +668,6 @@ function convertMethodChain(
     previousNodeId = currentNodeId;
   }
 
-  console.log(`🔗 METHOD CHAIN COMPLETE: Final node ${currentNodeId}`);
   return currentNodeId;
 }
 
@@ -759,9 +678,6 @@ function convertMemberExpression(
   startOffset: number = 0,
   nodeText?: string,
 ): string {
-  logToPanel(
-    `🔗 Member expression: ${nodeText || getNodeText(astNode, context)}`,
-  );
 
   // Find the property name and object
   let propertyName = "";
@@ -779,7 +695,6 @@ function convertMemberExpression(
 
   if (objectNode) {
     const baseNodeId = convertASTNode(objectNode, ranges, context, startOffset);
-    logToPanel(`🔗 Member access: ${propertyName} on node ${baseNodeId}`);
     return baseNodeId; // Return the base node; property access handled by parent CallExpression
   }
 
@@ -797,7 +712,6 @@ function convertVariableName(
   const nodeId = uuid || generateNodeId(context);
   const variableName = nodeText || getNodeText(astNode, context);
 
-  logToPanel(`🏷️ Converting variable: ${variableName}`);
 
   const dslValue = context.dslContext[variableName];
 
@@ -836,10 +750,6 @@ function convertVariableName(
       createValueNode(nodeId, dslValue, context, uuid || undefined);
     }
   } else {
-    logToPanel(
-      `⚠️ Variable '${variableName}' not found in DSL context`,
-      "warn",
-    );
     logConversion(
       astNode,
       nodeId,
@@ -868,7 +778,6 @@ function convertNumber(
   const numberText = nodeText || getNodeText(astNode, context);
   const numberValue = parseFloat(numberText);
 
-  logToPanel(`🔢 Converting number: ${numberValue}`);
   logConversion(
     astNode,
     nodeId,
@@ -894,9 +803,8 @@ function convertUnaryExpression(
   const uuid = nodeIdFromRangeSet(astNode, ranges, startOffset);
   const nodeId = generateNodeId(context);
   const unaryText = getNodeText(astNode, context);
-  const value = eval(unaryText)
+  const value = eval(unaryText);
 
-  logToPanel(`🔢 Converting UnaryExpression: ${value}`);
   logConversion(
     astNode,
     nodeId,
@@ -924,7 +832,6 @@ function convertString(
   const stringText = nodeText || getNodeText(astNode, context);
   const stringValue = stringText.slice(1, -1); // Remove quotes
 
-  logToPanel(`📝 Converting string: "${stringValue}"`);
   logConversion(
     astNode,
     nodeId,
@@ -988,7 +895,6 @@ function convertObjectExpression(
     undefined,
     uuid || undefined,
   );
-  console.log("objectValue", objectValue);
   createValueNode(nodeId, objectValue, context, uuid || undefined);
   return nodeId;
 }
@@ -1032,7 +938,6 @@ function extractCallExpressionParts(
     child = child.nextSibling;
   }
 
-  console.log("gotargs", args);
   return { functionName, targetNode, args };
 }
 

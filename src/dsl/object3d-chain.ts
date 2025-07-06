@@ -111,10 +111,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-        typeof objectNode === "object" &&
-        !("id" in objectNode) &&
-        !("value" in objectNode) &&
-        !("dependencies" in objectNode)
+      typeof objectNode === "object" &&
+      !("id" in objectNode) &&
+      !("value" in objectNode) &&
+      !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const distanceNode =
@@ -128,10 +128,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-        typeof objectNode === "object" &&
-        !("id" in objectNode) &&
-        !("value" in objectNode) &&
-        !("dependencies" in objectNode)
+      typeof objectNode === "object" &&
+      !("id" in objectNode) &&
+      !("value" in objectNode) &&
+      !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const angleNode =
@@ -145,10 +145,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-        typeof objectNode === "object" &&
-        !("id" in objectNode) &&
-        !("value" in objectNode) &&
-        !("dependencies" in objectNode)
+      typeof objectNode === "object" &&
+      !("id" in objectNode) &&
+      !("value" in objectNode) &&
+      !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const objectNameNode =
@@ -246,7 +246,6 @@ const translateXLogic = (
   if (!mockObject) {
     return { geometry: undefined, userData: undefined };
   }
-  console.log("distance", distance)
   const currentPos = normalizeVector3Like(
     mockObject.position || { x: 0, y: 0, z: 0 },
   );
@@ -269,7 +268,6 @@ export const translateX = (
   objectNode: Node<MockObject3D> | MockObject3D,
   distance: Node<number> | number,
 ): Node<MockObject3D> => {
-  console.log("distance", distance)
   const [objectNodeResolved, distanceNode] =
     convertToNodes.mockObjectAndDistance(objectNode, distance);
   return apply(
