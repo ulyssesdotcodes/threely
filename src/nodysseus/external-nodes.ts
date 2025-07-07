@@ -213,6 +213,17 @@ export class ExternalNodeHandler {
       return this.handleFrameExtern(nodeGraphId, useExisting);
     }
 
+    if (refNode.ref === "extern.feedback") {
+      return this.handleFeedbackExtern(
+        refNode,
+        node,
+        edgesIn,
+        nodeGraphId,
+        calculateInputs,
+        useExisting,
+      );
+    }
+
     // Return false so runtime-core can handle graph nodes
     return false;
   }
@@ -390,6 +401,69 @@ export class ExternalNodeHandler {
 
     requestAnimationFrame(update);
     return varNode;
+  }
+
+  private handleFeedbackExtern(
+    refNode: RefNode,
+    node: any,
+    edgesIn: Edge[],
+    nodeGraphId: string,
+    calculateInputs: () => any,
+    useExisting: boolean,
+  ): any {
+    // Get the transform function from refNode.value or default to identity
+    let transformFn: (value: any) => any;
+    try {
+      if (typeof refNode.value === "string") {
+        transformFn = eval(`(${refNode.value})`) as (value: any) => any;
+      } else if (typeof refNode.value === "function") {
+        transformFn = refNode.value as (value: any) => any;
+      } else {
+        transformFn = (x: any) => x; // identity function
+      }
+    } catch (e: any) {
+      handleError(e, nodeGraphId);
+      transformFn = (x: any) => x;
+    }
+
+    // Create a varNode to hold the feedback value
+    const feedbackVarNode = this.runtime.varNode(
+      undefined, // initial value
+      undefined, // default comparison
+      nodeGraphId + "-feedback-var",
+      useExisting,
+    );
+
+    // Create a mapNode that computes the feedback loop
+    const inputs = calculateInputs();
+    const feedbackMapNode = this.runtime.mapNode(
+      { ...inputs, feedbackVar: feedbackVarNode },
+      (allInputs: any) => {
+        try {
+          // Get the input value (typically the first input, excluding feedbackVar)
+          const { feedbackVar, ...regularInputs } = allInputs;
+          const inputValue =
+            regularInputs.value || Object.values(regularInputs)[0];
+
+          // Apply the transform function to get the new value
+          const transformedValue = transformFn(inputValue);
+
+          // Update the varNode with the transformed value for the next iteration
+          feedbackVarNode.set(transformedValue);
+
+          // Return the transformed value
+          return transformedValue;
+        } catch (e: any) {
+          handleError(e, nodeGraphId);
+          return undefined;
+        }
+      },
+      undefined,
+      nodeGraphId,
+      useExisting,
+    );
+
+    return feedbackMapNode;
   }
 
   private handleSwitchNode(

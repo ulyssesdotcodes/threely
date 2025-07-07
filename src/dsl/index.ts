@@ -22,6 +22,7 @@ export {
   rotateX,
   rotateY,
   rotateZ,
+  feedback,
   applyMock,
 
   // Rendering

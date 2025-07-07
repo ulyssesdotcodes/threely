@@ -188,6 +188,10 @@ export const rotateZ = (
   };
 };
 
+export const feedback = <T>(value: T, transform: (value: T) => T): T => {
+  return transform(value);
+};
+
 // Utility for applying mock properties to existing object
 export const applyMock = (mockObject: MockObject3D): MockObject3D => mockObject;
 
@@ -251,5 +255,6 @@ export const chainObj3d = {
   rotateX: { fn: rotateX, chain: () => chainObj3d },
   rotateY: { fn: rotateY, chain: () => chainObj3d },
   rotateZ: { fn: rotateZ, chain: () => chainObj3d },
+  feedback: { fn: feedback, chain: () => chainObj3d },
   render: { fn: render, chain: () => chainObj3d },
 };

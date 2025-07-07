@@ -446,6 +446,10 @@ const rotateZLogic = (
   };
 };
 
+const feedbackLogic = <T>(value: T, transform: (value: T) => T): T => {
+  return transform(value);
+};
+
 export const rotateZ = (
   objectNode: Node<MockObject3D> | MockObject3D,
   angle: Node<number> | number,
@@ -459,6 +463,18 @@ export const rotateZ = (
     [objectNodeResolved, angleNode],
     chainObj3d,
   );
+};
+
+export const feedback = <T>(
+  valueNode: Node<T> | T,
+  transform: (value: T) => T,
+): Node<T> => {
+  const valueNodeResolved =
+    valueNode && typeof valueNode === "object" && "id" in valueNode
+      ? (valueNode as Node<T>)
+      : createNode(valueNode as T, [], {});
+
+  return apply((value: T) => transform(value), [valueNodeResolved], chainObj3d);
 };
 
 // Mock object integration function
@@ -599,6 +615,22 @@ chainObj3d.rotateZ = {
     return apply(
       (mockObject: MockObject3D, ang: number) => rotateZLogic(mockObject, ang),
       [objectNodeResolved, angleNode],
+      chainObj3d,
+    );
+  },
+  chain: () => chainObj3d,
+};
+
+chainObj3d.feedback = {
+  fn: <T>(valueNode: Node<T> | T, transform: (value: T) => T) => {
+    const valueNodeResolved =
+      valueNode && typeof valueNode === "object" && "id" in valueNode
+        ? (valueNode as Node<T>)
+        : createNode(valueNode as T, [], {});
+
+    return apply(
+      (value: T) => transform(value),
+      [valueNodeResolved],
       chainObj3d,
     );
   },
