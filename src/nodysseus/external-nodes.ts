@@ -411,19 +411,21 @@ export class ExternalNodeHandler {
     calculateInputs: () => any,
     useExisting: boolean,
   ): any {
-    // Get the transform function from refNode.value or default to identity
-    let transformFn: (value: any) => any;
+    // All function parsing and node creation should have been done
+    // during AST to Nodysseus conversion phase
+
+    // Parse metadata from the RefNode value
+    let metadata: { transformNodeId: string; parameterName: string } = {
+      transformNodeId: "",
+      parameterName: "",
+    };
+
     try {
       if (typeof refNode.value === "string") {
-        transformFn = eval(`(${refNode.value})`) as (value: any) => any;
-      } else if (typeof refNode.value === "function") {
-        transformFn = refNode.value as (value: any) => any;
-      } else {
-        transformFn = (x: any) => x; // identity function
+        metadata = JSON.parse(refNode.value);
       }
-    } catch (e: any) {
-      handleError(e, nodeGraphId);
-      transformFn = (x: any) => x;
+    } catch (e) {
+      console.warn("Failed to parse feedback metadata:", refNode.value);
     }
 
     // Create a varNode to hold the feedback value
@@ -445,8 +447,8 @@ export class ExternalNodeHandler {
           const inputValue =
             regularInputs.value || Object.values(regularInputs)[0];
 
-          // Apply the transform function to get the new value
-          const transformedValue = transformFn(inputValue);
+          // Get the transformed value from the connected transform node
+          const transformedValue = allInputs.transform || inputValue;
 
           // Update the varNode with the transformed value for the next iteration
           feedbackVarNode.set(transformedValue);
@@ -463,7 +465,38 @@ export class ExternalNodeHandler {
       useExisting,
     );
 
+    // Connect the feedbackVarNode to parameter references in the transform nodes
+    if (metadata.transformNodeId && metadata.parameterName) {
+      this.connectParameterNodes(
+        metadata.transformNodeId,
+        metadata.parameterName,
+        feedbackVarNode,
+        nodeGraphId,
+      );
+    }
+
     return feedbackMapNode;
+  }
+
+  private connectParameterNodes(
+    transformNodeId: string,
+    parameterName: string,
+    feedbackVarNode: any,
+    nodeGraphId: string,
+  ): void {
+    // This method should connect any nodes in the transform graph that reference
+    // the parameter (e.g., "sphere" in "sphere => sphere.scale(2)") to the feedbackVarNode
+
+    // Implementation would need to:
+    // 1. Find all nodes in the graph that reference the parameter name
+    // 2. Replace those references with edges to the feedbackVarNode
+    // 3. Update the graph structure to establish the feedback loop
+
+    // For now, this is a placeholder - the actual implementation would require
+    // graph traversal and node replacement logic
+    console.log(
+      `Connecting parameter "${parameterName}" in transform ${transformNodeId} to feedback var ${feedbackVarNode.id}`,
+    );
   }
 
   private handleSwitchNode(

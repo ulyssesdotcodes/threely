@@ -131,6 +131,47 @@ function getNodeText(astNode: any, context: DirectConversionContext): string {
   return context.sourceCode.slice(astNode.from, astNode.to);
 }
 
+function getArrowFunctionParameter(
+  arrowFunctionNode: any,
+  context: DirectConversionContext,
+): any | null {
+  // Find the parameter (before the "=>")
+  let child = arrowFunctionNode.firstChild;
+
+  while (child) {
+    if (child.name === "=>" || getNodeText(child, context) === "=>") {
+      break;
+    }
+    if (child.name === "VariableName" || child.name === "ParamList") {
+      return child;
+    }
+    child = child.nextSibling;
+  }
+
+  return null;
+}
+
+function getFunctionBody(
+  arrowFunctionNode: any,
+  context: DirectConversionContext,
+): any | null {
+  // Find the function body (after the "=>")
+  let child = arrowFunctionNode.firstChild;
+  let foundArrow = false;
+
+  while (child) {
+    if (foundArrow && child.name !== "=>") {
+      return child;
+    }
+    if (child.name === "=>" || getNodeText(child, context) === "=>") {
+      foundArrow = true;
+    }
+    child = child.nextSibling;
+  }
+
+  return null;
+}
+
 function logConversion(
   astNode: any,
   nodeId: string,
@@ -507,6 +548,86 @@ function convertSingleCall(
       uuid,
     );
     createRefNode(nodeId, frameResult.ref, frameResult, context, uuid);
+  } else if (
+    resolvedFunctionName === "feedback" ||
+    dslFunction.name === "feedback"
+  ) {
+    // Handle feedback function specially - convert the function argument to nodes
+    logConversion(
+      astNode,
+      nodeId,
+      "RefNode",
+      getNodeText(astNode, context),
+      context,
+      resolvedFunctionName,
+      undefined,
+      uuid,
+    );
+
+    // Convert the function argument (second argument) to nodes
+    let transformNodeId: string = "";
+    let functionParameterName: string = "";
+
+    if (args.length >= 2) {
+      const functionArg = args[1];
+      // Extract function body from arrow function and convert to nodes
+      if (functionArg.name === "ArrowFunction") {
+        // Get the parameter name from the arrow function
+        const paramNode = getArrowFunctionParameter(functionArg, context);
+        if (paramNode) {
+          functionParameterName = getNodeText(paramNode, context);
+        }
+
+        const functionBody = getFunctionBody(functionArg, context);
+        if (functionBody) {
+          // Create a sub-context for the function conversion
+          const functionContext: DirectConversionContext = {
+            ...context,
+            nodes: { ...context.nodes },
+            edges: { ...context.edges },
+            edges_in: { ...context.edges_in },
+            visitedNodes: new Map(context.visitedNodes),
+          };
+
+          // Convert the function body to nodes
+          const { RangeSet } = require("@codemirror/state");
+          transformNodeId = convertASTNode(
+            functionBody,
+            RangeSet.empty,
+            functionContext,
+            0,
+          );
+
+          // Merge the function nodes back into main context
+          Object.assign(context.nodes, functionContext.nodes);
+          Object.assign(context.edges, functionContext.edges);
+          Object.assign(context.edges_in, functionContext.edges_in);
+        }
+      }
+    }
+
+    // Create extern.feedback RefNode with metadata about the transform
+    createRefNode(
+      nodeId,
+      "extern.feedback",
+      JSON.stringify({
+        transformNodeId,
+        parameterName: functionParameterName,
+      }),
+      context,
+      uuid,
+    );
+
+    // Create edges for dependencies
+    // First dependency is the input value
+    if (dependencyNodeIds.length > 0) {
+      createEdge(dependencyNodeIds[0], nodeId, "value", context);
+    }
+
+    // Connect the transform node if we have one
+    if (transformNodeId) {
+      createEdge(transformNodeId, nodeId, "transform", context);
+    }
   } else {
     // Create the executable RefNode for this individual function call
     logConversion(
