@@ -23,6 +23,9 @@ const functionCallUUIDs = new Map<string, string>();
 // Global storage for declared variables across executeDSL calls
 const declaredVariables = new Map<string, any>();
 
+// Global tracking of all variable declarations in the document
+const allVariableDeclarations = new Map<string, VariableDeclaration>();
+
 // Log to the error panel at the bottom of the page
 function logToPanel(
   message: string,
@@ -183,7 +186,134 @@ function updateDslContext(context: any): any {
 // Clear all declared variables (useful for testing)
 function clearDslVariables(): void {
   declaredVariables.clear();
+  allVariableDeclarations.clear();
   logToPanel("🗑️ Cleared all declared variables");
+}
+
+// Scan entire document for all variable declarations
+function scanAllVariableDeclarations(
+  code: string,
+): Map<string, VariableDeclaration> {
+  try {
+    const tree = parser.parse(code);
+    const declarations = new Map<string, VariableDeclaration>();
+
+    const extractedDeclarations = extractVariableDeclarations(tree, code);
+    for (const declaration of extractedDeclarations) {
+      declarations.set(declaration.name, declaration);
+      logToPanel(`📋 Tracked variable declaration: ${declaration.name}`);
+    }
+
+    logToPanel(`📋 Total tracked declarations: ${declarations.size}`);
+    return declarations;
+  } catch (error) {
+    logToPanel(`❌ Error scanning variable declarations: ${error}`, "error");
+    return new Map();
+  }
+}
+
+// Find variable references in code that aren't in the current context
+function findMissingVariables(
+  code: string,
+  dslContext: any,
+  declarations: Map<string, VariableDeclaration>,
+): string[] {
+  try {
+    const tree = parser.parse(code);
+    const missingVariables: string[] = [];
+    const contextKeys = new Set([
+      ...Object.keys(dslContext),
+      ...declaredVariables.keys(),
+      // Add common globals that should be ignored
+      "Math",
+      "console",
+      "THREE",
+      "undefined",
+      "null",
+      "true",
+      "false",
+    ]);
+
+    tree.cursor().iterate((node) => {
+      if (node.name === "VariableName") {
+        const variableName = code.slice(node.from, node.to);
+
+        // Check if this variable is missing from context but exists in declarations
+        if (
+          !contextKeys.has(variableName) &&
+          declarations.has(variableName) &&
+          !missingVariables.includes(variableName)
+        ) {
+          missingVariables.push(variableName);
+          logToPanel(`🔍 Found missing variable: ${variableName}`);
+        }
+      }
+    });
+
+    return missingVariables;
+  } catch (error) {
+    logToPanel(`❌ Error finding missing variables: ${error}`, "error");
+    return [];
+  }
+}
+
+// Execute variable declarations for missing dependencies using recursive executeDSL
+function executeMissingDependencies(
+  missingVariables: string[],
+  dslContext: any,
+  declarations: Map<string, VariableDeclaration>,
+  fullDocumentCode: string,
+): void {
+  for (const varName of missingVariables) {
+    const declaration = declarations.get(varName);
+    if (declaration && !declaredVariables.has(varName)) {
+      logToPanel(`🔧 Auto-executing dependency: ${varName}`);
+
+      // Use executeDSL recursively to handle dependencies of dependencies
+      try {
+        // Don't execute the full declaration, just check its dependencies
+        const assignmentExpression = declaration.assignmentExpression;
+
+        // Find dependencies of this variable declaration
+        const depMissingVars = findMissingVariables(
+          assignmentExpression,
+          dslContext,
+          declarations,
+        );
+        const newDepVars = depMissingVars.filter(
+          (dep) => !declaredVariables.has(dep) && dep !== varName,
+        );
+
+        if (newDepVars.length > 0) {
+          logToPanel(
+            `🔧 Variable '${varName}' has ${newDepVars.length} dependencies, resolving them first`,
+          );
+          executeMissingDependencies(
+            newDepVars,
+            dslContext,
+            declarations,
+            fullDocumentCode,
+          );
+        }
+
+        // Now execute the variable assignment with all dependencies resolved
+        const assignmentResult = executeVariableAssignment(
+          varName,
+          declaration.assignmentExpression,
+          dslContext,
+        );
+
+        if (assignmentResult !== null) {
+          declaredVariables.set(varName, assignmentResult);
+          logToPanel(
+            `✅ Auto-executed variable '${varName}' with dependencies`,
+          );
+        }
+      } catch (error) {
+        logToPanel(`❌ Failed to auto-execute '${varName}': ${error}`, "error");
+      }
+    }
+  }
 }
 
 // Simple DSL parser that evaluates code with functional context
@@ -591,16 +721,101 @@ const defaultDslContext = {
   pointsFromNodes,
 };
 
+// Internal function that handles recursive dependency resolution
+function executeDSLInternal(
+  code: string,
+  dslContextParam: any,
+  declarations: Map<string, VariableDeclaration>,
+  fullDocumentCode: string,
+  currentlyResolving: Set<string> = new Set(),
+): THREE.Object3D | null {
+  try {
+    // Start with provided context
+    const baseContext = dslContextParam;
+
+    // Update context to include any previously declared variables
+    const contextToUse = updateDslContext(baseContext);
+
+    // Find missing dependencies and execute them first
+    const missingVariables = findMissingVariables(
+      code,
+      contextToUse,
+      declarations,
+    );
+
+    // Filter out variables we're currently resolving to prevent infinite loops
+    const newMissingVariables = missingVariables.filter(
+      (varName) => !currentlyResolving.has(varName),
+    );
+
+    if (newMissingVariables.length > 0) {
+      logToPanel(
+        `🔧 Found ${newMissingVariables.length} missing dependencies, executing them first`,
+      );
+
+      // Add current variables to the resolving set
+      const newResolvingSet = new Set([
+        ...currentlyResolving,
+        ...newMissingVariables,
+      ]);
+
+      executeMissingDependencies(
+        newMissingVariables,
+        contextToUse,
+        declarations,
+        fullDocumentCode,
+      );
+
+      // Update context again after executing dependencies
+      const updatedContext = updateDslContext(baseContext);
+      const result = parseDSL(code, updatedContext);
+      return processResult(result);
+    }
+
+    const result = parseDSL(code, contextToUse);
+    return processResult(result);
+  } catch (error) {
+    console.error("DSL execution error:", error);
+    return null;
+  }
+}
+
 export function executeDSL(
   code: string,
   dslContextParam?: any,
+  fullDocumentCode?: string,
 ): THREE.Object3D | null {
   try {
     // Start with default context or provided context
     const baseContext = dslContextParam || defaultDslContext;
-    // Update context to include any previously declared variables
-    const contextToUse = updateDslContext(baseContext);
-    const result = parseDSL(code, contextToUse);
+
+    // If we have the full document, scan it for all variable declarations
+    let declarations = new Map<string, VariableDeclaration>();
+    if (fullDocumentCode) {
+      declarations = scanAllVariableDeclarations(fullDocumentCode);
+      // Update the global map for backward compatibility
+      allVariableDeclarations.clear();
+      for (const [key, value] of declarations) {
+        allVariableDeclarations.set(key, value);
+      }
+    }
+
+    return executeDSLInternal(
+      code,
+      baseContext,
+      declarations,
+      fullDocumentCode || "",
+      new Set(),
+    );
+  } catch (error) {
+    console.error("DSL execution error:", error);
+    return null;
+  }
+}
+
+// Helper function to process the result (extracted from original executeDSL)
+function processResult(result: any): THREE.Object3D | null {
+  try {
     const objectRegistry = getObjectRegistry();
 
     // If the result is a Node, try direct Graph.run execution first

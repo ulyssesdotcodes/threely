@@ -45,9 +45,10 @@ const handleCtrlEnter = (view: EditorView): boolean => {
 
   if (blockInfo && blockInfo.block) {
     const code = blockInfo.block.trim();
+    const fullDocument = view.state.doc.toString();
 
     try {
-      const result = executeDSL(code);
+      const result = executeDSL(code, undefined, fullDocument);
       if (result) {
       } else {
       }
