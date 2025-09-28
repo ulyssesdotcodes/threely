@@ -3,19 +3,19 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { vim } from "@replit/codemirror-vim";
-import { getTextBlockAtPosition } from './text_utils';
-import { executeDSL } from './dsl';
+import { getTextBlockAtPosition } from "./text_utils";
+import { executeDSL } from "./dsl";
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
 // Vim mode state management
-const VIM_MODE_KEY = 'three-tree-vim-mode';
+const VIM_MODE_KEY = "three-tree-vim-mode";
 const vimCompartment = new Compartment();
 let currentEditorView: EditorView | null = null;
 
 export function getVimModeEnabled(): boolean {
   try {
-    return localStorage.getItem(VIM_MODE_KEY) === 'true';
+    return localStorage.getItem(VIM_MODE_KEY) === "true";
   } catch {
     return false;
   }
@@ -26,7 +26,7 @@ export function setVimModeEnabled(enabled: boolean): void {
     localStorage.setItem(VIM_MODE_KEY, enabled.toString());
     if (currentEditorView) {
       currentEditorView.dispatch({
-        effects: vimCompartment.reconfigure(enabled ? vim() : [])
+        effects: vimCompartment.reconfigure(enabled ? vim() : []),
       });
     }
   } catch {
@@ -60,7 +60,9 @@ const handleCtrlEnter = (view: EditorView): boolean => {
 };
 
 // Function to get block at cursor position
-export const getBlockAtCursor = (view: EditorView): { block: string } | null => {
+export const getBlockAtCursor = (
+  view: EditorView,
+): { block: string } | null => {
   const text = view.state.doc.toString();
   const cursorPos = view.state.selection.ranges[0].from;
 
@@ -70,7 +72,6 @@ export const getBlockAtCursor = (view: EditorView): { block: string } | null => 
     block: blockText,
   };
 };
-
 
 export const defaultContent = `
 const mySphere = mesh(sphere(), material()).translateX(1)
@@ -112,9 +113,49 @@ mesh(cylinder(0.5, 1, 2), material({color: 0xffff00})).translateZ(-3).render("cu
 
 // Use clearAll() to remove all objects:
 // clearAll()
+
+// --- NEW: Compute Shader Particle System ---
+// Example of using the new compute functions for particle systems
+
+// First, declare variables that will be used in computeInit
+const particleBuffers = {
+  position: 'vec3',
+  velocity: 'vec3',
+  color: 'vec3',
+  birthTime: 'float',
+  lifespan: 'float'
+}
+const particleCount = 1000
+const isInstanced = true
+const particleRenderer = null // Will be set by the renderer
+
+// Initialize compute buffers and nodes for particle system
+const particleData = computeInit(
+  particleCount,    // Number of particles
+  particleBuffers,  // Buffer type definitions
+  isInstanced,      // Use instanced rendering
+  particleRenderer  // Renderer (can be null initially)
+)
+
+// Create a sprite with points material from the computed nodes
+const particleSprite = pointsFromNodes(
+  particleData.buffers,  // Buffers from computeInit
+  particleData.nodes     // Nodes from computeInit
+)
+
+// The particleSprite can now be added to the scene
+// particleSprite will contain a THREE.Sprite with PointsNodeMaterial
+// configured for compute shader particle rendering
+
+// Note: These functions use THREE by default (can optionally pass a custom _lib parameter)
+// They are designed to work with THREE.js WebGPU renderer and TSL (Three.js Shading Language)
+// In a real implementation, you would also need frame update functions
+// to animate the particles over time.
 `;
 
-export function createEditorState(content: string = defaultContent): EditorState {
+export function createEditorState(
+  content: string = defaultContent,
+): EditorState {
   const vimModeEnabled = getVimModeEnabled();
 
   return EditorState.create({

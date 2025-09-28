@@ -373,14 +373,13 @@ const runtime = new NodysseusRuntime();
 
 // Compute init function based on compute-example/compute-init.js
 function computeInit(
-  _lib: any,
   count: number,
   buffers,
   instanced: boolean,
   renderer: any,
   particleNum?: number,
+  _lib: any = { THREE },
 ) {
-  const THREE = _lib.THREE;
   const {
     Fn,
     uniform,
@@ -403,11 +402,14 @@ function computeInit(
   const createBuffer = (bufferType: string) => {
     console.log("is instanced", instanced);
     const buffer = instanced
-      ? new THREE.StorageInstancedBufferAttribute(
-        count,
-        bufferTypeSizes[bufferType],
-      )
-      : new THREE.StorageBufferAttribute(count, bufferTypeSizes[bufferType]);
+      ? new _lib.THREE.StorageInstancedBufferAttribute(
+          count,
+          bufferTypeSizes[bufferType],
+        )
+      : new _lib.THREE.StorageBufferAttribute(
+          count,
+          bufferTypeSizes[bufferType],
+        );
     const node = storage(buffer, bufferType, count);
     return node;
   };
@@ -470,6 +472,55 @@ function computeInit(
     nodes,
     count,
   };
+}
+
+// Points from nodes function based on compute-example/pointsMaterialFromNodes.js
+function pointsFromNodes(
+  buffers: any,
+  nodes: any,
+  material?: any,
+  _lib: any = { THREE },
+) {
+  const { timerGlobal, vec3, attribute, instancedBufferAttribute } =
+    _lib.THREE.TSL;
+
+  const pointsMaterial = new _lib.THREE.PointsNodeMaterial();
+
+  // Handle existing material properties if provided
+  if (material?.userData?.count) {
+    // for compute particles
+    pointsMaterial.userData.count = material.userData.count;
+  }
+
+  console.log("running mat update");
+
+  // Update position buffer reference if changed
+  if (pointsMaterial.userData.positionBuffer !== buffers.position) {
+    pointsMaterial.userData.positionBuffer = buffers.position;
+    pointsMaterial.vertexColors = true;
+    pointsMaterial.sizeAttenuation = true;
+  }
+
+  // Set material nodes
+  pointsMaterial.positionNode = nodes.position;
+  pointsMaterial.colorNode = nodes.color;
+  pointsMaterial.sizeNode = nodes.size ?? vec3(4);
+
+  pointsMaterial.userData.count = buffers.position.value.count;
+
+  pointsMaterial.opacityNode = nodes.opacity;
+  pointsMaterial.blending = _lib.THREE.AdditiveBlending;
+
+  pointsMaterial.needsUpdate = true;
+
+  // Create sprite with the points material
+  const pts = new _lib.THREE.Sprite(pointsMaterial);
+  if (pointsMaterial.userData.count) {
+    // for compute particles
+    pts.count = pointsMaterial.userData.count;
+  }
+
+  return pts;
 }
 
 // Execute DSL code and run the graph if the result is a Node
@@ -539,9 +590,11 @@ const defaultDslContext = {
   Graph,
   Math,
   console,
+  THREE,
 
   // Compute functions
   computeInit,
+  pointsFromNodes,
 };
 
 export function executeDSL(
