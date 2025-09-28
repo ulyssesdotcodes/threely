@@ -41,10 +41,10 @@ export function getCurrentEditorView(): EditorView | null {
 // Custom command for Ctrl-Enter
 const handleCtrlEnter = (view: EditorView): boolean => {
   const blockInfo = getBlockAtCursor(view);
-  
+
   if (blockInfo && blockInfo.block) {
     const code = blockInfo.block.trim();
-    
+
     try {
       const result = executeDSL(code);
       if (result) {
@@ -54,7 +54,7 @@ const handleCtrlEnter = (view: EditorView): boolean => {
       console.error("Error executing DSL code:", error);
     }
   }
-  
+
   // Prevent the default new line behavior by returning true
   return true;
 };
@@ -72,7 +72,10 @@ export const getBlockAtCursor = (view: EditorView): { block: string } | null => 
 };
 
 
-export const defaultContent = `mesh(sphere(), material()).translateX(1).rotateY(45).render("mySphere")
+export const defaultContent = `
+const mySphere = mesh(sphere(), material()).translateX(1)
+
+mySphere.rotateY(45).render("mySphere")
 
 mesh(sphere(), material()).translateX(frame().mult(0.02)).rotateY(45).render("mySphere")
 
@@ -113,7 +116,7 @@ mesh(cylinder(0.5, 1, 2), material({color: 0xffff00})).translateZ(-3).render("cu
 
 export function createEditorState(content: string = defaultContent): EditorState {
   const vimModeEnabled = getVimModeEnabled();
-  
+
   return EditorState.create({
     doc: content,
     extensions: [

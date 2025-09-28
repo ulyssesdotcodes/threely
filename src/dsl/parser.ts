@@ -135,13 +135,24 @@ function executeVariableAssignment(
   try {
     logToPanel(`🔧 Executing assignment: ${assignmentExpr}`);
 
+    // Create an updated context that includes both the base DSL context
+    // and any previously declared variables
+    const fullContext = { ...dslContext };
+    for (const [name, value] of declaredVariables.entries()) {
+      fullContext[name] = value;
+    }
+
+    logToPanel(
+      `🔧 Assignment context has ${Object.keys(fullContext).length} items`,
+    );
+
     // Create a function to execute the assignment expression
     const func = new Function(
-      ...Object.keys(dslContext),
+      ...Object.keys(fullContext),
       `return ${assignmentExpr}`,
     );
 
-    const result = func(...Object.values(dslContext));
+    const result = func(...Object.values(fullContext));
     logToPanel(`✅ Assignment result: ${typeof result}`);
     return result;
   } catch (error) {
