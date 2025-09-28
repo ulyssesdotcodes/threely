@@ -1,5 +1,5 @@
 // Object3D chain operations for Three.js DSL
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import { Graph, Node, createNode, apply } from "../graph";
 import {
   MockObject3D,
@@ -10,6 +10,7 @@ import {
   normalizeVector3Like,
   normalizeEulerLike,
 } from "../three/MockObject3D";
+import { dslContext } from "./parser";
 
 // Scene reference for adding rendered objects
 let currentScene: THREE.Scene | null = null;
@@ -81,8 +82,22 @@ const renderLogic = (
       actualMockObject.userData?.isParticleSystem &&
       actualMockObject.userData?.sprite
     ) {
+      console.log("mock obj", actualMockObject);
       // Handle particle systems - use the sprite directly
       realObject = actualMockObject.userData.sprite;
+
+      // Start animation if setup function is available
+      if (actualMockObject.userData?.setupAnimation) {
+        // Get renderer from DSL context
+        const renderer = (dslContext as any).renderer;
+        if (renderer) {
+          actualMockObject.userData.setupAnimation(renderer);
+        } else {
+          console.warn(
+            "No renderer available in DSL context for particle animation",
+          );
+        }
+      }
     } else if (
       actualMockObject.geometry &&
       actualMockObject.userData?.material
@@ -120,10 +135,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-      typeof objectNode === "object" &&
-      !("id" in objectNode) &&
-      !("value" in objectNode) &&
-      !("dependencies" in objectNode)
+        typeof objectNode === "object" &&
+        !("id" in objectNode) &&
+        !("value" in objectNode) &&
+        !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const distanceNode =
@@ -137,10 +152,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-      typeof objectNode === "object" &&
-      !("id" in objectNode) &&
-      !("value" in objectNode) &&
-      !("dependencies" in objectNode)
+        typeof objectNode === "object" &&
+        !("id" in objectNode) &&
+        !("value" in objectNode) &&
+        !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const angleNode =
@@ -154,10 +169,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-      typeof objectNode === "object" &&
-      !("id" in objectNode) &&
-      !("value" in objectNode) &&
-      !("dependencies" in objectNode)
+        typeof objectNode === "object" &&
+        !("id" in objectNode) &&
+        !("value" in objectNode) &&
+        !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const objectNameNode =

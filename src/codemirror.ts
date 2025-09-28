@@ -191,7 +191,7 @@ const particleBuffers = {
   birthTime: 'float',
   lifespan: 'float'
 }
-const particleCount = 1000
+const particleCount = 50
 const isInstanced = true
 // Initialize compute buffers and nodes for particle system
 const particleData = computeInit(
@@ -201,9 +201,16 @@ const particleData = computeInit(
 )
 
 // Create a sprite with points material from the computed nodes
+// Include the computeUpdate function in the nodes
+const nodesWithUpdate = {
+  ...particleData.nodes,
+  computeUpdate: particleData.computeUpdate
+}
+
 const particleSprite = pointsFromNodes(
   particleData.buffers,  // Buffers from computeInit
-  particleData.nodes     // Nodes from computeInit
+  nodesWithUpdate,        // Nodes with computeUpdate function
+  particleCount
 )
 
 // Render the particle system to the scene

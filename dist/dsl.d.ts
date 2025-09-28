@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { Graph, Node } from './graph';
 export declare function setScene(scene: THREE.Scene): void;
 export declare function getObjectRegistry(): Map<string, THREE.Object3D<THREE.Object3DEventMap>>;

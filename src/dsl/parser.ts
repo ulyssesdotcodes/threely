@@ -1,5 +1,6 @@
 // DSL Parser and execution engine
 import * as THREE from "three/webgpu";
+import * as TSL from "three/tsl";
 import { parser } from "@lezer/javascript";
 import { v7 as uuid } from "uuid";
 import { Graph, Node } from "../graph";
@@ -522,9 +523,9 @@ function computeInit(
     console.log("is instanced", instanced);
     const buffer = instanced
       ? new THREE.StorageInstancedBufferAttribute(
-          count,
-          bufferTypeSizes[bufferType],
-        )
+        count,
+        bufferTypeSizes[bufferType],
+      )
       : new THREE.StorageBufferAttribute(count, bufferTypeSizes[bufferType]);
     const node = THREE.TSL.storage(buffer, bufferType, count);
 
@@ -548,33 +549,112 @@ function computeInit(
     const { float, vec2, instanceIndex, timerGlobal, rand, vec3, div } =
       THREE.TSL;
     const particleIndex = float(instanceIndex);
-    const randomAngle = rand(particleIndex)
-      .mul(5)
-      .mul(Math.PI * 2);
-    const velMul = 0.1;
-    const randomSpeed = rand(particleIndex)
-      .mul(velMul)
-      .add(velMul * 0.2);
 
-    const velX = randomAngle.sin().mul(randomSpeed);
-    const velY = randomAngle.cos().mul(randomSpeed);
+    // Initialize with random position in a larger area
+    const randomX = rand(particleIndex.mul(0.1547)); // -4 to 4
+    const randomY = rand(particleIndex.mul(0.7834)); // -4 to 4
+    const randomZ = rand(particleIndex.mul(0.9123)); // -2 to 2
 
-    const velocity = nodes.velocity;
-    const time = timerGlobal();
-    velocity.xy = vec2(velX, velY);
-    nodes.position.xy = vec3(
-      rand(particleIndex.div(8)),
-      rand(particleIndex.div(16)),
-      rand(particleIndex.div(6)),
-    );
+    // // Initialize with very small random velocity
+    // const velMul = 0.02; // Much smaller initial velocity
+    // const randomAngle = rand(particleIndex.mul(0.4567)).mul(Math.PI * 2);
+    // const randomSpeed = rand(particleIndex.mul(0.2341)).mul(velMul);
 
-    nodes.color.assign(vec3(1));
+    // const velX = randomAngle.sin().mul(randomSpeed);
+    // const velY = randomAngle.cos().mul(randomSpeed);
+    // const velZ = rand(particleIndex.mul(0.6789))
+    //   .mul(velMul * 0.5)
+    //   .sub(velMul * 0.25);
 
-    nodes.birthTime.assign(time);
-    nodes.lifespan.assign(rand(particleIndex).mul(10));
+    // const time = timerGlobal();
+
+    // Set initial position to random location
+    console.log("assigning pos");
+    nodes.position.assign(vec3(randomX, randomY, randomZ));
+
+    // // Set initial velocity to small random values
+    // nodes.velocity.assign(vec3(velX, velY, velZ));
+
+    // nodes.color.assign(vec3(1));
+
+    // nodes.birthTime.assign(time);
+    // nodes.lifespan.assign(rand(particleIndex).mul(10).add(5)); // 5-15 seconds lifespan
   })().compute(count);
 
-  // renderer?.renderer?.compute(computeInitFn);
+  // Create frame update compute function
+  const computeUpdateFn = THREE.TSL.Fn(() => {
+    const {
+      uniform,
+      vec2,
+      vec3,
+      vec4,
+      instanceIndex,
+      float,
+      timerGlobal,
+      add,
+      mul,
+      sub,
+      rand,
+      abs,
+      int,
+      trunc,
+      fract,
+      mix,
+      clamp,
+    } = THREE.TSL;
+
+    // const particle = nodes.position;
+    // const velocity = nodes.velocity;
+    // const particleIndex = float(instanceIndex);
+
+    // const limit = uniform(vec3(4, 4, 2));
+    // const position = particle.add(velocity).temp();
+    const position = nodes.position;
+
+    // const forceMul = rand(particleIndex).mul(0.08).add(0.9).mul(0);
+    // velocity.assign(mul(velocity, float(1).sub(forceMul).mul(0.04).add(0.95)));
+
+    // if (nodes.force) {
+    //   velocity.assign(add(velocity, nodes.force));
+    // }
+
+    // const time = timerGlobal();
+    // const age = sub(time, nodes.birthTime);
+    // const isDead = age.greaterThanEqual(nodes.lifespan);
+
+    // createdBuffers.color.element(instanceIndex).assign(nodes.color);
+
+    // const randomAngle = rand(particleIndex.div(4)).mul(Math.PI * 2);
+    // const velMul = 0.04;
+    // const randomSpeed = rand(particleIndex)
+    //   .mul(velMul)
+    //   .add(velMul * 0.2);
+    // const velX = randomAngle.sin().mul(randomSpeed);
+    // const velY = randomAngle.cos().mul(randomSpeed);
+
+    // position.assign(
+    //   isDead.select(
+    //     (nodes.spawnPosition ?? vec3(0)).add(
+    //       vec3(
+    //         rand(particleIndex.mul(0.254)),
+    //         rand(particleIndex.mul(0.928824)),
+    //         rand(particleIndex.mul(10.254)),
+    //       ).mul(0.1),
+    //     ),
+    //     position,
+    //   ),
+    // );
+
+    // velocity.assign(isDead.select(vec3(velX, velY, 0), velocity));
+
+    // nodes.birthTime.assign(isDead.select(time, nodes.birthTime));
+
+    createdBuffers.position.element(instanceIndex).assign(position);
+    // createdBuffers.velocity.element(instanceIndex).assign(velocity);
+    // createdBuffers.color.element(instanceIndex).assign(nodes.color);
+  })().compute(count);
+
+  (defaultDslContext as any).renderer?.compute(computeInitFn);
 
   console.log("creating compute", {
     createdBuffers,
@@ -583,22 +663,27 @@ function computeInit(
     count,
   });
 
+  // Log the created buffers in detail
+  console.log("Created buffers:", createdBuffers);
+  Object.entries(createdBuffers).forEach(([name, buffer]) => {
+    console.log(`Buffer ${name}:`, buffer);
+  });
+
   return {
     buffers: createdBuffers,
     nodes,
     count,
+    computeUpdate: computeUpdateFn,
   };
 }
 
 // Points from nodes function based on compute-example/pointsMaterialFromNodes.js
-function pointsFromNodes(buffers: any, nodes: any, material?: any) {
-  const pointsMaterial = new THREE.PointsNodeMaterial();
+function pointsFromNodes(buffers: any, nodes: any, count) {
+  const pointsMaterial = new THREE.SpriteNodeMaterial();
 
   // Handle existing material properties if provided
-  if (material?.userData?.count) {
-    // for compute particles
-    pointsMaterial.userData.count = material.userData.count;
-  }
+  // for compute particles
+  pointsMaterial.userData.count = count;
 
   console.log("running mat update");
 
@@ -610,14 +695,15 @@ function pointsFromNodes(buffers: any, nodes: any, material?: any) {
   }
 
   // Set material nodes
-  pointsMaterial.positionNode = nodes.position;
-  pointsMaterial.colorNode = nodes.color;
-  pointsMaterial.sizeNode = nodes.size ?? THREE.TSL.vec3(4);
+  console.log(nodes.position, buffers.position);
+  pointsMaterial.positionNode = TSL.instancedBufferAttribute(buffers.position.value);
+  pointsMaterial.colorNode = TSL.vec3(1);
+  pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
   pointsMaterial.userData.count = buffers.position.value.count;
 
-  pointsMaterial.opacityNode = nodes.opacity;
-  pointsMaterial.blending = THREE.AdditiveBlending;
+  pointsMaterial.opacityNode = TSL.float(1);
+  // pointsMaterial.blending = THREE.AdditiveBlending;
 
   pointsMaterial.needsUpdate = true;
 
@@ -627,6 +713,32 @@ function pointsFromNodes(buffers: any, nodes: any, material?: any) {
     // for compute particles
     pts.count = pointsMaterial.userData.count;
   }
+
+  // Set up animation loop for compute updates
+  let animationId: number | null = null;
+
+  const setupAnimation = (renderer: any) => {
+    if (!renderer || animationId) return;
+
+    const recompute = () => {
+      // if (nodes.computeUpdate) {
+      //   renderer.compute(nodes.computeUpdate);
+      // }
+      animationId = requestAnimationFrame(recompute);
+    };
+
+    // Start the animation loop
+
+    renderer.compute(nodes.computeUpdate);
+    animationId = requestAnimationFrame(recompute);
+  };
+
+  const stopAnimation = () => {
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+  };
 
   // Return a Node<MockObject3D> using apply() to match mesh() exactly
   return apply(
@@ -638,6 +750,9 @@ function pointsFromNodes(buffers: any, nodes: any, material?: any) {
           material: pointsMaterial,
           sprite: pts, // Store the sprite in userData so render can access it
           isParticleSystem: true,
+          setupAnimation,
+          stopAnimation,
+          nodes, // Include nodes for access to computeUpdate
         },
       };
       return mockObject;
@@ -924,6 +1039,11 @@ function processResult(result: any): THREE.Object3D | null {
 
 // Export logToPanel for use in other modules
 export { logToPanel };
+
+// Set renderer in DSL context
+export function setRenderer(renderer: any): void {
+  (defaultDslContext as any).renderer = renderer;
+}
 
 // Export dslContext for external use
 export { defaultDslContext as dslContext };

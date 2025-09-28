@@ -1,8 +1,8 @@
-import { Matrix4 } from "three";
-import { Quaternion } from "three";
-import { Vector3 } from "three";
-import { Euler } from "three";
-import { Object3D, Raycaster, Intersection } from "three";
+import { Matrix4 } from "three/webgpu";
+import { Quaternion } from "three/webgpu";
+import { Vector3 } from "three/webgpu";
+import { Euler } from "three/webgpu";
+import { Object3D, Raycaster, Intersection } from "three/webgpu";
 export declare function applyMatrix4(object: Object3D, matrix: Matrix4): Object3D;
 export declare function applyQuaternion(object: Object3D, quaternion: Quaternion): Object3D;
 export declare function setRotationFromAxisAngle(object: Object3D, axis: Vector3, angle: number): Object3D;

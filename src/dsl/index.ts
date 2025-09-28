@@ -90,6 +90,7 @@ export {
   dslContext,
   clearDslVariables,
   declaredVariables,
+  setRenderer,
 } from "./parser";
 
 // Re-export utilities
