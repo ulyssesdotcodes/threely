@@ -12,9 +12,10 @@ import {
   mockUtils,
   mockPresets,
 } from "../three/MockObject3D";
-import { getObjectRegistry } from "./object3d-chain";
+import { getObjectRegistry, chainObj3d } from "./object3d-chain";
 import * as obj3dChain from "./object3d-chain";
 import * as mathChain from "./math-chain";
+import { createNode, apply } from "../graph";
 
 // Global map to store function call positions and UUIDs
 const functionCallUUIDs = new Map<string, string>();
@@ -497,7 +498,23 @@ function pointsFromNodes(buffers: any, nodes: any, material?: any) {
     pts.count = pointsMaterial.userData.count;
   }
 
-  return pts;
+  // Return a Node<MockObject3D> using apply() to match mesh() exactly
+  return apply(
+    () => {
+      // Create a MockObject3D that contains the sprite information
+      const mockObject: MockObject3D = {
+        geometry: undefined, // Points don't use traditional geometry
+        userData: {
+          material: pointsMaterial,
+          sprite: pts, // Store the sprite in userData so render can access it
+          isParticleSystem: true,
+        },
+      };
+      return mockObject;
+    },
+    [], // No dependencies since we're creating the sprite directly
+    chainObj3d,
+  );
 }
 
 // Execute DSL code and run the graph if the result is a Node

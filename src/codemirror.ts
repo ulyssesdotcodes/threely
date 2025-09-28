@@ -205,6 +205,9 @@ const particleSprite = pointsFromNodes(
   particleData.nodes     // Nodes from computeInit
 )
 
+// Render the particle system to the scene
+particleSprite.render("particleSystem")
+
 // The particleSprite can now be added to the scene
 // particleSprite will contain a THREE.Sprite with PointsNodeMaterial
 // configured for compute shader particle rendering
