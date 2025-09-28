@@ -1,5 +1,5 @@
 // DSL Parser and execution engine
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import { parser } from "@lezer/javascript";
 import { v7 as uuid } from "uuid";
 import { Graph, Node } from "../graph";
@@ -104,23 +104,20 @@ function extractVariableDeclarations(
 
   tree.cursor().iterate((node) => {
     if (node.name === "VariableDeclaration") {
+      console.log(node, node.node.getChildren("Comment"));
       const declarationText = code.slice(node.from, node.to);
       logToPanel(`🔍 Found variable declaration: ${declarationText}`);
 
       // Parse the declaration to extract variable name and assignment
-      const match = declarationText.match(
-        /(?:const|let|var)\s+(\w+)\s*=\s*(.+)/,
-      );
-      if (match) {
-        const [, variableName, assignmentExpr] = match;
-        declarations.push({
-          name: variableName,
-          assignmentExpression: assignmentExpr,
-          from: node.from,
-          to: node.to,
-        });
-        logToPanel(`📝 Extracted: ${variableName} = ${assignmentExpr}`);
-      }
+      let definition = node.node.getChild("VariableDefinition");
+      let variableName = code.slice(definition.from, definition.to);
+      declarations.push({
+        name: variableName,
+        assignmentExpression: declarationText,
+        from: node.from,
+        to: node.to,
+      });
+      logToPanel(`📝 Extracted: ${declarationText}`);
     }
   });
 
@@ -129,6 +126,7 @@ function extractVariableDeclarations(
 
 // Execute variable assignment expression and store result
 function executeVariableAssignment(
+  name: string,
   assignmentExpr: string,
   dslContext: any,
 ): any {
@@ -149,7 +147,7 @@ function executeVariableAssignment(
     // Create a function to execute the assignment expression
     const func = new Function(
       ...Object.keys(fullContext),
-      `return ${assignmentExpr}`,
+      `${assignmentExpr}; return ${name}`,
     );
 
     const result = func(...Object.values(fullContext));
@@ -157,6 +155,9 @@ function executeVariableAssignment(
     return result;
   } catch (error) {
     logToPanel(`❌ Assignment execution error: ${error}`, "error");
+    if (error instanceof Error && error.stack) {
+      logToPanel(`Stack trace: ${error.stack}`, "error");
+    }
     return null;
   }
 }
@@ -260,6 +261,7 @@ export function parseDSL(code: string, dslContext: any): any {
       for (const declaration of variableDeclarations) {
         // Execute the assignment expression with current DSL context
         const assignmentResult = executeVariableAssignment(
+          declaration.name,
           declaration.assignmentExpression,
           dslContext,
         );
@@ -376,22 +378,8 @@ function computeInit(
   count: number,
   buffers,
   instanced: boolean,
-  renderer: any,
   particleNum?: number,
-  _lib: any = { THREE },
 ) {
-  const {
-    Fn,
-    uniform,
-    storage,
-    attribute,
-    float,
-    vec2,
-    vec3,
-    color,
-    instanceIndex,
-  } = _lib.THREE.TSL;
-
   const particleSize = 2;
   const bufferTypeSizes = {
     vec2: 2,
@@ -402,15 +390,13 @@ function computeInit(
   const createBuffer = (bufferType: string) => {
     console.log("is instanced", instanced);
     const buffer = instanced
-      ? new _lib.THREE.StorageInstancedBufferAttribute(
+      ? new THREE.StorageInstancedBufferAttribute(
           count,
           bufferTypeSizes[bufferType],
         )
-      : new _lib.THREE.StorageBufferAttribute(
-          count,
-          bufferTypeSizes[bufferType],
-        );
-    const node = storage(buffer, bufferType, count);
+      : new THREE.StorageBufferAttribute(count, bufferTypeSizes[bufferType]);
+    const node = THREE.TSL.storage(buffer, bufferType, count);
+
     return node;
   };
 
@@ -423,13 +409,13 @@ function computeInit(
   const nodes = Object.fromEntries(
     Object.entries(buffers).map(([name, type]) => [
       name,
-      createdBuffers[name].element(instanceIndex),
+      createdBuffers[name].element(THREE.TSL.instanceIndex),
     ]),
   );
 
-  const computeInitFn = Fn(() => {
+  const computeInitFn = THREE.TSL.Fn(() => {
     const { float, vec2, instanceIndex, timerGlobal, rand, vec3, div } =
-      _lib.THREE.TSL;
+      THREE.TSL;
     const particleIndex = float(instanceIndex);
     const randomAngle = rand(particleIndex)
       .mul(5)
@@ -457,12 +443,11 @@ function computeInit(
     nodes.lifespan.assign(rand(particleIndex).mul(10));
   })().compute(count);
 
-  renderer?.renderer?.compute(computeInitFn);
+  // renderer?.renderer?.compute(computeInitFn);
 
   console.log("creating compute", {
     createdBuffers,
     nodes,
-    renderer,
     particleNum,
     count,
   });
@@ -475,16 +460,8 @@ function computeInit(
 }
 
 // Points from nodes function based on compute-example/pointsMaterialFromNodes.js
-function pointsFromNodes(
-  buffers: any,
-  nodes: any,
-  material?: any,
-  _lib: any = { THREE },
-) {
-  const { timerGlobal, vec3, attribute, instancedBufferAttribute } =
-    _lib.THREE.TSL;
-
-  const pointsMaterial = new _lib.THREE.PointsNodeMaterial();
+function pointsFromNodes(buffers: any, nodes: any, material?: any) {
+  const pointsMaterial = new THREE.PointsNodeMaterial();
 
   // Handle existing material properties if provided
   if (material?.userData?.count) {
@@ -504,17 +481,17 @@ function pointsFromNodes(
   // Set material nodes
   pointsMaterial.positionNode = nodes.position;
   pointsMaterial.colorNode = nodes.color;
-  pointsMaterial.sizeNode = nodes.size ?? vec3(4);
+  pointsMaterial.sizeNode = nodes.size ?? THREE.TSL.vec3(4);
 
   pointsMaterial.userData.count = buffers.position.value.count;
 
   pointsMaterial.opacityNode = nodes.opacity;
-  pointsMaterial.blending = _lib.THREE.AdditiveBlending;
+  pointsMaterial.blending = THREE.AdditiveBlending;
 
   pointsMaterial.needsUpdate = true;
 
   // Create sprite with the points material
-  const pts = new _lib.THREE.Sprite(pointsMaterial);
+  const pts = new THREE.Sprite(pointsMaterial);
   if (pointsMaterial.userData.count) {
     // for compute particles
     pts.count = pointsMaterial.userData.count;

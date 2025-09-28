@@ -3,6 +3,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { vim } from "@replit/codemirror-vim";
+import { parser } from "@lezer/javascript";
 import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
 
@@ -59,18 +60,82 @@ const handleCtrlEnter = (view: EditorView): boolean => {
   return true;
 };
 
-// Function to get block at cursor position
-export const getBlockAtCursor = (
+// Function to get top-level expression at cursor position using Lezer parser
+export const getTopLevelExpressionAtCursor = (
   view: EditorView,
 ): { block: string } | null => {
   const text = view.state.doc.toString();
   const cursorPos = view.state.selection.ranges[0].from;
 
-  const blockText = getTextBlockAtPosition(text, cursorPos);
+  try {
+    // Parse the entire document with Lezer
+    const tree = parser.parse(text);
 
-  return {
-    block: blockText,
-  };
+    // Find the top-level expression containing the cursor
+    let targetExpression: { from: number; to: number } | null = null;
+
+    // Recursive function to find the deepest top-level statement containing cursor
+    const findTopLevelStatement = (node: any, depth: number = 0): any => {
+      // Check if this node contains the cursor
+      if (cursorPos < node.from || cursorPos > node.to) {
+        return null;
+      }
+
+      // If this is a top-level statement (child of Script/Program), return it
+      if (
+        depth === 1 &&
+        (tree.topNode.name === "Script" || tree.topNode.name === "Program")
+      ) {
+        return node;
+      }
+
+      // Otherwise, check children
+      if (node.firstChild) {
+        let child = node.firstChild;
+        while (child) {
+          const result = findTopLevelStatement(child, depth + 1);
+          if (result) return result;
+          child = child.nextSibling;
+        }
+      }
+
+      // If we're at the root and found the cursor, return the whole tree
+      if (depth === 0) {
+        return node;
+      }
+
+      return null;
+    };
+
+    const foundNode = findTopLevelStatement(tree.topNode);
+
+    if (foundNode) {
+      targetExpression = { from: foundNode.from, to: foundNode.to };
+    }
+
+    if (targetExpression) {
+      const blockText = text
+        .slice(targetExpression.from, targetExpression.to)
+        .trim();
+      return { block: blockText };
+    }
+
+    // Fallback: if no top-level expression found, return the line at cursor
+    const line = view.state.doc.lineAt(cursorPos);
+    return { block: line.text.trim() };
+  } catch (error) {
+    console.error("Error parsing with Lezer:", error);
+    // Fallback to old behavior if parsing fails
+    const blockText = getTextBlockAtPosition(text, cursorPos);
+    return { block: blockText };
+  }
+};
+
+// Function to get block at cursor position (updated to use Lezer)
+export const getBlockAtCursor = (
+  view: EditorView,
+): { block: string } | null => {
+  return getTopLevelExpressionAtCursor(view);
 };
 
 export const defaultContent = `
@@ -127,14 +192,11 @@ const particleBuffers = {
 }
 const particleCount = 1000
 const isInstanced = true
-const particleRenderer = null // Will be set by the renderer
-
 // Initialize compute buffers and nodes for particle system
 const particleData = computeInit(
   particleCount,    // Number of particles
   particleBuffers,  // Buffer type definitions
-  isInstanced,      // Use instanced rendering
-  particleRenderer  // Renderer (can be null initially)
+  isInstanced       // Use instanced rendering
 )
 
 // Create a sprite with points material from the computed nodes
