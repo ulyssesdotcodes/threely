@@ -17,7 +17,7 @@ export function initBackgroundScene(): THREE.WebGPURenderer {
   const renderer = new THREE.WebGPURenderer({ antialias: true, alpha: true });
 
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0x000000, 0.1); // Dark background with low opacity
+  renderer.setClearColor(0x000000, 1.0); // Black background
 
   // Position canvas behind editor
   const canvas = renderer.domElement;

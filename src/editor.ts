@@ -1,64 +1,64 @@
 // Editor UI components and controls
 import { EditorView } from "@codemirror/view";
-import { 
-  getVimModeEnabled, 
-  setVimModeEnabled, 
-  createEditorState, 
+import {
+  getVimModeEnabled,
+  setVimModeEnabled,
+  createEditorState,
   setCurrentEditorView,
   defaultContent,
   getCurrentEditorView,
-  getBlockAtCursor
-} from './codemirror';
-import { executeDSL } from './dsl';
+  getBlockAtCursor,
+} from "./codemirror";
+import { executeDSL } from "./dsl";
 
 export function createVimToggle(): HTMLElement {
-  const container = document.createElement('div');
-  container.className = 'vim-toggle-container';
-  
-  const checkbox = document.createElement('input');
-  checkbox.type = 'checkbox';
-  checkbox.id = 'vim-toggle';
+  const container = document.createElement("div");
+  container.className = "vim-toggle-container";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.id = "vim-toggle";
   checkbox.checked = getVimModeEnabled();
-  
-  const label = document.createElement('label');
-  label.htmlFor = 'vim-toggle';
-  label.textContent = 'Vim';
-  
+
+  const label = document.createElement("label");
+  label.htmlFor = "vim-toggle";
+  label.textContent = "Vim";
+
   container.appendChild(checkbox);
   container.appendChild(label);
-  
+
   // Handle toggle
-  checkbox.addEventListener('change', () => {
+  checkbox.addEventListener("change", () => {
     setVimModeEnabled(checkbox.checked);
   });
-  
+
   return container;
 }
 
 export function createRunButton(): HTMLElement {
-  const button = document.createElement('button');
-  button.className = 'run-button';
+  const button = document.createElement("button");
+  button.className = "run-button";
   button.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M8 5v14l11-7z"/>
     </svg>
     <span>Run</span>
   `;
-  button.title = 'Run current block (Ctrl+Enter)';
-  
+  button.title = "Run current block (Ctrl+Enter)";
+
   // Handle button click - same logic as Ctrl+Enter
-  button.addEventListener('click', () => {
+  button.addEventListener("click", () => {
     const view = getCurrentEditorView();
     if (!view) {
-      console.warn('No editor view available');
+      console.warn("No editor view available");
       return;
     }
-    
+
     const blockInfo = getBlockAtCursor(view);
-    
+
     if (blockInfo && blockInfo.block) {
       const code = blockInfo.block.trim();
-      
+
       try {
         const result = executeDSL(code);
         if (result) {
@@ -69,33 +69,37 @@ export function createRunButton(): HTMLElement {
       }
     }
   });
-  
+
   return button;
 }
 
 export function startEditor(): EditorView {
   const state = createEditorState(defaultContent);
-  
+
+  const editorContainer = document.getElementById("editor-container");
+  if (!editorContainer) {
+    throw new Error("Editor container not found");
+  }
+
   const view = new EditorView({
     state,
-    parent: document.body,
+    parent: editorContainer,
   });
 
   setCurrentEditorView(view);
 
-  // Set the editor to occupy full height with mobile support
-  document.body.style.margin = '0';
-  document.body.style.backgroundColor = 'transparent';
-  view.dom.style.height = '100vh';
-  view.dom.style.height = '100dvh'; // Dynamic viewport height for mobile
-  view.dom.style.width = '100%';
-  view.dom.style.display = 'block';
-  view.dom.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-  
+  // Set the editor to fill the container with mobile support
+  document.body.style.margin = "0";
+  document.body.style.backgroundColor = "transparent";
+  view.dom.style.height = "100%";
+  view.dom.style.width = "100%";
+  view.dom.style.display = "block";
+  view.dom.style.backgroundColor = "transparent";
+
   // Mobile-specific styling
-  view.dom.style.fontSize = '16px'; // Prevent zoom on iOS
-  view.dom.style.lineHeight = '1.5'; // Better mobile readability
-  
+  view.dom.style.fontSize = "16px"; // Prevent zoom on iOS
+  view.dom.style.lineHeight = "1.5"; // Better mobile readability
+
   return view;
 }
 
@@ -103,13 +107,13 @@ export function setupEditorUI(): void {
   // Create and style the vim toggle
   const vimToggle = createVimToggle();
   document.body.appendChild(vimToggle);
-  
+
   // Create and add the run button
   const runButton = createRunButton();
   document.body.appendChild(runButton);
-  
+
   // Add CSS styles
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.textContent = `
     .vim-toggle-container {
       position: fixed;
