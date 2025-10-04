@@ -144,14 +144,13 @@ function executeVariableAssignment(
   try {
     logToPanel(`🔧 Executing assignment: ${assignmentExpr}`);
 
-    // Create a computed signal that will reactively execute the assignment
-    const valueThunk = () => {
-      // Create an updated context that includes both the base DSL context
-      // and any previously declared variables
+    // Check if variable already exists as a signal in the context
+    const existingSignal = dslContext[name];
+
+    // Create a value computation function
+    const computeValue = () => {
+      // Create an updated context that includes the current dsl context
       const fullContext = { ...dslContext };
-      for (const [varName, varSignal] of declaredVariables.entries()) {
-        fullContext[varName] = varSignal;
-      }
 
       logToPanel(
         `🔧 Assignment context has ${Object.keys(fullContext).length} items`,
@@ -168,11 +167,42 @@ function executeVariableAssignment(
       return result;
     };
 
-    if (newDepVars.length > 0) {
-      return computed(valueThunk);
-    } else {
-      return signal(valueThunk());
+    // If the variable already exists as a signal, update its value
+    if (
+      existingSignal &&
+      typeof existingSignal === "object" &&
+      "value" in existingSignal &&
+      "peek" in existingSignal
+    ) {
+      logToPanel(`🔄 Updating existing signal for variable '${name}'`);
+      if (newDepVars.length > 0) {
+        // For computed signals, we need to recreate the computed
+        const newComputed = computed(computeValue);
+        dslContext[name] = newComputed;
+        return newComputed;
+      } else {
+        // For simple signals, just update the value
+        existingSignal.value = computeValue();
+        return existingSignal;
+      }
     }
+
+    // Create new signal
+    logToPanel(`🆕 Creating new signal for variable '${name}'`);
+    let newSignal;
+    if (newDepVars.length > 0) {
+      newSignal = computed(computeValue);
+    } else {
+      newSignal = signal(computeValue());
+    }
+
+    // Store the signal directly in the DSL context
+    dslContext[name] = newSignal;
+
+    // Also maintain backward compatibility with global map
+    declaredVariables.set(name, newSignal);
+
+    return newSignal;
   } catch (error) {
     logToPanel(`❌ Assignment execution error: ${error}`, "error");
     if (error instanceof Error && error.stack) {
@@ -186,15 +216,25 @@ function executeVariableAssignment(
 function updateDslContext(context: any): any {
   const updatedContext = { ...context };
 
-  // Add all declared variable signals to the context
-  // Users will access them via variable.value syntax
+  // Add declared variable signals from global map for backward compatibility
+  // (These may not be in the context yet if they were created via the old path)
   for (const [name, signal] of declaredVariables.entries()) {
-    updatedContext[name] = signal;
-    logToPanel(`📦 Added variable signal to context: ${name}`);
+    if (!updatedContext[name]) {
+      updatedContext[name] = signal;
+      logToPanel(`📦 Added variable signal to context: ${name}`);
+    }
   }
 
+  // Count signals already in context (both variables and code blocks)
+  const signalCount = Object.keys(updatedContext).filter((key) => {
+    const value = updatedContext[key];
+    return (
+      value && typeof value === "object" && "value" in value && "peek" in value
+    );
+  }).length;
+
   logToPanel(
-    `🔧 Context now has ${Object.keys(updatedContext).length} items (${declaredVariables.size} declared variable signals)`,
+    `🔧 Context now has ${Object.keys(updatedContext).length} items (${signalCount} signals)`,
   );
 
   return updatedContext;
@@ -417,8 +457,7 @@ export function parseDSL(code: string, dslContext: any): any {
         );
 
         if (assignmentResult !== null) {
-          // Store the variable in our global map
-          declaredVariables.set(declaration.name, assignmentResult);
+          // Signal is already stored in dslContext by executeVariableAssignment
           logToPanel(`✅ Variable '${declaration.name}' declared and stored`);
         } else {
           logToPanel(
@@ -431,7 +470,7 @@ export function parseDSL(code: string, dslContext: any): any {
       // If we processed variable declarations, return the last assignment result
       // This matches the behavior of executing "const x = value" which should return the value
       if (variableDeclarations.length === 1) {
-        return declaredVariables.get(variableDeclarations[0].name);
+        return dslContext[variableDeclarations[0].name];
       }
       // For multiple declarations, return null (similar to how JavaScript handles it)
       return null;
@@ -503,18 +542,70 @@ export function parseDSL(code: string, dslContext: any): any {
     logToPanel("⚡ Executing modified code...");
     console.log("Function calls found:", functionCalls);
 
-    // Wrap non-declaration execution in effect() for reactivity
+    // Check if this code has dependencies (uses variables not in context)
+    const missingVariables = findMissingVariables(
+      modifiedCode,
+      dslContext,
+      new Map(), // Empty declarations map since we're checking standalone code
+    );
+
+    // Generate a hash key for this code block
+    const codeHash = simpleHash(modifiedCode);
+    const codeBlockKey = `__codeBlock_${codeHash}__`;
+
     let result: any = null;
-    effect(() => {
-      // Create a function that has access to the DSL context
-      const func = new Function(
-        ...Object.keys(dslContext),
-        `return ${modifiedCode}`,
+
+    if (missingVariables.length === 0) {
+      // No dependencies - create or update a signal
+      logToPanel(
+        `📡 Code has no dependencies, creating/updating signal: ${codeBlockKey}`,
       );
 
-      // Execute the function and store the result (which could be a Node<T>)
-      result = func(...Object.values(dslContext));
-    });
+      const existingSignal = dslContext[codeBlockKey];
+
+      const computeValue = () => {
+        // Create a function that has access to the DSL context
+        const func = new Function(
+          ...Object.keys(dslContext),
+          `return ${modifiedCode}`,
+        );
+
+        return func(...Object.values(dslContext));
+      };
+
+      if (
+        existingSignal &&
+        typeof existingSignal === "object" &&
+        "value" in existingSignal &&
+        "peek" in existingSignal
+      ) {
+        // Update existing signal
+        logToPanel(`🔄 Updating existing code block signal`);
+        existingSignal.value = computeValue();
+        result = existingSignal.value;
+      } else {
+        // Create new signal
+        logToPanel(`🆕 Creating new code block signal`);
+        const newSignal = signal(computeValue());
+        dslContext[codeBlockKey] = newSignal;
+        result = newSignal.value;
+      }
+    } else {
+      // Has dependencies - use effect() for reactivity as before
+      logToPanel(
+        `🔗 Code has dependencies: ${missingVariables.join(", ")}, using effect()`,
+      );
+      effect(() => {
+        // Create a function that has access to the DSL context
+        const func = new Function(
+          ...Object.keys(dslContext),
+          `return ${modifiedCode}`,
+        );
+
+        // Execute the function and store the result (which could be a Node<T>)
+        result = func(...Object.values(dslContext));
+      });
+    }
 
     logToPanel("✅ DSL parsing completed successfully!");
     return result;
