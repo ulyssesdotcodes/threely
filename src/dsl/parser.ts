@@ -275,9 +275,12 @@ function executeVariableAssignment(
           );
         }
 
-        // Create higher-order function
+        // Create higher-order function with access to DSL context
         const functionBody = `return (${newDepVars.join(", ")}) => ${transformedRHS}`;
-        const computeFunction = new Function(functionBody)();
+        const computeFunction = new Function(
+          ...Object.keys(dslContext),
+          functionBody,
+        )(...Object.values(dslContext));
 
         // Check if function signal exists, update or create it
         const existingFunctionSignal = dslContext[functionSignalKey];
@@ -322,9 +325,12 @@ function executeVariableAssignment(
         );
       }
 
-      // Create higher-order function
+      // Create higher-order function with access to DSL context
       const functionBody = `return (${newDepVars.join(", ")}) => ${transformedRHS}`;
-      const computeFunction = new Function(functionBody)();
+      const computeFunction = new Function(
+        ...Object.keys(dslContext),
+        functionBody,
+      )(...Object.values(dslContext));
 
       // Create the function signal
       const functionSignal = signal(computeFunction);
@@ -1052,7 +1058,7 @@ function pointsFromNodes(buffers: any, nodes: any, count) {
   }
 
   // Set material nodes
-  console.log(nodes.position, buffers.position);
+  console.log(nodes, buffers);
   pointsMaterial.positionNode = TSL.instancedBufferAttribute(
     buffers.position.value,
   );

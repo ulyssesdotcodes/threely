@@ -23,9 +23,12 @@ describe("Function Signal Logic Tests", () => {
       // Simulate what executeVariableAssignment does for dependencies
       const functionSignalKey = `${name}_fn`;
 
-      // Create function that takes dependencies as parameters
+      // Create function that takes dependencies as parameters (with DSL context access)
       const functionBody = `return (${dependencies.join(", ")}) => ${rhsExpression}`;
-      const computeFunction = new Function(functionBody)();
+      const computeFunction = new Function(
+        ...Object.keys(mockContext),
+        functionBody,
+      )(...Object.values(mockContext));
 
       // Create the function signal
       const functionSignal = signal(computeFunction);
@@ -68,10 +71,11 @@ describe("Function Signal Logic Tests", () => {
 
       // First expression: * 0.25
       let rhsExpression = "frameVar * 0.25";
+      let functionBody = `return (${dependencies.join(", ")}) => ${rhsExpression}`;
       let computeFunction = new Function(
-        ...dependencies,
-        `return ${rhsExpression}`,
-      );
+        ...Object.keys(mockContext),
+        functionBody,
+      )(...Object.values(mockContext));
 
       const functionSignalKey = `${name}_fn`;
       const functionSignal = signal(computeFunction);
@@ -82,9 +86,9 @@ describe("Function Signal Logic Tests", () => {
 
       // Update to new expression: * 0.5
       rhsExpression = "frameVar * 0.5";
-      computeFunction = new Function(
-        ...dependencies,
-        `return ${rhsExpression}`,
+      functionBody = `return (${dependencies.join(", ")}) => ${rhsExpression}`;
+      computeFunction = new Function(...Object.keys(mockContext), functionBody)(
+        ...Object.values(mockContext),
       );
 
       // Update the existing signal (simulate re-execution)
@@ -109,10 +113,11 @@ describe("Function Signal Logic Tests", () => {
       };
 
       // Create function with multiple parameters
+      const functionBody = `return (${dependencies.join(", ")}) => ${rhsExpression}`;
       const computeFunction = new Function(
-        ...dependencies,
-        `return ${rhsExpression}`,
-      );
+        ...Object.keys(mockContext),
+        functionBody,
+      )(...Object.values(mockContext));
 
       const functionSignal = signal(computeFunction);
 
@@ -128,10 +133,13 @@ describe("Function Signal Logic Tests", () => {
       const dependencies = ["frameVar", "scaleVar"];
       const rhsExpression = "Math.sin(frameVar * 0.1) * scaleVar";
 
+      // Mock context needs Math for the expression to work
+      const mockContext = { Math };
+      const functionBody = `return (${dependencies.join(", ")}) => ${rhsExpression}`;
       const computeFunction = new Function(
-        ...dependencies,
-        `return ${rhsExpression}`,
-      );
+        ...Object.keys(mockContext),
+        functionBody,
+      )(...Object.values(mockContext));
 
       const functionSignal = signal(computeFunction);
 
@@ -158,10 +166,12 @@ describe("Function Signal Logic Tests", () => {
       let error;
 
       try {
+        const mockContext = {};
+        const functionBody = `return (${dependencies.join(", ")}) => ${badExpression}`;
         const computeFunction = new Function(
-          ...dependencies,
-          `return ${badExpression}`,
-        );
+          ...Object.keys(mockContext),
+          functionBody,
+        )(...Object.values(mockContext));
         functionSignal = signal(computeFunction);
       } catch (e) {
         error = e;
