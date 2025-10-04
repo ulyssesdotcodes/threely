@@ -93,7 +93,7 @@ describe("Variable Declarations in DSL", () => {
       expect(declaredVariables.has("mySphere")).toBe(true);
 
       // Second call: use the variable
-      const usageCode = 'mySphere.translateX(10).render("testSphere")';
+      const usageCode = 'mySphere.value.translateX(10).render("testSphere")';
       const usageResult = executeDSL(usageCode);
 
       console.log("Usage result:", usageResult);
@@ -129,7 +129,7 @@ describe("Variable Declarations in DSL", () => {
 
       // Should be able to use it later
       const usageResult = executeDSL(
-        'animatedSphere.render("myAnimatedSphere")',
+        'animatedSphere.value.render("myAnimatedSphere")',
       );
       expect(usageResult).toBeDefined();
     });
@@ -147,7 +147,7 @@ describe("Variable Declarations in DSL", () => {
 
       // Should be able to use the math result
       const usageResult = executeDSL(
-        'mesh(sphere(scaledSize), material()).render("scaledSphere")',
+        'mesh(sphere(scaledSize.value), material()).render("scaledSphere")',
       );
       expect(usageResult).toBeDefined();
     });
@@ -179,10 +179,10 @@ describe("Variable Declarations in DSL", () => {
       expect(declaredVariables.size).toBe(3);
 
       // Use all variables
-      executeDSL('sphere1.translateX(-5).render("red")');
+      executeDSL('sphere1.value.translateX(-5).render("red")');
       // Note: Using translateX(0.01) instead of translateX(0) to work around known render issue with zero translation
-      executeDSL('sphere2.translateX(0.01).render("green")');
-      executeDSL('sphere3.translateX(5).render("blue")');
+      executeDSL('sphere2.value.translateX(0.01).render("green")');
+      executeDSL('sphere3.value.translateX(5).render("blue")');
 
       expect(scene.children.length).toBe(3);
       expect(
@@ -272,7 +272,7 @@ describe("Variable Declarations in DSL", () => {
       expect(declaredVariables.has("var2")).toBe(false);
 
       // Variables should no longer be available
-      const result = executeDSL('var1.render("shouldFail")');
+      const result = executeDSL('var1.value.render("shouldFail")');
       // This might fail or return null since var1 is no longer available
     });
   });

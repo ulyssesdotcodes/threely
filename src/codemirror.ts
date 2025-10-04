@@ -4,7 +4,8 @@ import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { vim } from "@replit/codemirror-vim";
 import { parser } from "@lezer/javascript";
-import { oneDarkTheme } from "@codemirror/theme-one-dark";
+// import { oneDarkTheme } from "./onedark";
+import { oneDark } from "@codemirror/theme-one-dark"
 import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
 
@@ -238,7 +239,7 @@ export function createEditorState(
       vimCompartment.of(vimModeEnabled ? vim() : []),
       basicSetup,
       javascript(),
-      oneDarkTheme,
+      oneDark,
       Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
     ],
   });

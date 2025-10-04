@@ -13,10 +13,15 @@ import {
   mockUtils,
   mockPresets,
 } from "../three/MockObject3D";
-import { getObjectRegistry, chainObj3d } from "./object3d-chain";
+import {
+  getObjectRegistry,
+  chainObj3d,
+  setRendererForChain,
+} from "./object3d-chain";
 import * as obj3dChain from "./object3d-chain";
 import * as mathChain from "./math-chain";
 import { createNode, apply } from "../graph";
+import { signal, computed, effect } from "@preact/signals";
 
 // Global map to store function call positions and UUIDs
 const functionCallUUIDs = new Map<string, string>();
@@ -129,35 +134,45 @@ function extractVariableDeclarations(
   return declarations;
 }
 
-// Execute variable assignment expression and store result
+// Execute variable assignment expression and store result as a signal
 function executeVariableAssignment(
   name: string,
   assignmentExpr: string,
   dslContext: any,
+  newDepVars,
 ): any {
   try {
     logToPanel(`🔧 Executing assignment: ${assignmentExpr}`);
 
-    // Create an updated context that includes both the base DSL context
-    // and any previously declared variables
-    const fullContext = { ...dslContext };
-    for (const [name, value] of declaredVariables.entries()) {
-      fullContext[name] = value;
+    // Create a computed signal that will reactively execute the assignment
+    const valueThunk = () => {
+      // Create an updated context that includes both the base DSL context
+      // and any previously declared variables
+      const fullContext = { ...dslContext };
+      for (const [varName, varSignal] of declaredVariables.entries()) {
+        fullContext[varName] = varSignal;
+      }
+
+      logToPanel(
+        `🔧 Assignment context has ${Object.keys(fullContext).length} items`,
+      );
+
+      // Create a function to execute the assignment expression
+      const func = new Function(
+        ...Object.keys(fullContext),
+        `${assignmentExpr}; return ${name}`,
+      );
+
+      const result = func(...Object.values(fullContext));
+      logToPanel(`✅ Assignment result: ${typeof result}`);
+      return result;
+    };
+
+    if (newDepVars.length > 0) {
+      return computed(valueThunk);
+    } else {
+      return signal(valueThunk());
     }
-
-    logToPanel(
-      `🔧 Assignment context has ${Object.keys(fullContext).length} items`,
-    );
-
-    // Create a function to execute the assignment expression
-    const func = new Function(
-      ...Object.keys(fullContext),
-      `${assignmentExpr}; return ${name}`,
-    );
-
-    const result = func(...Object.values(fullContext));
-    logToPanel(`✅ Assignment result: ${typeof result}`);
-    return result;
   } catch (error) {
     logToPanel(`❌ Assignment execution error: ${error}`, "error");
     if (error instanceof Error && error.stack) {
@@ -167,18 +182,19 @@ function executeVariableAssignment(
   }
 }
 
-// Update DSL context with declared variables
+// Update DSL context with declared variables (now signals)
 function updateDslContext(context: any): any {
   const updatedContext = { ...context };
 
-  // Add all declared variables to the context
-  for (const [name, value] of declaredVariables.entries()) {
-    updatedContext[name] = value;
-    logToPanel(`📦 Added variable to context: ${name}`);
+  // Add all declared variable signals to the context
+  // Users will access them via variable.value syntax
+  for (const [name, signal] of declaredVariables.entries()) {
+    updatedContext[name] = signal;
+    logToPanel(`📦 Added variable signal to context: ${name}`);
   }
 
   logToPanel(
-    `🔧 Context now has ${Object.keys(updatedContext).length} items (${declaredVariables.size} declared variables)`,
+    `🔧 Context now has ${Object.keys(updatedContext).length} items (${declaredVariables.size} declared variable signals)`,
   );
 
   return updatedContext;
@@ -302,6 +318,7 @@ function executeMissingDependencies(
           varName,
           declaration.assignmentExpression,
           dslContext,
+          newDepVars,
         );
 
         if (assignmentResult !== null) {
@@ -396,6 +413,7 @@ export function parseDSL(code: string, dslContext: any): any {
           declaration.name,
           declaration.assignmentExpression,
           dslContext,
+          [],
         );
 
         if (assignmentResult !== null) {
@@ -485,14 +503,19 @@ export function parseDSL(code: string, dslContext: any): any {
     logToPanel("⚡ Executing modified code...");
     console.log("Function calls found:", functionCalls);
 
-    // Create a function that has access to the DSL context
-    const func = new Function(
-      ...Object.keys(dslContext),
-      `return ${modifiedCode}`,
-    );
+    // Wrap non-declaration execution in effect() for reactivity
+    let result: any = null;
+    effect(() => {
+      // Create a function that has access to the DSL context
+      const func = new Function(
+        ...Object.keys(dslContext),
+        `return ${modifiedCode}`,
+      );
 
-    // Execute the function and return the result (which could be a Node<T>)
-    const result = func(...Object.values(dslContext));
+      // Execute the function and store the result (which could be a Node<T>)
+      result = func(...Object.values(dslContext));
+    });
+
     logToPanel("✅ DSL parsing completed successfully!");
     return result;
   } catch (error) {
@@ -523,9 +546,9 @@ function computeInit(
     console.log("is instanced", instanced);
     const buffer = instanced
       ? new THREE.StorageInstancedBufferAttribute(
-        count,
-        bufferTypeSizes[bufferType],
-      )
+          count,
+          bufferTypeSizes[bufferType],
+        )
       : new THREE.StorageBufferAttribute(count, bufferTypeSizes[bufferType]);
     const node = THREE.TSL.storage(buffer, bufferType, count);
 
@@ -566,7 +589,6 @@ function computeInit(
       .mul(velMul * 0.5)
       .sub(velMul * 0.25);
 
-
     // Set initial position to random location
     console.log("assigning pos");
     nodes.position.assign(vec3(randomX, randomY, randomZ));
@@ -600,7 +622,7 @@ function computeInit(
       fract,
       mix,
       clamp,
-      time
+      time,
     } = THREE.TSL;
 
     const particle = nodes.position;
@@ -652,7 +674,7 @@ function computeInit(
     createdBuffers.color.element(instanceIndex).assign(nodes.color);
   })().compute(count);
 
-  (defaultDslContext as any).renderer?.compute(computeInitFn);
+  defaultRenderer?.compute(computeInitFn);
 
   console.log("creating compute", {
     createdBuffers,
@@ -694,7 +716,9 @@ function pointsFromNodes(buffers: any, nodes: any, count) {
 
   // Set material nodes
   console.log(nodes.position, buffers.position);
-  pointsMaterial.positionNode = TSL.instancedBufferAttribute(buffers.position.value);
+  pointsMaterial.positionNode = TSL.instancedBufferAttribute(
+    buffers.position.value,
+  );
   pointsMaterial.colorNode = TSL.vec3(1);
   pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
@@ -762,77 +786,89 @@ function pointsFromNodes(buffers: any, nodes: any, count) {
 
 // Execute DSL code and run the graph if the result is a Node
 // Create a DSL context with all the functional versions
-const defaultDslContext = {
-  // Object3D functions
-  sphere: obj3dChain.sphere,
-  box: obj3dChain.box,
-  cylinder: obj3dChain.cylinder,
-  material: obj3dChain.material,
-  mesh: obj3dChain.mesh,
-  translateX: obj3dChain.translateX,
-  translateY: obj3dChain.translateY,
-  translateZ: obj3dChain.translateZ,
-  rotateX: obj3dChain.rotateX,
-  rotateY: obj3dChain.rotateY,
-  rotateZ: obj3dChain.rotateZ,
-  applyMock: obj3dChain.applyMock,
-  render: obj3dChain.render,
+function createDslContext(renderer?: any): any {
+  return {
+    // Object3D functions
+    sphere: obj3dChain.sphere,
+    box: obj3dChain.box,
+    cylinder: obj3dChain.cylinder,
+    material: obj3dChain.material,
+    mesh: obj3dChain.mesh,
+    translateX: obj3dChain.translateX,
+    translateY: obj3dChain.translateY,
+    translateZ: obj3dChain.translateZ,
+    rotateX: obj3dChain.rotateX,
+    rotateY: obj3dChain.rotateY,
+    rotateZ: obj3dChain.rotateZ,
+    applyMock: obj3dChain.applyMock,
+    render: obj3dChain.render,
 
-  // Math functions
-  frame: mathChain.frame,
-  mult: mathChain.mult,
-  add: mathChain.add,
-  sub: mathChain.sub,
-  div: mathChain.div,
-  mathAbs: mathChain.mathAbs,
-  mathAcos: mathChain.mathAcos,
-  mathAcosh: mathChain.mathAcosh,
-  mathAsin: mathChain.mathAsin,
-  mathAsinh: mathChain.mathAsinh,
-  mathAtan: mathChain.mathAtan,
-  mathAtan2: mathChain.mathAtan2,
-  mathAtanh: mathChain.mathAtanh,
-  mathCbrt: mathChain.mathCbrt,
-  mathCeil: mathChain.mathCeil,
-  mathClz32: mathChain.mathClz32,
-  mathCos: mathChain.mathCos,
-  mathCosh: mathChain.mathCosh,
-  mathExp: mathChain.mathExp,
-  mathExpm1: mathChain.mathExpm1,
-  mathFloor: mathChain.mathFloor,
-  mathFround: mathChain.mathFround,
-  mathHypot: mathChain.mathHypot,
-  mathImul: mathChain.mathImul,
-  mathLog: mathChain.mathLog,
-  mathLog10: mathChain.mathLog10,
-  mathLog1p: mathChain.mathLog1p,
-  mathLog2: mathChain.mathLog2,
-  mathMax: mathChain.mathMax,
-  mathMin: mathChain.mathMin,
-  mathPow: mathChain.mathPow,
-  mathRandom: mathChain.mathRandom,
-  mathRound: mathChain.mathRound,
-  mathSign: mathChain.mathSign,
-  mathSin: mathChain.mathSin,
-  mathSinh: mathChain.mathSinh,
-  mathSqrt: mathChain.mathSqrt,
-  mathTan: mathChain.mathTan,
-  mathTanh: mathChain.mathTanh,
-  mathTrunc: mathChain.mathTrunc,
+    // Math functions
+    frame: mathChain.frame,
+    mult: mathChain.mult,
+    add: mathChain.add,
+    sub: mathChain.sub,
+    div: mathChain.div,
+    mathAbs: mathChain.mathAbs,
+    mathAcos: mathChain.mathAcos,
+    mathAcosh: mathChain.mathAcosh,
+    mathAsin: mathChain.mathAsin,
+    mathAsinh: mathChain.mathAsinh,
+    mathAtan: mathChain.mathAtan,
+    mathAtan2: mathChain.mathAtan2,
+    mathAtanh: mathChain.mathAtanh,
+    mathCbrt: mathChain.mathCbrt,
+    mathCeil: mathChain.mathCeil,
+    mathClz32: mathChain.mathClz32,
+    mathCos: mathChain.mathCos,
+    mathCosh: mathChain.mathCosh,
+    mathExp: mathChain.mathExp,
+    mathExpm1: mathChain.mathExpm1,
+    mathFloor: mathChain.mathFloor,
+    mathFround: mathChain.mathFround,
+    mathHypot: mathChain.mathHypot,
+    mathImul: mathChain.mathImul,
+    mathLog: mathChain.mathLog,
+    mathLog10: mathChain.mathLog10,
+    mathLog1p: mathChain.mathLog1p,
+    mathLog2: mathChain.mathLog2,
+    mathMax: mathChain.mathMax,
+    mathMin: mathChain.mathMin,
+    mathPow: mathChain.mathPow,
+    mathRandom: mathChain.mathRandom,
+    mathRound: mathChain.mathRound,
+    mathSign: mathChain.mathSign,
+    mathSin: mathChain.mathSin,
+    mathSinh: mathChain.mathSinh,
+    mathSqrt: mathChain.mathSqrt,
+    mathTan: mathChain.mathTan,
+    mathTanh: mathChain.mathTanh,
+    mathTrunc: mathChain.mathTrunc,
 
-  // Utilities
-  mockUtils,
-  mockPresets,
-  clearAll: obj3dChain.clearAll,
-  Graph,
-  Math,
-  console,
-  THREE,
+    // Utilities
+    mockUtils,
+    mockPresets,
+    clearAll: obj3dChain.clearAll,
+    Graph,
+    Math,
+    console,
+    THREE,
 
-  // Compute functions
-  computeInit,
-  pointsFromNodes,
-};
+    // Compute functions
+    computeInit,
+    pointsFromNodes,
+
+    // Renderer (if provided)
+    ...(renderer && { renderer }),
+  };
+}
+
+// Default renderer for backward compatibility
+let defaultRenderer: any = null;
+
+// Create default context for backward compatibility - this is no longer mutated directly
+const defaultDslContext = createDslContext();
+console.log(defaultDslContext);
 
 // Internal function that handles recursive dependency resolution
 function executeDSLInternal(
@@ -899,8 +935,8 @@ export function executeDSL(
   fullDocumentCode?: string,
 ): THREE.Object3D | null {
   try {
-    // Start with default context or provided context
-    const baseContext = dslContextParam || defaultDslContext;
+    // Start with provided context or create a default context with current renderer
+    const baseContext = dslContextParam || createDslContext(defaultRenderer);
 
     // If we have the full document, scan it for all variable declarations
     let declarations = new Map<string, VariableDeclaration>();
@@ -1038,9 +1074,10 @@ function processResult(result: any): THREE.Object3D | null {
 // Export logToPanel for use in other modules
 export { logToPanel };
 
-// Set renderer in DSL context
+// Set renderer for DSL context
 export function setRenderer(renderer: any): void {
-  (defaultDslContext as any).renderer = renderer;
+  defaultRenderer = renderer;
+  setRendererForChain(renderer);
 }
 
 // Export dslContext for external use

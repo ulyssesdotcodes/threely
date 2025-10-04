@@ -8,6 +8,7 @@ export {
   setScene,
   getObjectRegistry,
   clearAll,
+  setRendererForChain,
 
   // Geometry creation
   sphere,
