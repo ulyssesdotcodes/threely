@@ -10,6 +10,14 @@ import {
   normalizeVector3Like,
   normalizeEulerLike,
 } from "../three/MockObject3D";
+import {
+  translateX as factoryTranslateX,
+  translateY as factoryTranslateY,
+  translateZ as factoryTranslateZ,
+  rotateX as factoryRotateX,
+  rotateY as factoryRotateY,
+  rotateZ as factoryRotateZ,
+} from "./factories/transform-factory";
 // Remove direct import of global dslContext
 
 // Scene reference for adding rendered objects
@@ -266,229 +274,23 @@ export const mesh = (
     chainObj3d,
   );
 
-// Helper function for translateX logic
-const translateXLogic = (
-  mockObject: MockObject3D,
-  distance: number,
-): MockObject3D => {
-  if (!mockObject) {
-    return { geometry: undefined, userData: undefined };
-  }
-  console.log("translating", distance);
-  const currentPos = normalizeVector3Like(
-    mockObject.position || { x: 0, y: 0, z: 0 },
-  );
-  const result = {
-    geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
-    userData: mockObject.userData ? { ...mockObject.userData } : undefined,
-    ...mockObject,
-    position: {
-      x: currentPos.x + distance,
-      y: currentPos.y,
-      z: currentPos.z,
-    },
-  };
+// Use factory-generated translateX to reduce code duplication
+export const translateX = factoryTranslateX;
 
-  return result;
-};
+// Use factory-generated translateY to reduce code duplication
+export const translateY = factoryTranslateY;
 
-// Dual-mode translateX: handles both Node inputs (DSL) and resolved values (chaining)
-export const translateX = (
-  objectNode: Node<MockObject3D> | MockObject3D,
-  distance: Node<number> | number,
-): Node<MockObject3D> => {
-  const [objectNodeResolved, distanceNode] =
-    convertToNodes.mockObjectAndDistance(objectNode, distance);
-  return apply(
-    (mockObject: MockObject3D, dist: number) =>
-      translateXLogic(mockObject, dist),
-    [objectNodeResolved, distanceNode],
-    chainObj3d,
-  );
-};
+// Use factory-generated translateZ to reduce code duplication
+export const translateZ = factoryTranslateZ;
 
-const translateYLogic = (
-  mockObject: MockObject3D,
-  distance: number,
-): MockObject3D => {
-  if (!mockObject) {
-    return { geometry: undefined, userData: undefined };
-  }
-  const currentPos = normalizeVector3Like(
-    mockObject.position || { x: 0, y: 0, z: 0 },
-  );
-  return {
-    geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
-    userData: mockObject.userData ? { ...mockObject.userData } : undefined,
-    ...mockObject,
-    position: {
-      x: currentPos.x,
-      y: currentPos.y + distance,
-      z: currentPos.z,
-    },
-  };
-};
+// Use factory-generated rotateX to reduce code duplication
+export const rotateX = factoryRotateX;
 
-export const translateY = (
-  objectNode: Node<MockObject3D> | MockObject3D,
-  distance: Node<number> | number,
-): Node<MockObject3D> => {
-  const [objectNodeResolved, distanceNode] =
-    convertToNodes.mockObjectAndDistance(objectNode, distance);
-  return apply(
-    (mockObject: MockObject3D, dist: number) =>
-      translateYLogic(mockObject, dist),
-    [objectNodeResolved, distanceNode],
-    chainObj3d,
-  );
-};
+// Use factory-generated rotateY to reduce code duplication
+export const rotateY = factoryRotateY;
 
-const translateZLogic = (
-  mockObject: MockObject3D,
-  distance: number,
-): MockObject3D => {
-  if (!mockObject) {
-    return { geometry: undefined, userData: undefined };
-  }
-  const currentPos = normalizeVector3Like(
-    mockObject.position || { x: 0, y: 0, z: 0 },
-  );
-  return {
-    geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
-    userData: mockObject.userData ? { ...mockObject.userData } : undefined,
-    ...mockObject,
-    position: {
-      x: currentPos.x,
-      y: currentPos.y,
-      z: currentPos.z + distance,
-    },
-  };
-};
-
-export const translateZ = (
-  objectNode: Node<MockObject3D> | MockObject3D,
-  distance: Node<number> | number,
-): Node<MockObject3D> => {
-  const [objectNodeResolved, distanceNode] =
-    convertToNodes.mockObjectAndDistance(objectNode, distance);
-  return apply(
-    (mockObject: MockObject3D, dist: number) =>
-      translateZLogic(mockObject, dist),
-    [objectNodeResolved, distanceNode],
-    chainObj3d,
-  );
-};
-
-const rotateXLogic = (
-  mockObject: MockObject3D,
-  angle: number,
-): MockObject3D => {
-  if (!mockObject) {
-    return { geometry: undefined, userData: undefined };
-  }
-  const currentRot = normalizeEulerLike(
-    mockObject.rotation || { x: 0, y: 0, z: 0 },
-  );
-  return {
-    geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
-    userData: mockObject.userData ? { ...mockObject.userData } : undefined,
-    ...mockObject,
-    rotation: {
-      x: currentRot.x + angle,
-      y: currentRot.y,
-      z: currentRot.z,
-    },
-  };
-};
-
-export const rotateX = (
-  objectNode: Node<MockObject3D> | MockObject3D,
-  angle: Node<number> | number,
-): Node<MockObject3D> => {
-  const [objectNodeResolved, angleNode] = convertToNodes.mockObjectAndAngle(
-    objectNode,
-    angle,
-  );
-  return apply(
-    (mockObject: MockObject3D, ang: number) => rotateXLogic(mockObject, ang),
-    [objectNodeResolved, angleNode],
-    chainObj3d,
-  );
-};
-
-const rotateYLogic = (
-  mockObject: MockObject3D,
-  angle: number,
-): MockObject3D => {
-  if (!mockObject) {
-    return { geometry: undefined, userData: undefined };
-  }
-  const currentRot = normalizeEulerLike(
-    mockObject.rotation || { x: 0, y: 0, z: 0 },
-  );
-  return {
-    geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
-    userData: mockObject.userData ? { ...mockObject.userData } : undefined,
-    ...mockObject,
-    rotation: {
-      x: currentRot.x,
-      y: currentRot.y + angle,
-      z: currentRot.z,
-    },
-  };
-};
-
-export const rotateY = (
-  objectNode: Node<MockObject3D> | MockObject3D,
-  angle: Node<number> | number,
-): Node<MockObject3D> => {
-  const [objectNodeResolved, angleNode] = convertToNodes.mockObjectAndAngle(
-    objectNode,
-    angle,
-  );
-  return apply(
-    (mockObject: MockObject3D, ang: number) => rotateYLogic(mockObject, ang),
-    [objectNodeResolved, angleNode],
-    chainObj3d,
-  );
-};
-
-const rotateZLogic = (
-  mockObject: MockObject3D,
-  angle: number,
-): MockObject3D => {
-  if (!mockObject) {
-    return { geometry: undefined, userData: undefined };
-  }
-  const currentRot = normalizeEulerLike(
-    mockObject.rotation || { x: 0, y: 0, z: 0 },
-  );
-  return {
-    geometry: mockObject.geometry ? { ...mockObject.geometry } : undefined,
-    userData: mockObject.userData ? { ...mockObject.userData } : undefined,
-    ...mockObject,
-    rotation: {
-      x: currentRot.x,
-      y: currentRot.y,
-      z: currentRot.z + angle,
-    },
-  };
-};
-
-export const rotateZ = (
-  objectNode: Node<MockObject3D> | MockObject3D,
-  angle: Node<number> | number,
-): Node<MockObject3D> => {
-  const [objectNodeResolved, angleNode] = convertToNodes.mockObjectAndAngle(
-    objectNode,
-    angle,
-  );
-  return apply(
-    (mockObject: MockObject3D, ang: number) => rotateZLogic(mockObject, ang),
-    [objectNodeResolved, angleNode],
-    chainObj3d,
-  );
-};
+// Use factory-generated rotateZ to reduce code duplication
+export const rotateZ = factoryRotateZ;
 
 // Mock object integration function
 export const applyMock = (
