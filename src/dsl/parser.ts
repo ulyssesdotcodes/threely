@@ -102,6 +102,7 @@ function generateFunctionUUID(
 type VariableDeclaration = {
   name: string;
   assignmentExpression: string;
+  rhsExpression: string;
   from: number;
   to: number;
 };
@@ -109,8 +110,10 @@ type VariableDeclaration = {
 function extractVariableDeclarations(
   tree: any,
   code: string,
-): VariableDeclaration[] {
+  dslContext: any,
+): { declarations: VariableDeclaration[]; rewrittenCode: string } {
   const declarations: VariableDeclaration[] = [];
+  let rewrittenCode = code;
 
   tree.cursor().iterate((node) => {
     if (node.name === "VariableDeclaration") {
@@ -121,17 +124,99 @@ function extractVariableDeclarations(
       // Parse the declaration to extract variable name and assignment
       let definition = node.node.getChild("VariableDefinition");
       let variableName = code.slice(definition.from, definition.to);
+
+      // Extract RHS expression using Lezer navigation
+      let rhsExpression = "";
+      // Navigate through the VariableDefinition to find the assignment
+      let child = definition.firstChild;
+      while (child) {
+        if (child.name === "Equals") {
+          // Get the next sibling after the equals sign
+          let rhsNode = child.nextSibling;
+          if (rhsNode) {
+            rhsExpression = code.slice(rhsNode.from, rhsNode.to);
+            break;
+          }
+        }
+        child = child.nextSibling;
+      }
+
       declarations.push({
         name: variableName,
         assignmentExpression: declarationText,
+        rhsExpression: rhsExpression,
         from: node.from,
         to: node.to,
       });
-      logToPanel(`📝 Extracted: ${declarationText}`);
+      logToPanel(`📝 Extracted: ${declarationText} (RHS: ${rhsExpression})`);
     }
   });
 
-  return declarations;
+  // Collect all variable nodes that need rewriting
+  const variableNodes: Array<{ from: number; to: number; name: string }> = [];
+
+  tree.cursor().iterate((node) => {
+    if (node.name === "VariableName") {
+      const varName = code.slice(node.from, node.to);
+      // Check if this variable is a signal in the context
+      if (
+        dslContext[varName] &&
+        typeof dslContext[varName] === "object" &&
+        "value" in dslContext[varName] &&
+        "peek" in dslContext[varName] &&
+        !varName.endsWith("_fn") &&
+        !varName.startsWith("__codeBlock_")
+      ) {
+        // Check if it's not already followed by .value
+        const afterVar = code.slice(node.to, node.to + 6);
+        if (!afterVar.startsWith(".value")) {
+          variableNodes.push({ from: node.from, to: node.to, name: varName });
+        }
+      }
+    }
+  });
+
+  // Process replacements in reverse order to maintain correct positions
+  variableNodes
+    .sort((a, b) => b.from - a.from)
+    .forEach((node) => {
+      const before = rewrittenCode.slice(0, node.from);
+      const after = rewrittenCode.slice(node.to);
+      rewrittenCode = before + node.name + ".value" + after;
+    });
+
+  return { declarations, rewrittenCode };
+}
+
+function extractRHSFromAssignment(assignmentExpr: string): string {
+  try {
+    const tree = parser.parse(assignmentExpr);
+    let rhsExpression = "";
+
+    tree.cursor().iterate((node) => {
+      if (node.name === "VariableDeclaration") {
+        let definition = node.node.getChild("VariableDefinition");
+        if (definition) {
+          let child = definition.nextSibling;
+          while (child) {
+            if (child.name === "Equals") {
+              let rhsNode = child.nextSibling;
+              if (rhsNode) {
+                rhsExpression = assignmentExpr.slice(rhsNode.from, rhsNode.to);
+                return false; // Break out of iteration
+              }
+            }
+            child = child.nextSibling;
+          }
+        }
+      }
+    });
+
+    return rhsExpression || assignmentExpr; // Fallback to full expression
+  } catch (error) {
+    logToPanel(`❌ Error extracting RHS: ${error}`, "error");
+    return assignmentExpr; // Fallback to full expression
+  }
 }
 
 // Execute variable assignment expression and store result as a signal
@@ -176,10 +261,42 @@ function executeVariableAssignment(
     ) {
       logToPanel(`🔄 Updating existing signal for variable '${name}'`);
       if (newDepVars.length > 0) {
-        // For computed signals, we need to recreate the computed
-        const newComputed = computed(computeValue);
-        dslContext[name] = newComputed;
-        return newComputed;
+        // For variables with dependencies, update the function signal
+        const functionSignalKey = `${name}_fn`;
+        const rhsExpression = extractRHSFromAssignment(assignmentExpr);
+
+        // Transform RHS expression to work with parameters instead of .value access
+        let transformedRHS = rhsExpression;
+        for (const dep of newDepVars) {
+          // Replace dep.value with just dep (parameter name)
+          transformedRHS = transformedRHS.replace(
+            new RegExp(`\\b${dep}\\.value\\b`, "g"),
+            dep,
+          );
+        }
+
+        // Create higher-order function
+        const functionBody = `return (${newDepVars.join(", ")}) => ${transformedRHS}`;
+        const computeFunction = new Function(functionBody)();
+
+        // Check if function signal exists, update or create it
+        const existingFunctionSignal = dslContext[functionSignalKey];
+        if (
+          existingFunctionSignal &&
+          typeof existingFunctionSignal === "object" &&
+          "value" in existingFunctionSignal
+        ) {
+          // Update existing function signal
+          existingFunctionSignal.value = computeFunction;
+          logToPanel(`🔄 Updated function signal: ${functionSignalKey}`);
+        } else {
+          // Create new function signal
+          dslContext[functionSignalKey] = signal(computeFunction);
+          logToPanel(`🆕 Created new function signal: ${functionSignalKey}`);
+        }
+
+        // The computed signal should still exist and will auto-update
+        return existingSignal;
       } else {
         // For simple signals, just update the value
         existingSignal.value = computeValue();
@@ -191,7 +308,38 @@ function executeVariableAssignment(
     logToPanel(`🆕 Creating new signal for variable '${name}'`);
     let newSignal;
     if (newDepVars.length > 0) {
-      newSignal = computed(computeValue);
+      // For variables with dependencies, create function signal + computed signal
+      const functionSignalKey = `${name}_fn`;
+      const rhsExpression = extractRHSFromAssignment(assignmentExpr);
+
+      // Transform RHS expression to work with parameters instead of .value access
+      let transformedRHS = rhsExpression;
+      for (const dep of newDepVars) {
+        // Replace dep.value with just dep (parameter name)
+        transformedRHS = transformedRHS.replace(
+          new RegExp(`\\b${dep}\\.value\\b`, "g"),
+          dep,
+        );
+      }
+
+      // Create higher-order function
+      const functionBody = `return (${newDepVars.join(", ")}) => ${transformedRHS}`;
+      const computeFunction = new Function(functionBody)();
+
+      // Create the function signal
+      const functionSignal = signal(computeFunction);
+      dslContext[functionSignalKey] = functionSignal;
+
+      // Create the computed signal that uses the function signal
+      const computedValue = () => {
+        const deps = newDepVars.map((dep) => dslContext[dep].value);
+        return dslContext[functionSignalKey].value(...deps);
+      };
+
+      newSignal = computed(computedValue);
+      logToPanel(
+        `🔧 Created function signal: ${functionSignalKey} and computed: ${name}`,
+      );
     } else {
       newSignal = signal(computeValue());
     }
@@ -255,7 +403,12 @@ function scanAllVariableDeclarations(
     const tree = parser.parse(code);
     const declarations = new Map<string, VariableDeclaration>();
 
-    const extractedDeclarations = extractVariableDeclarations(tree, code);
+    // Use empty context for scanning - we don't rewrite during scanning
+    const { declarations: extractedDeclarations } = extractVariableDeclarations(
+      tree,
+      code,
+      {},
+    );
     for (const declaration of extractedDeclarations) {
       declarations.set(declaration.name, declaration);
       logToPanel(`📋 Tracked variable declaration: ${declaration.name}`);
@@ -310,6 +463,50 @@ function findMissingVariables(
     return missingVariables;
   } catch (error) {
     logToPanel(`❌ Error finding missing variables: ${error}`, "error");
+    return [];
+  }
+}
+
+// Find variable dependencies in code that ARE available in the current context
+function findVariableDependencies(code: string, dslContext: any): string[] {
+  try {
+    const tree = parser.parse(code);
+    const dependencies: string[] = [];
+    const contextKeys = new Set([
+      ...Object.keys(dslContext),
+      ...declaredVariables.keys(),
+    ]);
+
+    // Common globals that should be ignored as dependencies
+    const globalIgnoreList = new Set([
+      "Math",
+      "console",
+      "THREE",
+      "undefined",
+      "null",
+      "true",
+      "false",
+    ]);
+
+    tree.cursor().iterate((node) => {
+      if (node.name === "VariableName") {
+        const variableName = code.slice(node.from, node.to);
+
+        // Check if this variable exists in context and is not a global we should ignore
+        if (
+          contextKeys.has(variableName) &&
+          !globalIgnoreList.has(variableName) &&
+          !dependencies.includes(variableName)
+        ) {
+          dependencies.push(variableName);
+          logToPanel(`🔗 Found dependency: ${variableName}`);
+        }
+      }
+    });
+
+    return dependencies;
+  } catch (error) {
+    logToPanel(`❌ Error finding variable dependencies: ${error}`, "error");
     return [];
   }
 }
@@ -381,7 +578,7 @@ export function parseDSL(code: string, dslContext: any): any {
     logToPanel("🔄 Starting DSL parsing...");
 
     // Clean up the code by trimming whitespace and handling multiline expressions
-    const cleanCode = code.trim();
+    let cleanCode = code.trim();
     logToPanel(`📝 Input code: ${cleanCode}`);
 
     // Parse with @lezer/javascript to get AST
@@ -440,20 +637,31 @@ export function parseDSL(code: string, dslContext: any): any {
       );
     });
 
-    // Check for variable declarations and process them
-    const variableDeclarations = extractVariableDeclarations(tree, cleanCode);
+    // Check for variable declarations and process them, getting rewritten code
+    const { declarations: variableDeclarations, rewrittenCode } =
+      extractVariableDeclarations(tree, cleanCode, dslContext);
+
+    // Use the rewritten code for further processing
+    cleanCode = rewrittenCode;
+
     if (variableDeclarations.length > 0) {
       logToPanel(
         `🔧 Processing ${variableDeclarations.length} variable declaration(s)...`,
       );
 
       for (const declaration of variableDeclarations) {
+        // Find dependencies in the RHS expression using our new dependency finder
+        const dependencies = findVariableDependencies(
+          declaration.rhsExpression,
+          dslContext,
+        );
+
         // Execute the assignment expression with current DSL context
         const assignmentResult = executeVariableAssignment(
           declaration.name,
           declaration.assignmentExpression,
           dslContext,
-          [],
+          dependencies,
         );
 
         if (assignmentResult !== null) {
@@ -549,6 +757,11 @@ export function parseDSL(code: string, dslContext: any): any {
       new Map(), // Empty declarations map since we're checking standalone code
     );
 
+    // Check if this is an assignment expression
+    const isAssignmentExpression = /^[\w\s]*=|return\s/.test(
+      modifiedCode.trim(),
+    );
+
     // Generate a hash key for this code block
     const codeHash = simpleHash(modifiedCode);
     const codeBlockKey = `__codeBlock_${codeHash}__`;
@@ -556,55 +769,88 @@ export function parseDSL(code: string, dslContext: any): any {
     let result: any = null;
 
     if (missingVariables.length === 0) {
-      // No dependencies - create or update a signal
-      logToPanel(
-        `📡 Code has no dependencies, creating/updating signal: ${codeBlockKey}`,
-      );
-
-      const existingSignal = dslContext[codeBlockKey];
-
-      const computeValue = () => {
-        // Create a function that has access to the DSL context
-        const func = new Function(
-          ...Object.keys(dslContext),
-          `return ${modifiedCode}`,
+      // No dependencies
+      if (isAssignmentExpression) {
+        // Assignment expression without dependencies - create or update a signal
+        logToPanel(
+          `📡 Assignment has no dependencies, creating/updating signal: ${codeBlockKey}`,
         );
 
-        return func(...Object.values(dslContext));
-      };
+        const existingSignal = dslContext[codeBlockKey];
 
-      if (
-        existingSignal &&
-        typeof existingSignal === "object" &&
-        "value" in existingSignal &&
-        "peek" in existingSignal
-      ) {
-        // Update existing signal
-        logToPanel(`🔄 Updating existing code block signal`);
-        existingSignal.value = computeValue();
-        result = existingSignal.value;
+        const computeValue = () => {
+          // Create a function that has access to the DSL context
+          const func = new Function(
+            ...Object.keys(dslContext),
+            `return ${modifiedCode}`,
+          );
+
+          return func(...Object.values(dslContext));
+        };
+
+        if (
+          existingSignal &&
+          typeof existingSignal === "object" &&
+          "value" in existingSignal &&
+          "peek" in existingSignal
+        ) {
+          // Update existing signal
+          logToPanel(`🔄 Updating existing code block signal`);
+          existingSignal.value = computeValue();
+          result = existingSignal.value;
+        } else {
+          // Create new signal
+          logToPanel(`🆕 Creating new code block signal`);
+          const newSignal = signal(computeValue());
+          dslContext[codeBlockKey] = newSignal;
+          result = newSignal.value;
+        }
       } else {
-        // Create new signal
-        logToPanel(`🆕 Creating new code block signal`);
-        const newSignal = signal(computeValue());
-        dslContext[codeBlockKey] = newSignal;
-        result = newSignal.value;
+        // Non-assignment expression without dependencies - use effect
+        logToPanel(`⚡ Non-assignment has no dependencies, using effect()`);
+        effect(() => {
+          const func = new Function(
+            ...Object.keys(dslContext),
+            `return ${modifiedCode}`,
+          );
+          result = func(...Object.values(dslContext));
+        });
       }
     } else {
-      // Has dependencies - use effect() for reactivity as before
-      logToPanel(
-        `🔗 Code has dependencies: ${missingVariables.join(", ")}, using effect()`,
-      );
-      effect(() => {
-        // Create a function that has access to the DSL context
-        const func = new Function(
-          ...Object.keys(dslContext),
-          `return ${modifiedCode}`,
+      // Has dependencies
+      if (isAssignmentExpression) {
+        // Assignment expression with dependencies - use computed
+        logToPanel(
+          `🔗 Assignment with dependencies: ${missingVariables.join(", ")}, using computed()`,
         );
 
-        // Execute the function and store the result (which could be a Node<T>)
-        result = func(...Object.values(dslContext));
-      });
+        const computeValue = () => {
+          const func = new Function(
+            ...Object.keys(dslContext),
+            `return ${modifiedCode}`,
+          );
+          return func(...Object.values(dslContext));
+        };
+
+        const computedSignal = computed(computeValue);
+        dslContext[codeBlockKey] = computedSignal;
+        result = computedSignal.value;
+      } else {
+        // Non-assignment expression with dependencies - use effect
+        logToPanel(
+          `🔗 Non-assignment with dependencies: ${missingVariables.join(", ")}, using effect()`,
+        );
+        effect(() => {
+          // Create a function that has access to the DSL context
+          const func = new Function(
+            ...Object.keys(dslContext),
+            `return ${modifiedCode}`,
+          );
+
+          // Execute the function and store the result (which could be a Node<T>)
+          result = func(...Object.values(dslContext));
+        });
+      }
     }
 
     logToPanel("✅ DSL parsing completed successfully!");
@@ -637,9 +883,9 @@ function computeInit(
     console.log("is instanced", instanced);
     const buffer = instanced
       ? new THREE.StorageInstancedBufferAttribute(
-          count,
-          bufferTypeSizes[bufferType],
-        )
+        count,
+        bufferTypeSizes[bufferType],
+      )
       : new THREE.StorageBufferAttribute(count, bufferTypeSizes[bufferType]);
     const node = THREE.TSL.storage(buffer, bufferType, count);
 
