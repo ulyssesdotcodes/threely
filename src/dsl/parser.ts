@@ -153,7 +153,12 @@ function extractVariableDeclarations(
   });
 
   // Collect all variable nodes that need rewriting
-  const variableNodes: Array<{ from: number; to: number; name: string }> = [];
+  const variableNodes: Array<{
+    from: number;
+    to: number;
+    name: string;
+    insertValue?: boolean;
+  }> = [];
 
   tree.cursor().iterate((node) => {
     if (node.name === "VariableName") {
@@ -170,7 +175,25 @@ function extractVariableDeclarations(
         // Check if it's not already followed by .value
         const afterVar = code.slice(node.to, node.to + 6);
         if (!afterVar.startsWith(".value")) {
-          variableNodes.push({ from: node.from, to: node.to, name: varName });
+          // Check if this is the base of a member expression
+          // If followed by a dot (but not .value), we need to insert .value before the property access
+          const isBaseMember =
+            afterVar.startsWith(".") && !afterVar.startsWith(".value");
+
+          if (isBaseMember) {
+            // For member expressions like `something.data`, insert .value before the property
+            // so it becomes `something.value.data`
+            const dotPosition = node.to;
+            variableNodes.push({
+              from: node.from,
+              to: dotPosition,
+              name: varName,
+              insertValue: true,
+            });
+          } else {
+            // For standalone variables, add .value at the end
+            variableNodes.push({ from: node.from, to: node.to, name: varName });
+          }
         }
       }
     }
@@ -182,7 +205,14 @@ function extractVariableDeclarations(
     .forEach((node) => {
       const before = rewrittenCode.slice(0, node.from);
       const after = rewrittenCode.slice(node.to);
-      rewrittenCode = before + node.name + ".value" + after;
+
+      if (node.insertValue) {
+        // For member expressions: `something.data` -> `something.value.data`
+        rewrittenCode = before + node.name + ".value" + after;
+      } else {
+        // For standalone variables: `something` -> `something.value`
+        rewrittenCode = before + node.name + ".value" + after;
+      }
     });
 
   return { declarations, rewrittenCode };
@@ -453,6 +483,7 @@ function findMissingVariables(
     tree.cursor().iterate((node) => {
       if (node.name === "VariableName") {
         const variableName = code.slice(node.from, node.to);
+        console.log("found variable", variableName)
 
         // Check if this variable is missing from context but exists in declarations
         if (
