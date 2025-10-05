@@ -271,10 +271,13 @@ function executeVariableAssignment(
         `🔧 Assignment context has ${Object.keys(fullContext).length} items`,
       );
 
-      // Create a function to execute the assignment expression
+      // For re-execution, only evaluate the RHS to avoid "already declared" errors
+      const rhsExpression = extractRHSFromAssignment(assignmentExpr);
+
+      // Create a function to execute just the RHS expression
       const func = new Function(
         ...Object.keys(fullContext),
-        `${assignmentExpr}; return ${name}`,
+        `return ${rhsExpression}`,
       );
 
       const result = func(...Object.values(fullContext));
@@ -483,7 +486,7 @@ function findMissingVariables(
     tree.cursor().iterate((node) => {
       if (node.name === "VariableName") {
         const variableName = code.slice(node.from, node.to);
-        console.log("found variable", variableName)
+        console.log("found variable", variableName);
 
         // Check if this variable is missing from context but exists in declarations
         if (
@@ -920,9 +923,9 @@ function computeInit(
     console.log("is instanced", instanced);
     const buffer = instanced
       ? new THREE.StorageInstancedBufferAttribute(
-        count,
-        bufferTypeSizes[bufferType],
-      )
+          count,
+          bufferTypeSizes[bufferType],
+        )
       : new THREE.StorageBufferAttribute(count, bufferTypeSizes[bufferType]);
     const node = THREE.TSL.storage(buffer, bufferType, count);
 
