@@ -76,6 +76,13 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(16);
 }
 
+// Utility: Check if value is a signal
+function isSignal(value: any): boolean {
+  return (
+    value && typeof value === "object" && "value" in value && "peek" in value
+  );
+}
+
 // Generate deterministic UUID based on position and function name
 function generateFunctionUUID(
   functionName: string,
@@ -286,12 +293,7 @@ function executeVariableAssignment(
     };
 
     // If the variable already exists as a signal, update its value
-    if (
-      existingSignal &&
-      typeof existingSignal === "object" &&
-      "value" in existingSignal &&
-      "peek" in existingSignal
-    ) {
+    if (isSignal(existingSignal)) {
       logToPanel(`🔄 Updating existing signal for variable '${name}'`);
       if (newDepVars.length > 0) {
         // For variables with dependencies, update the function signal
@@ -317,11 +319,7 @@ function executeVariableAssignment(
 
         // Check if function signal exists, update or create it
         const existingFunctionSignal = dslContext[functionSignalKey];
-        if (
-          existingFunctionSignal &&
-          typeof existingFunctionSignal === "object" &&
-          "value" in existingFunctionSignal
-        ) {
+        if (isSignal(existingFunctionSignal)) {
           // Update existing function signal
           existingFunctionSignal.value = computeFunction;
           logToPanel(`🔄 Updated function signal: ${functionSignalKey}`);
@@ -414,10 +412,7 @@ function updateDslContext(context: any): any {
 
   // Count signals already in context (both variables and code blocks)
   const signalCount = Object.keys(updatedContext).filter((key) => {
-    const value = updatedContext[key];
-    return (
-      value && typeof value === "object" && "value" in value && "peek" in value
-    );
+    return isSignal(updatedContext[key]);
   }).length;
 
   logToPanel(
@@ -828,12 +823,7 @@ export function parseDSL(code: string, dslContext: any): any {
           return func(...Object.values(dslContext));
         };
 
-        if (
-          existingSignal &&
-          typeof existingSignal === "object" &&
-          "value" in existingSignal &&
-          "peek" in existingSignal
-        ) {
+        if (isSignal(existingSignal)) {
           // Update existing signal
           logToPanel(`🔄 Updating existing code block signal`);
           existingSignal.value = computeValue();
@@ -865,10 +855,12 @@ export function parseDSL(code: string, dslContext: any): any {
         );
 
         const computeValue = () => {
+          // Create a function that has access to the DSL context
           const func = new Function(
             ...Object.keys(dslContext),
             `return ${modifiedCode}`,
           );
+
           return func(...Object.values(dslContext));
         };
 
