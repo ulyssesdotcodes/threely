@@ -8,6 +8,7 @@ import { parser } from "@lezer/javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
+import { executeParticles, create as createParticles } from "./particles";
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
 
@@ -59,7 +60,7 @@ export function getCurrentEditorView(): EditorView | null {
 }
 
 // Custom command for Ctrl-Enter
-const handleCtrlEnter = (view: EditorView): boolean => {
+const handleCtrlEnter = (particles) => (view: EditorView): boolean => {
   const blockInfo = getBlockAtCursor(view);
 
   if (blockInfo && blockInfo.block) {
@@ -67,10 +68,7 @@ const handleCtrlEnter = (view: EditorView): boolean => {
     const fullDocument = view.state.doc.toString();
 
     try {
-      const result = executeDSL(code, undefined, fullDocument);
-      if (result) {
-      } else {
-      }
+      const result = executeParticles(code, undefined, fullDocument, particles);
     } catch (error) {
       console.error("Error executing DSL code:", error);
     }
@@ -257,12 +255,16 @@ const saveContentExtension = EditorView.updateListener.of(
 
 export function createEditorState(
   content: string = defaultContent,
+
+  renderer
 ): EditorState {
   const vimModeEnabled = getVimModeEnabled();
 
   // Use stored content if available, otherwise use provided content
   const storedContent = getStoredEditorContent();
   const initialContent = storedContent !== null ? storedContent : content;
+
+  const particles = createParticles(renderer);
 
   return EditorState.create({
     doc: initialContent,
@@ -272,7 +274,7 @@ export function createEditorState(
       javascript(),
       oneDark,
       saveContentExtension,
-      Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
+      Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter(particles) }])),
     ],
   });
 }

@@ -27,7 +27,8 @@ export function pointsFromNodes(buffers: any, nodes: any, count: number) {
   pointsMaterial.positionNode = TSL.instancedBufferAttribute(
     buffers.position.value,
   );
-  pointsMaterial.colorNode = TSL.vec3(1);
+  console.log("pointsmat", nodes.color)
+  pointsMaterial.colorNode = nodes.color ?? TSL.vec3(1);
   pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
   pointsMaterial.userData.count = buffers.position.value.count;
@@ -41,6 +42,7 @@ export function pointsFromNodes(buffers: any, nodes: any, count: number) {
   const pts = new THREE.Sprite(pointsMaterial);
   if (pointsMaterial.userData.count) {
     // for compute particles
+    console.log(pointsMaterial.userData.count)
     pts.count = pointsMaterial.userData.count;
   }
 
@@ -52,6 +54,7 @@ export function pointsFromNodes(buffers: any, nodes: any, count: number) {
 
     const recompute = () => {
       if (nodes.computeUpdate) {
+        console.log("recomputing")
         renderer.compute(nodes.computeUpdate);
       }
       animationId = requestAnimationFrame(recompute);
@@ -70,23 +73,16 @@ export function pointsFromNodes(buffers: any, nodes: any, count: number) {
   };
 
   // Return a Node<MockObject3D> using apply() to match mesh() exactly
-  return apply(
-    () => {
-      // Create a MockObject3D that contains the sprite information
-      const mockObject: MockObject3D = {
-        geometry: undefined, // Points don't use traditional geometry
-        userData: {
-          material: pointsMaterial,
-          sprite: pts, // Store the sprite in userData so render can access it
-          isParticleSystem: true,
-          setupAnimation,
-          stopAnimation,
-          nodes, // Include nodes for access to computeUpdate
-        },
-      };
-      return mockObject;
+  // Create a MockObject3D that contains the sprite information
+  return {
+    geometry: undefined, // Points don't use traditional geometry
+    userData: {
+      material: pointsMaterial,
+      sprite: pts, // Store the sprite in userData so render can access it
+      isParticleSystem: true,
+      setupAnimation,
+      stopAnimation,
+      nodes, // Include nodes for access to computeUpdate
     },
-    [], // No dependencies since we're creating the sprite directly
-    chainObj3d,
-  );
+  };
 }

@@ -13,6 +13,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const renderer = initBackgroundScene();
   setRenderer(renderer);
-  startEditor();
+  startEditor(renderer);
   setupEditorUI();
 });

@@ -62,7 +62,7 @@ export function clearAll() {
 let chainObj3d: any = {};
 
 // Helper function for render logic
-const renderLogic = (
+export const renderLogic = (
   mockObject: MockObject3D,
   objectName: string,
 ): THREE.Object3D => {
@@ -147,10 +147,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-      typeof objectNode === "object" &&
-      !("id" in objectNode) &&
-      !("value" in objectNode) &&
-      !("dependencies" in objectNode)
+        typeof objectNode === "object" &&
+        !("id" in objectNode) &&
+        !("value" in objectNode) &&
+        !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const distanceNode =
@@ -164,10 +164,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-      typeof objectNode === "object" &&
-      !("id" in objectNode) &&
-      !("value" in objectNode) &&
-      !("dependencies" in objectNode)
+        typeof objectNode === "object" &&
+        !("id" in objectNode) &&
+        !("value" in objectNode) &&
+        !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const angleNode =
@@ -181,10 +181,10 @@ const convertToNodes = {
   ) => {
     const objectNodeResolved =
       objectNode &&
-      typeof objectNode === "object" &&
-      !("id" in objectNode) &&
-      !("value" in objectNode) &&
-      !("dependencies" in objectNode)
+        typeof objectNode === "object" &&
+        !("id" in objectNode) &&
+        !("value" in objectNode) &&
+        !("dependencies" in objectNode)
         ? createNode(objectNode, [], {})
         : (objectNode as Node<MockObject3D>);
     const objectNameNode =
