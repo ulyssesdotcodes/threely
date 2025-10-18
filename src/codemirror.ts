@@ -1,11 +1,11 @@
 import { EditorState, Prec, Compartment } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, ViewUpdate } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { vim } from "@replit/codemirror-vim";
 import { parser } from "@lezer/javascript";
 // import { oneDarkTheme } from "./onedark";
-import { oneDark } from "@codemirror/theme-one-dark"
+import { oneDark } from "@codemirror/theme-one-dark";
 import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
 
@@ -13,6 +13,7 @@ export { EditorState, EditorView, keymap, basicSetup, javascript };
 
 // Vim mode state management
 const VIM_MODE_KEY = "three-tree-vim-mode";
+const EDITOR_CONTENT_KEY = "three-tree-editor-content";
 const vimCompartment = new Compartment();
 let currentEditorView: EditorView | null = null;
 
@@ -34,6 +35,22 @@ export function setVimModeEnabled(enabled: boolean): void {
     }
   } catch {
     // Ignore localStorage errors
+  }
+}
+
+export function saveEditorContent(content: string): void {
+  try {
+    localStorage.setItem(EDITOR_CONTENT_KEY, content);
+  } catch {
+    // Ignore localStorage errors
+  }
+}
+
+export function getStoredEditorContent(): string | null {
+  try {
+    return localStorage.getItem(EDITOR_CONTENT_KEY);
+  } catch {
+    return null;
   }
 }
 
@@ -228,18 +245,33 @@ particleSprite.render("particleSystem")
 // to animate the particles over time.
 `;
 
+// Extension to save content on document changes
+const saveContentExtension = EditorView.updateListener.of(
+  (update: ViewUpdate) => {
+    if (update.docChanged) {
+      const content = update.state.doc.toString();
+      saveEditorContent(content);
+    }
+  },
+);
+
 export function createEditorState(
   content: string = defaultContent,
 ): EditorState {
   const vimModeEnabled = getVimModeEnabled();
 
+  // Use stored content if available, otherwise use provided content
+  const storedContent = getStoredEditorContent();
+  const initialContent = storedContent !== null ? storedContent : content;
+
   return EditorState.create({
-    doc: content,
+    doc: initialContent,
     extensions: [
       vimCompartment.of(vimModeEnabled ? vim() : []),
       basicSetup,
       javascript(),
       oneDark,
+      saveContentExtension,
       Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter }])),
     ],
   });
