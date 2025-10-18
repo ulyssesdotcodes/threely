@@ -281,10 +281,79 @@ function executeVariableAssignment(
       // For re-execution, only evaluate the RHS to avoid "already declared" errors
       const rhsExpression = extractRHSFromAssignment(assignmentExpr);
 
-      // Create a function to execute just the RHS expression
+      // Rewrite the rhsExpression to use .value for signal variables
+      const tree = parser.parse(rhsExpression);
+      let rewrittenRhsExpression = rhsExpression;
+
+      // Collect all variable nodes that need rewriting
+      const variableNodes: Array<{
+        from: number;
+        to: number;
+        name: string;
+        insertValue?: boolean;
+      }> = [];
+
+      tree.cursor().iterate((node) => {
+        if (node.name === "VariableName") {
+          const varName = rhsExpression.slice(node.from, node.to);
+          // Check if this variable is a signal in the context
+          if (
+            fullContext[varName] &&
+            typeof fullContext[varName] === "object" &&
+            "value" in fullContext[varName] &&
+            "peek" in fullContext[varName] &&
+            !varName.endsWith("_fn") &&
+            !varName.startsWith("__codeBlock_")
+          ) {
+            // Check if it's not already followed by .value
+            const afterVar = rhsExpression.slice(node.to, node.to + 6);
+            if (!afterVar.startsWith(".value")) {
+              // Check if this is the base of a member expression
+              const isBaseMember =
+                afterVar.startsWith(".") && !afterVar.startsWith(".value");
+
+              if (isBaseMember) {
+                // For member expressions like `something.data`, insert .value before the property
+                const dotPosition = node.to;
+                variableNodes.push({
+                  from: node.from,
+                  to: dotPosition,
+                  name: varName,
+                  insertValue: true,
+                });
+              } else {
+                // For standalone variables, add .value at the end
+                variableNodes.push({
+                  from: node.from,
+                  to: node.to,
+                  name: varName,
+                });
+              }
+            }
+          }
+        }
+      });
+
+      // Process replacements in reverse order to maintain correct positions
+      variableNodes
+        .sort((a, b) => b.from - a.from)
+        .forEach((node) => {
+          const before = rewrittenRhsExpression.slice(0, node.from);
+          const after = rewrittenRhsExpression.slice(node.to);
+
+          if (node.insertValue) {
+            // For member expressions: `something.data` -> `something.value.data`
+            rewrittenRhsExpression = before + node.name + ".value" + after;
+          } else {
+            // For standalone variables: `something` -> `something.value`
+            rewrittenRhsExpression = before + node.name + ".value" + after;
+          }
+        });
+
+      // Create a function to execute the rewritten RHS expression
       const func = new Function(
         ...Object.keys(fullContext),
-        `return ${rhsExpression}`,
+        `return ${rewrittenRhsExpression}`,
       );
 
       const result = func(...Object.values(fullContext));

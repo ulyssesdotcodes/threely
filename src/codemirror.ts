@@ -205,7 +205,7 @@ const particleData = computeInit(
 // Create a sprite with points material from the computed nodes
 // Include the computeUpdate function in the nodes
 const nodesWithUpdate = {
-  ...particleData.nodes,
+  ...(console.log("particle data", particleData), particleData).nodes,
   computeUpdate: particleData.computeUpdate
 }
 
