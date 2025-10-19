@@ -6,8 +6,7 @@ import { apply } from "../../graph";
 import { chainObj3d } from "../object3d-chain";
 
 // Points from nodes function based on compute-example/pointsMaterialFromNodes.js
-export function pointsFromNodes(buffers: any, nodes: any, count: number) {
-  const pointsMaterial = new THREE.SpriteNodeMaterial();
+export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, computeUpdate, count: number) {
 
   // Handle existing material properties if provided
   // for compute particles
@@ -27,7 +26,7 @@ export function pointsFromNodes(buffers: any, nodes: any, count: number) {
   pointsMaterial.positionNode = TSL.instancedBufferAttribute(
     buffers.position.value,
   );
-  console.log("pointsmat", nodes.color)
+  console.log("pointsmat2", nodes.color, computeUpdate)
   pointsMaterial.colorNode = nodes.color ?? TSL.vec3(1);
   pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
@@ -47,28 +46,32 @@ export function pointsFromNodes(buffers: any, nodes: any, count: number) {
   }
 
   // Set up animation loop for compute updates
-  let animationId: number | null = null;
+  let animationId: { id: number | null } = { id: null };
+  console.log("created anim", animationId)
 
   const setupAnimation = (renderer: any) => {
-    if (!renderer || animationId) return;
+    console.log("setup anim", renderer)
+    if (!renderer || animationId.id) return;
 
     const recompute = () => {
-      if (nodes.computeUpdate) {
-        console.log("recomputing")
-        renderer.compute(nodes.computeUpdate);
+      if (computeUpdate) {
+        console.log("recomputing");
+        renderer.compute(computeUpdate);
       }
-      animationId = requestAnimationFrame(recompute);
+      animationId.id = requestAnimationFrame(recompute);
     };
 
     // Start the animation loop
-    renderer.compute(nodes.computeUpdate);
-    animationId = requestAnimationFrame(recompute);
+    console.log("start anim", animationId)
+    animationId.id = requestAnimationFrame(recompute);
   };
 
   const stopAnimation = () => {
-    if (animationId) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
+    console.log("no anim id?", animationId)
+    if (animationId.id) {
+      console.log("stopping anim", animationId)
+      cancelAnimationFrame(animationId.id);
+      animationId.id = null;
     }
   };
 

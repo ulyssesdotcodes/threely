@@ -14,26 +14,30 @@ export const create = (renderer) => {
     }
     const isInstanced = true
     // Initialize compute buffers and nodes for particle system
-    return computeInit(
+    const particles = computeInit(
         renderer,
         particleCount,    // Number of particles
         particleBuffers,  // Buffer type definitions
-        isInstanced       // Use instanced rendering
-    )
+        isInstanced,       // Use instanced rendering
+    );
+
+    return {
+        ...particles, pointsMaterial:
+            new THREE.SpriteNodeMaterial()
+    }
 }
 
 
 export const executeParticles = (_, __, doc, particles) => {
     console.log(THREE)
 
-    new Function("nodes", "THREE", doc)(particles.nodes, THREE)
+    const newNodes = { ...particles.nodes };
 
-    const nodesWithUpdate = {
-        ...particles.nodes,
-        computeUpdate: computeUpdate(particles.nodes, particles.buffers, particleCount)
-    }
+    new Function("nodes", "THREE", doc)(newNodes, THREE)
 
-    console.log(nodesWithUpdate.color)
-    renderLogic(pointsFromNodes(particles.buffers, nodesWithUpdate, 50), "particleSystem")
+
+    renderLogic(pointsFromNodes(particles.pointsMaterial, particles.buffers, newNodes,
+        computeUpdate(newNodes, particles.buffers, particleCount)
+        , 50), "particleSystem")
 
 }

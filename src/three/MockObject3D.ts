@@ -319,6 +319,7 @@ export function validateNumber(
 export function applyMockToObject3D(
   object: Object3D,
   mock: MockObject3D,
+  renderer?
 ): Object3D {
   // Apply position
   if (mock.position !== undefined) {
@@ -378,6 +379,12 @@ export function applyMockToObject3D(
     object.name = mock.name;
   }
 
+  // Start animation if setup function is available. before updating userData
+  if (object.userData?.stopAnimation) {
+    console.log("stopping anim mock obj", object.userData.stopAnimation)
+    object.userData.stopAnimation();
+  }
+
   if (mock.userData !== undefined) {
     object.userData = { ...object.userData, ...mock.userData };
   }
@@ -421,6 +428,13 @@ export function applyMockToObject3D(
     // Assign new material
     object.material = mock.userData.material;
   }
+
+  if (mock.userData.setupAnimation) {
+    console.log("setup anim mock obj")
+    mock.userData.setupAnimation(renderer)
+    object.userData.stopAnimation = mock.userData.stopAnimation
+  }
+
 
   return object;
 }

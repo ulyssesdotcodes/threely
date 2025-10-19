@@ -83,7 +83,7 @@ export const renderLogic = (
 
   if (existingObject) {
     // Update the existing object with mock properties
-    applyMockToObject3D(existingObject, actualMockObject);
+    applyMockToObject3D(existingObject, actualMockObject, currentRenderer);
 
     // Set graphId property on the object
     (existingObject as any).graphId = objectName;
