@@ -1,9 +1,10 @@
-import { computeInit, computeUpdate } from "./dsl/compute/compute-init"
-import { pointsFromNodes } from "./dsl/compute/points-renderer"
+import { computeInit, computeUpdate } from "./compute/compute-init"
+import { pointsFromNodes } from "./compute/points-renderer"
 import { renderLogic } from "./dsl/object3d-chain"
+import { curl } from './compute/curl-noise'
 import * as THREE from "three/webgpu"
 
-const particleCount = 50
+const particleCount = 1000000
 export const create = (renderer) => {
     const particleBuffers = {
         position: 'vec3',
@@ -33,7 +34,13 @@ export const executeParticles = (_, __, doc, particles) => {
 
     const newNodes = { ...particles.nodes };
 
-    new Function("nodes", "THREE", doc)(newNodes, THREE)
+    const includes = {
+        nodes: newNodes,
+        t: THREE.TSL,
+        curl
+    }
+
+    new Function(...(Object.keys(includes)), doc)(...Object.values(includes))
 
 
     renderLogic(pointsFromNodes(particles.pointsMaterial, particles.buffers, newNodes,

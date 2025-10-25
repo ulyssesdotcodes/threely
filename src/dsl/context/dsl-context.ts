@@ -5,8 +5,8 @@ import { MockObject3D, mockUtils, mockPresets } from "../../three/MockObject3D";
 import * as obj3dChain from "../object3d-chain";
 import * as mathChain from "../math-chain";
 import { setRendererForChain } from "../object3d-chain";
-import { computeInit } from "../compute/compute-init";
-import { pointsFromNodes } from "../compute/points-renderer";
+import { computeInit } from "../../compute/compute-init";
+import { pointsFromNodes } from "../../compute/points-renderer";
 
 // Default renderer for backward compatibility
 let defaultRenderer: any = null;

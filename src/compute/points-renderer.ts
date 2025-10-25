@@ -1,9 +1,9 @@
 // Points rendering for compute particles - extracted from parser.ts
 import * as THREE from "three/webgpu";
 import * as TSL from "three/tsl";
-import { MockObject3D } from "../../three/MockObject3D";
-import { apply } from "../../graph";
-import { chainObj3d } from "../object3d-chain";
+import { MockObject3D } from "../three/MockObject3D";
+import { apply } from "../graph";
+import { chainObj3d } from "../dsl/object3d-chain";
 
 // Points from nodes function based on compute-example/pointsMaterialFromNodes.js
 export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, computeUpdate, count: number) {

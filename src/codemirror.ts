@@ -1,16 +1,19 @@
-import { EditorState, Prec, Compartment } from "@codemirror/state";
+import { EditorState, Prec, Compartment, Text } from "@codemirror/state";
 import { EditorView, keymap, ViewUpdate } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
-import { vim } from "@replit/codemirror-vim";
+import { CodeMirror, vim } from "@replit/codemirror-vim";
+import { languageServerExtensions, LSPClient, Transport, Workspace, WorkspaceFile, LSPPlugin } from "@codemirror/lsp-client"
 import { parser } from "@lezer/javascript";
 // import { oneDarkTheme } from "./onedark";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
 import { executeParticles, create as createParticles } from "./particles";
+import { NumberNodeUniform } from "three/src/renderers/common/nodes/NodeUniform.js";
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
+
 
 // Vim mode state management
 const VIM_MODE_KEY = "three-tree-vim-mode";
@@ -65,7 +68,7 @@ const handleCtrlEnter = (particles) => (view: EditorView): boolean => {
 
   if (blockInfo && blockInfo.block) {
     const code = blockInfo.block.trim();
-    const fullDocument = view.state.doc.toString();
+    const fullDocument = view.state.doc.toJSON().slice(4).join("\n");
 
     try {
       const result = executeParticles(code, undefined, fullDocument, particles);
@@ -253,12 +256,77 @@ const saveContentExtension = EditorView.updateListener.of(
   },
 );
 
-export function createEditorState(
+class DefaultWorkspaceFile {
+  uri: string;
+  languageId: string;
+  version: number;
+  view: EditorView;
+  doc: Text;
+
+  constructor(uri, languageId, version, doc, view) {
+    this.uri = uri;
+    this.languageId = languageId;
+    this.version = version;
+    this.doc = doc;
+    this.view = view;
+  }
+  getView() { return this.view; }
+}
+class ThreelyWorkspace extends Workspace {
+  files: WorkspaceFile[];
+  fileVersions: {};
+  constructor(client) {
+    super(client);
+    this.files = [];
+    this.fileVersions = Object.create(null);
+  }
+  nextFileVersion(uri) {
+    var _a;
+    return this.fileVersions[uri] = ((_a = this.fileVersions[uri]) !== null && _a !== void 0 ? _a : -1) + 1;
+  }
+  prependFile(doc) {
+    return Text.of([`import * as THREE from "three/webgpu"`, "", "const t = THREE.TSL;", "declare var nodes : Record<string, THREE.TSL.Node<unknown>>;"].concat(doc.toJSON()));
+  }
+  syncFiles() {
+    let result: Array<any> = [];
+    for (let file of this.files) {
+      let plugin = LSPPlugin.get(file.getView()!);
+      if (!plugin)
+        continue;
+      let changes = plugin.unsyncedChanges;
+      if (!changes.empty) {
+        result.push({ changes, file, prevDoc: file.doc });
+        file.doc = file.getView()!.state.doc;
+        file.version = this.nextFileVersion(file.uri);
+        plugin.clear();
+      }
+    }
+    return result;
+  }
+  openFile(uri, languageId, view) {
+    console.log("openFile", uri, languageId)
+    if (this.getFile(uri))
+      throw new Error("Default workspace implementation doesn't support multiple views on the same file");
+    let file = new DefaultWorkspaceFile(uri, languageId, this.nextFileVersion(uri), view.state.doc, view);
+    this.files.push(file);
+    this.client.didOpen(file);
+  }
+  closeFile(uri) {
+    let file = this.getFile(uri);
+    if (file) {
+      this.files = this.files.filter(f => f != file);
+      this.client.didClose(uri);
+    }
+  }
+}
+
+export async function createEditorState(
   content: string = defaultContent,
 
   renderer
-): EditorState {
+): Promise<EditorState> {
   const vimModeEnabled = getVimModeEnabled();
+
 
   // Use stored content if available, otherwise use provided content
   const storedContent = getStoredEditorContent();
@@ -266,15 +334,51 @@ export function createEditorState(
 
   const particles = createParticles(renderer);
 
+  function simpleWebSocketTransport(uri: string): Promise<Transport> {
+    let handlers: ((value: string) => void)[] = []
+    let sock = new WebSocket(uri)
+    sock.onmessage = e => { for (let h of handlers) h(e.data.toString()) }
+    return new Promise(resolve => {
+      sock.onopen = () => resolve({
+        send(message: string) { sock.send(message) },
+        subscribe(handler: (value: string) => void) { handlers.push(handler) },
+        unsubscribe(handler: (value: string) => void) { handlers = handlers.filter(h => h != handler) }
+      })
+    })
+  }
+  const transport = await simpleWebSocketTransport("wss://code.chicopple.io/ulysses/proxy/8081")
+
+
+  let client = new LSPClient({
+    rootUri: "file:///home/ulysses/development/threely",
+    extensions: [
+      ...languageServerExtensions(),
+      {
+        clientCapabilities: {
+          workspace: {
+            didChangeConfiguration: {}
+          }
+        }
+      }
+    ],
+    workspace: (client) => {
+      return new ThreelyWorkspace(client)
+    }
+  }).connect(transport);
+
+
   return EditorState.create({
     doc: initialContent,
     extensions: [
       vimCompartment.of(vimModeEnabled ? vim() : []),
       basicSetup,
-      javascript(),
+      javascript({
+        typescript: true
+      }),
       oneDark,
       saveContentExtension,
       Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter(particles) }])),
+      client.plugin("file:///home/ulysses/development/threely/index.ts")
     ],
   });
 }

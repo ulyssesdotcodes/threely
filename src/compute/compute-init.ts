@@ -1,6 +1,6 @@
 // Compute initialization functions - extracted from parser.ts
 import * as THREE from "three/webgpu";
-import { getDefaultRenderer } from "../context/dsl-context";
+import { getDefaultRenderer } from "../dsl/context/dsl-context";
 
 // Compute init function based on compute-example/compute-init.js
 export function computeInit(

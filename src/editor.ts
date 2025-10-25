@@ -73,8 +73,8 @@ export function createRunButton(): HTMLElement {
   return button;
 }
 
-export function startEditor(renderer): EditorView {
-  const state = createEditorState(defaultContent, renderer);
+export async function startEditor(renderer): Promise<EditorView> {
+  const state = await createEditorState(defaultContent, renderer);
 
   const editorContainer = document.getElementById("editor-container");
   if (!editorContainer) {
