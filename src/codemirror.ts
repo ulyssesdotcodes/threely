@@ -3,7 +3,14 @@ import { EditorView, keymap, ViewUpdate } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { CodeMirror, vim } from "@replit/codemirror-vim";
-import { languageServerExtensions, LSPClient, Transport, Workspace, WorkspaceFile, LSPPlugin } from "@codemirror/lsp-client"
+import {
+  languageServerExtensions,
+  LSPClient,
+  Transport,
+  Workspace,
+  WorkspaceFile,
+  LSPPlugin,
+} from "@codemirror/lsp-client";
 import { parser } from "@lezer/javascript";
 // import { oneDarkTheme } from "./onedark";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -13,7 +20,6 @@ import { executeParticles, create as createParticles } from "./particles";
 import { NumberNodeUniform } from "three/src/renderers/common/nodes/NodeUniform.js";
 
 export { EditorState, EditorView, keymap, basicSetup, javascript };
-
 
 // Vim mode state management
 const VIM_MODE_KEY = "three-tree-vim-mode";
@@ -63,23 +69,30 @@ export function getCurrentEditorView(): EditorView | null {
 }
 
 // Custom command for Ctrl-Enter
-const handleCtrlEnter = (particles) => (view: EditorView): boolean => {
-  const blockInfo = getBlockAtCursor(view);
+const handleCtrlEnter =
+  (particles) =>
+  (view: EditorView): boolean => {
+    const blockInfo = getBlockAtCursor(view);
 
-  if (blockInfo && blockInfo.block) {
-    const code = blockInfo.block.trim();
-    const fullDocument = view.state.doc.toJSON().slice(4).join("\n");
+    if (blockInfo && blockInfo.block) {
+      const code = blockInfo.block.trim();
+      const fullDocument = view.state.doc.toJSON().slice(4).join("\n");
 
-    try {
-      const result = executeParticles(code, undefined, fullDocument, particles);
-    } catch (error) {
-      console.error("Error executing DSL code:", error);
+      try {
+        const result = executeParticles(
+          code,
+          undefined,
+          fullDocument,
+          particles,
+        );
+      } catch (error) {
+        console.error("Error executing DSL code:", error);
+      }
     }
-  }
 
-  // Prevent the default new line behavior by returning true
-  return true;
-};
+    // Prevent the default new line behavior by returning true
+    return true;
+  };
 
 // Function to get top-level expression at cursor position using Lezer parser
 export const getTopLevelExpressionAtCursor = (
@@ -270,7 +283,9 @@ class DefaultWorkspaceFile {
     this.doc = doc;
     this.view = view;
   }
-  getView() { return this.view; }
+  getView() {
+    return this.view;
+  }
 }
 class ThreelyWorkspace extends Workspace {
   files: WorkspaceFile[];
@@ -282,17 +297,24 @@ class ThreelyWorkspace extends Workspace {
   }
   nextFileVersion(uri) {
     var _a;
-    return this.fileVersions[uri] = ((_a = this.fileVersions[uri]) !== null && _a !== void 0 ? _a : -1) + 1;
+    return (this.fileVersions[uri] =
+      ((_a = this.fileVersions[uri]) !== null && _a !== void 0 ? _a : -1) + 1);
   }
   prependFile(doc) {
-    return Text.of([`import * as THREE from "three/webgpu"`, "", "const t = THREE.TSL;", "declare var nodes : Record<string, THREE.TSL.Node<unknown>>;"].concat(doc.toJSON()));
+    return Text.of(
+      [
+        `import * as THREE from "three/webgpu"`,
+        "",
+        "const t = THREE.TSL;",
+        "declare var nodes : Record<string, THREE.TSL.Node<unknown>>;",
+      ].concat(doc.toJSON()),
+    );
   }
   syncFiles() {
     let result: Array<any> = [];
     for (let file of this.files) {
       let plugin = LSPPlugin.get(file.getView()!);
-      if (!plugin)
-        continue;
+      if (!plugin) continue;
       let changes = plugin.unsyncedChanges;
       if (!changes.empty) {
         result.push({ changes, file, prevDoc: file.doc });
@@ -304,17 +326,25 @@ class ThreelyWorkspace extends Workspace {
     return result;
   }
   openFile(uri, languageId, view) {
-    console.log("openFile", uri, languageId)
+    console.log("openFile", uri, languageId);
     if (this.getFile(uri))
-      throw new Error("Default workspace implementation doesn't support multiple views on the same file");
-    let file = new DefaultWorkspaceFile(uri, languageId, this.nextFileVersion(uri), view.state.doc, view);
+      throw new Error(
+        "Default workspace implementation doesn't support multiple views on the same file",
+      );
+    let file = new DefaultWorkspaceFile(
+      uri,
+      languageId,
+      this.nextFileVersion(uri),
+      view.state.doc,
+      view,
+    );
     this.files.push(file);
     this.client.didOpen(file);
   }
   closeFile(uri) {
     let file = this.getFile(uri);
     if (file) {
-      this.files = this.files.filter(f => f != file);
+      this.files = this.files.filter((f) => f != file);
       this.client.didClose(uri);
     }
   }
@@ -323,10 +353,9 @@ class ThreelyWorkspace extends Workspace {
 export async function createEditorState(
   content: string = defaultContent,
 
-  renderer
+  renderer,
 ): Promise<EditorState> {
   const vimModeEnabled = getVimModeEnabled();
-
 
   // Use stored content if available, otherwise use provided content
   const storedContent = getStoredEditorContent();
@@ -335,19 +364,108 @@ export async function createEditorState(
   const particles = createParticles(renderer);
 
   function simpleWebSocketTransport(uri: string): Promise<Transport> {
-    let handlers: ((value: string) => void)[] = []
-    let sock = new WebSocket(uri)
-    sock.onmessage = e => { for (let h of handlers) h(e.data.toString()) }
-    return new Promise(resolve => {
-      sock.onopen = () => resolve({
-        send(message: string) { sock.send(message) },
-        subscribe(handler: (value: string) => void) { handlers.push(handler) },
-        unsubscribe(handler: (value: string) => void) { handlers = handlers.filter(h => h != handler) }
-      })
-    })
-  }
-  const transport = await simpleWebSocketTransport("wss://code.chicopple.io/ulysses/proxy/8081")
+    let handlers: ((value: string) => void)[] = [];
+    let sock: WebSocket;
+    let reconnectAttempts = 0;
+    let maxReconnectDelay = 30000; // 30 seconds max delay
+    let reconnectTimeoutId: number | null = null;
+    let hasConnectedOnce = false; // Track if we've ever connected successfully
 
+    const connect = () => {
+      sock = new WebSocket(uri);
+
+      sock.onmessage = (e) => {
+        for (let h of handlers) h(e.data.toString());
+      };
+
+      sock.onclose = () => {
+        // Only reconnect if we've successfully connected at least once
+        if (!hasConnectedOnce) {
+          console.log("WebSocket closed before initial connection");
+          return;
+        }
+
+        console.log("WebSocket closed, attempting to reconnect...");
+        // Clear any existing reconnect timeout
+        if (reconnectTimeoutId !== null) {
+          clearTimeout(reconnectTimeoutId);
+        }
+
+        // Calculate exponential backoff delay: 1s, 2s, 4s, 8s, 16s, 30s (max)
+        const delay = Math.min(
+          1000 * Math.pow(2, reconnectAttempts),
+          maxReconnectDelay,
+        );
+        reconnectAttempts++;
+
+        reconnectTimeoutId = setTimeout(() => {
+          console.log(`Reconnecting... (attempt ${reconnectAttempts})`);
+          connect();
+        }, delay) as unknown as number;
+      };
+
+      sock.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
+      sock.onopen = () => {
+        console.log("WebSocket connected");
+        hasConnectedOnce = true; // Mark that we've connected successfully
+        reconnectAttempts = 0; // Reset counter on successful connection
+        if (reconnectTimeoutId !== null) {
+          clearTimeout(reconnectTimeoutId);
+          reconnectTimeoutId = null;
+        }
+      };
+    };
+
+    connect();
+
+    return new Promise((resolve) => {
+      const checkConnection = () => {
+        if (sock.readyState === WebSocket.OPEN) {
+          resolve({
+            send(message: string) {
+              if (sock.readyState === WebSocket.OPEN) {
+                sock.send(message);
+              }
+            },
+            subscribe(handler: (value: string) => void) {
+              handlers.push(handler);
+            },
+            unsubscribe(handler: (value: string) => void) {
+              handlers = handlers.filter((h) => h != handler);
+            },
+          });
+        } else {
+          // Wait for connection to open
+          sock.addEventListener(
+            "open",
+            () => {
+              resolve({
+                send(message: string) {
+                  if (sock.readyState === WebSocket.OPEN) {
+                    sock.send(message);
+                  }
+                },
+                subscribe(handler: (value: string) => void) {
+                  handlers.push(handler);
+                },
+                unsubscribe(handler: (value: string) => void) {
+                  handlers = handlers.filter((h) => h != handler);
+                },
+              });
+            },
+            { once: true },
+          );
+        }
+      };
+      checkConnection();
+    });
+  }
+  const transport = await simpleWebSocketTransport(
+    "wss://code.chicopple.io/ulysses/proxy/8081",
+  );
 
   let client = new LSPClient({
     rootUri: "file:///home/ulysses/development/threely",
@@ -356,16 +474,15 @@ export async function createEditorState(
       {
         clientCapabilities: {
           workspace: {
-            didChangeConfiguration: {}
-          }
-        }
-      }
+            didChangeConfiguration: {},
+          },
+        },
+      },
     ],
     workspace: (client) => {
-      return new ThreelyWorkspace(client)
-    }
+      return new ThreelyWorkspace(client);
+    },
   }).connect(transport);
-
 
   return EditorState.create({
     doc: initialContent,
@@ -373,12 +490,14 @@ export async function createEditorState(
       vimCompartment.of(vimModeEnabled ? vim() : []),
       basicSetup,
       javascript({
-        typescript: true
+        typescript: true,
       }),
       oneDark,
       saveContentExtension,
-      Prec.highest(keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter(particles) }])),
-      client.plugin("file:///home/ulysses/development/threely/index.ts")
+      Prec.highest(
+        keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter(particles) }]),
+      ),
+      client.plugin("file:///home/ulysses/development/threely/index.ts"),
     ],
   });
 }
