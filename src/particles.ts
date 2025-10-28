@@ -2,6 +2,7 @@ import { computeInit, computeUpdate } from "./compute/compute-init";
 import { pointsFromNodes } from "./compute/points-renderer";
 import { renderLogic } from "./dsl/object3d-chain";
 import { curl } from "./compute/curl-noise";
+import { signalToNode } from "./signal-to-node";
 import * as THREE from "three/webgpu";
 
 const particleCount = 1000000;
@@ -28,6 +29,8 @@ export const create = (renderer) => {
   };
 };
 
+let ranonce = false;
+
 export const executeParticles = (_, __, doc, particles) => {
   console.log(THREE);
 
@@ -37,6 +40,7 @@ export const executeParticles = (_, __, doc, particles) => {
     nodes: newNodes,
     t: THREE.TSL,
     curl,
+    signalToNode,
   };
 
   try {
@@ -48,7 +52,6 @@ export const executeParticles = (_, __, doc, particles) => {
         particles.buffers,
         newNodes,
         computeUpdate(newNodes, particles.buffers, particleCount),
-        50,
       ),
       "particleSystem",
     );

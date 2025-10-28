@@ -6,16 +6,17 @@ import { apply } from "../graph";
 import { chainObj3d } from "../dsl/object3d-chain";
 
 // Points from nodes function based on compute-example/pointsMaterialFromNodes.js
-export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, computeUpdate, count: number) {
+export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, computeUpdate) {
 
   // Handle existing material properties if provided
   // for compute particles
-  pointsMaterial.userData.count = count;
+  pointsMaterial.userData.count = buffers.position.value.count;
 
   console.log("running mat update");
 
   // Update position buffer reference if changed
   if (pointsMaterial.userData.positionBuffer !== buffers.position) {
+    console.log("new position buffer")
     pointsMaterial.userData.positionBuffer = buffers.position;
     pointsMaterial.vertexColors = true;
     pointsMaterial.sizeAttenuation = true;
@@ -30,7 +31,6 @@ export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, comput
   pointsMaterial.colorNode = nodes.color ?? TSL.vec3(1);
   pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
-  pointsMaterial.userData.count = buffers.position.value.count;
 
   pointsMaterial.opacityNode = TSL.float(1);
   // pointsMaterial.blending = THREE.AdditiveBlending;
