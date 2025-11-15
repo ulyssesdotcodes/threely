@@ -124,7 +124,7 @@ export const renderLogic = (
     }
 
     // Apply all mock properties to the real object (skip for particle systems)
-    if (!actualMockObject.userData?.isParticleSystem) {
+    if (actualMockObject.userData?.isParticleSystem) {
       applyMockToObject3D(realObject, actualMockObject);
     }
 

@@ -76,13 +76,16 @@ const handleCtrlEnter =
 
     if (blockInfo && blockInfo.block) {
       const code = blockInfo.block.trim();
-      const fullDocument = view.state.doc.toJSON().slice(4).join("\n");
+      const fullDocument = view.state.doc.toJSON();
+      const beginIndex = fullDocument.findIndex((value) => value.includes("begin-eval"));
+      const codeDoc = fullDocument.slice(beginIndex + 1).join("\n");
+      console.log(beginIndex, codeDoc)
 
       try {
         const result = executeParticles(
           code,
           undefined,
-          fullDocument,
+          codeDoc,
           particles,
         );
       } catch (error) {

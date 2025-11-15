@@ -380,6 +380,7 @@ export function applyMockToObject3D(
   }
 
   // Start animation if setup function is available. before updating userData
+  console.log("debug stop", object.userData.stopAnimation)
   if (object.userData?.stopAnimation) {
     console.log("stopping anim mock obj", object.userData.stopAnimation)
     object.userData.stopAnimation();
@@ -429,8 +430,9 @@ export function applyMockToObject3D(
     object.material = mock.userData.material;
   }
 
+
   if (mock.userData.setupAnimation) {
-    console.log("setup anim mock obj")
+    console.log("setup anim mock obj", mock)
     mock.userData.setupAnimation(renderer)
     object.userData.stopAnimation = mock.userData.stopAnimation
   }
