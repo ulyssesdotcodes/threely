@@ -1,5 +1,6 @@
 import { computeInit, computeUpdate } from "./compute/compute-init";
 import { pointsFromNodes } from "./compute/points-renderer";
+import { hsvToRgb, paletteNode } from "./compute/oscillare";
 import { renderLogic } from "./dsl/object3d-chain";
 import { curl } from "./compute/curl-noise";
 import { signalToNode } from "./signal-to-node";
@@ -41,6 +42,8 @@ export const executeParticles = (_, __, doc, particles) => {
     t: THREE.TSL,
     curl,
     signalToNode,
+    paletteNode,
+    hsvToRgb
   };
 
   try {

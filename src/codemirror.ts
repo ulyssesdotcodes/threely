@@ -71,31 +71,31 @@ export function getCurrentEditorView(): EditorView | null {
 // Custom command for Ctrl-Enter
 const handleCtrlEnter =
   (particles) =>
-  (view: EditorView): boolean => {
-    const blockInfo = getBlockAtCursor(view);
+    (view: EditorView): boolean => {
+      const blockInfo = getBlockAtCursor(view);
 
-    if (blockInfo && blockInfo.block) {
-      const code = blockInfo.block.trim();
-      const fullDocument = view.state.doc.toJSON();
-      const beginIndex = fullDocument.findIndex((value) => value.includes("begin-eval"));
-      const codeDoc = fullDocument.slice(beginIndex + 1).join("\n");
-      console.log(beginIndex, codeDoc)
+      if (blockInfo && blockInfo.block) {
+        const code = blockInfo.block.trim();
+        const fullDocument = view.state.doc.toJSON();
+        const beginIndex = fullDocument.findIndex((value) => value.includes("begin-eval"));
+        const codeDoc = fullDocument.slice(beginIndex + 1).join("\n");
+        console.log(beginIndex, codeDoc)
 
-      try {
-        const result = executeParticles(
-          code,
-          undefined,
-          codeDoc,
-          particles,
-        );
-      } catch (error) {
-        console.error("Error executing DSL code:", error);
+        try {
+          const result = executeParticles(
+            code,
+            undefined,
+            codeDoc,
+            particles,
+          );
+        } catch (error) {
+          console.error("Error executing DSL code:", error);
+        }
       }
-    }
 
-    // Prevent the default new line behavior by returning true
-    return true;
-  };
+      // Prevent the default new line behavior by returning true
+      return true;
+    };
 
 // Function to get top-level expression at cursor position using Lezer parser
 export const getTopLevelExpressionAtCursor = (
@@ -471,7 +471,7 @@ export async function createEditorState(
   );
 
   let client = new LSPClient({
-    rootUri: "file:///home/ulysses/development/threely",
+    rootUri: "file:///home/ulysses/development/threely/src",
     extensions: [
       ...languageServerExtensions(),
       {
@@ -500,7 +500,7 @@ export async function createEditorState(
       Prec.highest(
         keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter(particles) }]),
       ),
-      client.plugin("file:///home/ulysses/development/threely/index.ts"),
+      client.plugin("file:///home/ulysses/development/threely/src/index.ts"),
     ],
   });
 }

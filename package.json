@@ -61,6 +61,7 @@
     "build:package": "npm run build:types && npm run build:bundle",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist src/lib.ts",
     "build:bundle": "node build-lib.mjs",
+    "tls": "node ./typescript-language-server/index.js",
     "build": "node esbuild.mjs",
     "test": "jest",
     "prepublishOnly": "npm run build"
