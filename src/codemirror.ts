@@ -471,7 +471,7 @@ export async function createEditorState(
   );
 
   let client = new LSPClient({
-    rootUri: "file:///home/ulysses/development/threely/src",
+    rootUri: "file:///home/uly/development/threely/src",
     extensions: [
       ...languageServerExtensions(),
       {

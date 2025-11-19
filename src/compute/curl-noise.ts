@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu"
 
 const { wgslFn } = THREE.TSL
-THREE.TSL.CodeNodeInclude
+
 const noise_permute_f32 = wgslFn(`
 fn noise_permute_f32(x: f32) -> f32 {
     return (((x * 34.0) + 10.0) * x) % 289.0;
@@ -151,16 +151,18 @@ fn noise_simplex_vec4f(v: vec4<f32>) -> f32 {
 
 const mod289v4f = wgslFn(`
 fn mod289v4f(i: vec4<f32>) -> vec4<f32> {
-	return i - floor(i / 289.0) * 289.0;
+	return 
 }
 `)
 const permute289v4f = wgslFn(`
 fn permute289v4f(i: vec4<f32>) -> vec4<f32>
 {
-	var im: vec4<f32> = mod289v4f(i);
-	return mod289v4f((im*34.0 + 10.0)*im);
+	var im: vec4<f32> = i - floor(i / 289.0) * 289.0;
+	var i2 = (im*34.0 + 10.0)*im;
+	return i2 - floor(i2 / 289.0) * 289.0;
+;
 }
-`, [mod289v4f])
+`)
 
 const psrdnoise3 = wgslFn(`
 fn psrdnoise3(x: vec3<f32>, p: vec3<f32>, alpha: f32) -> NG3
@@ -514,22 +516,17 @@ return force +  (normalize(curl) * (speed / elscale));
 }
 `, [octaves])
 
-const rand = wgslFn(`
-fn rand(uv: vec2<f32>) -> f32 {
-
-  var dt = dot(uv.xy, vec2(12.9898, 78.233));
-  var sn = dt % 3.141592653589793;
-  return fract(sin(sn) * 43758.5453);
-  
-}
-`, [])
 
 export const curl = wgslFn(`
 fn curl(index: f32, posa: vec3<f32>, elscale: f32, time: f32, speed: f32, force: vec3<f32>, ) -> vec3<f32> {
 
-var newspeed = (rand(vec2(index + 22, index + 84)) * 0.05 + 0.95) * speed;
+ var uv = vec2(index + 22, index + 84);
+  var dt = dot(uv.xy, vec2(12.9898, 78.233));
+  var sn = dt % 3.141592653589793;
+  var newspeed = fract(sin(sn) * 43758.5453);
+
+newspeed = (newspeed * 0.05 + 0.95) * speed;
 
 return level(posa, elscale, time, newspeed, force);
-//return level(posa, elscale * 3, time, newspeed, level(posa, elscale * 2, time, newspeed,  level(posa, elscale, time, newspeed, force)));
 }
-`, [level, rand])
+`, [level])

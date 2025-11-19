@@ -19,8 +19,9 @@ export class TypeScriptLanguageServerProxy {
     console.log("Starting TypeScript Language Server...");
 
     this.tsServer = spawn(
-      "npx",
-      ["typescript-language-server", "--stdio", "--log-level", "4"],
+      "cmd",
+      ["/k", "npx", "typescript-language-server", "--stdio", "--log-level", "4"],
+      // [],
       {
         stdio: ["pipe", "pipe", "pipe"],
       },

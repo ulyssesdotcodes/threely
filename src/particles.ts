@@ -23,6 +23,17 @@ export const create = (renderer) => {
     particleBuffers, // Buffer type definitions
     isInstanced, // Use instanced rendering
   );
+  const t = THREE.TSL;
+
+  particles.force = curl({
+    posa: particles.position,
+    elscale: t.float(12),
+    force: t.vec3(0),
+    time: t.time.mul(0.08),
+    speed: t.float(0.001),
+    index: t.float(t.instanceIndex)
+});
+
 
   return {
     ...particles,
