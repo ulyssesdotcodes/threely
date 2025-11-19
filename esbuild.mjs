@@ -16,6 +16,5 @@ await ctx.watch();
 await ctx.serve({
   servedir: "public",
   port: 8000,
-  host: "code.chicopple.io"
 });
 

@@ -11,8 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize mobile support
   initMobileSupport();
 
-  const renderer = initBackgroundScene();
-  setRenderer(renderer);
-  startEditor(renderer);
-  setupEditorUI();
+   initBackgroundScene().then(renderer => {
+    setRenderer(renderer);
+    startEditor(renderer);
+    setupEditorUI();
+   })
 });

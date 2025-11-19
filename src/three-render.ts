@@ -3,7 +3,7 @@ import * as THREE from "three/webgpu";
 import { setScene } from "./dsl";
 
 // Function to initialize the background Three.js scene
-export function initBackgroundScene(): THREE.WebGPURenderer {
+export async function initBackgroundScene(): Promise<THREE.WebGPURenderer> {
   // Create scene, camera, and renderer
   const scene = new THREE.Scene();
   setScene(scene); // Set scene for DSL
@@ -36,7 +36,7 @@ export function initBackgroundScene(): THREE.WebGPURenderer {
   function animate() {
     requestAnimationFrame(animate);
 
-    renderer.renderAsync(scene, camera);
+    renderer.render(scene, camera);
   }
 
   // Handle window resize
@@ -45,6 +45,9 @@ export function initBackgroundScene(): THREE.WebGPURenderer {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+
+
+  await renderer.init();
 
   animate();
 

@@ -50,7 +50,7 @@
     "@solidjs/signals": "^0.3.2",
     "@vtsls/language-service": "^0.2.9",
     "codemirror": "^6.0.1",
-    "three": "^0.177.0",
+    "three": "^0.181.2",
     "typescript": "^5.9.3",
     "typescript-language-server": "^5.0.1",
     "uuid": "^11.1.0",

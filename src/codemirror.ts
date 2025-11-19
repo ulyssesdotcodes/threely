@@ -467,7 +467,7 @@ export async function createEditorState(
     });
   }
   const transport = await simpleWebSocketTransport(
-    "wss://code.chicopple.io/ulysses/proxy/8081",
+    "ws://localhost:8081",
   );
 
   let client = new LSPClient({

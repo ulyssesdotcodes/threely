@@ -4,7 +4,7 @@ import { getDefaultRenderer } from "../dsl/context/dsl-context";
 
 // Compute init function based on compute-example/compute-init.js
 export function computeInit(
-  renderer,
+  renderer: THREE.WebGPURenderer,
   count: number,
   buffers: any,
   instanced: boolean,
