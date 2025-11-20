@@ -13,7 +13,7 @@ import {
 } from "@codemirror/lsp-client";
 import { parser } from "@lezer/javascript";
 // import { oneDarkTheme } from "./onedark";
-import { oneDark } from "@codemirror/theme-one-dark";
+import { oneDark, color as oneDarkColor } from "@codemirror/theme-one-dark";
 import { getTextBlockAtPosition } from "./text_utils";
 import { executeDSL } from "./dsl";
 import { executeParticles, create as createParticles } from "./particles";
@@ -494,6 +494,11 @@ export async function createEditorState(
       basicSetup,
       javascript({
         typescript: true,
+      }),
+      EditorView.theme({
+        '.cm-activeLine' : {
+          backgroundColor: `${oneDarkColor.darkBackground}aa`
+        }
       }),
       oneDark,
       saveContentExtension,

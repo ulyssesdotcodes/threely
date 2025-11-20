@@ -10,6 +10,7 @@ import {
   getBlockAtCursor,
 } from "./codemirror";
 import { executeDSL } from "./dsl";
+import { createCurlInterface } from "./particles";
 
 export function createVimToggle(): HTMLElement {
   const container = document.createElement("div");
@@ -111,6 +112,10 @@ export function setupEditorUI(): void {
   // Create and add the run button
   const runButton = createRunButton();
   document.body.appendChild(runButton);
+
+  // Create and add the curl interface
+  const curlInterface = createCurlInterface();
+  document.body.appendChild(curlInterface);
 
   // Add CSS styles
   const style = document.createElement("style");
@@ -257,6 +262,101 @@ export function setupEditorUI(): void {
     .cm-focused {
       outline: 2px solid rgba(34, 197, 94, 0.5) !important;
       outline-offset: -2px !important;
+    }
+
+    /* Curl Interface Styling */
+    .curl-interface-container {
+      position: fixed;
+      top: 16px;
+      right: 350px; /* Positioned to the left of the Run button */
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: white;
+      user-select: none;
+      min-width: 180px;
+      box-sizing: border-box;
+    }
+
+    .curl-interface-container:hover {
+      background: rgba(0, 0, 0, 0.9);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .curl-input-wrapper {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .curl-input-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .curl-input {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      color: white;
+      padding: 6px 8px;
+      font-size: 13px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      width: 80px;
+      transition: all 0.2s ease;
+    }
+
+    .curl-input:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .curl-input:focus {
+      outline: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(34, 197, 94, 0.6);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+    }
+
+    /* Mobile responsive layout for curl interface */
+    @media (max-width: 768px) {
+      .curl-interface-container {
+        top: 12px;
+        right: 12px;
+        font-size: 12px;
+        padding: 10px 12px;
+        min-width: 150px;
+      }
+
+      .curl-input-label {
+        font-size: 11px;
+      }
+
+      .curl-input {
+        font-size: 11px;
+        width: 70px;
+        padding: 5px 6px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      /* Stack curl interface below other controls on very small screens */
+      .curl-interface-container {
+        top: 130px; /* Stack below run button */
+        right: 12px;
+      }
     }
   `;
   document.head.appendChild(style);
