@@ -10,7 +10,7 @@ import {
   getBlockAtCursor,
 } from "./codemirror";
 import { executeDSL } from "./dsl";
-import { createCurlInterface } from "./particles";
+import { createCurlInterface, createTapBeatButton } from "./particles";
 
 export function createVimToggle(): HTMLElement {
   const container = document.createElement("div");
@@ -38,12 +38,11 @@ export function createVimToggle(): HTMLElement {
 
 export function createRunButton(): HTMLElement {
   const button = document.createElement("button");
-  button.className = "run-button";
+  button.className = "run-button button";
   button.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
       <path d="M8 5v14l11-7z"/>
     </svg>
-    <span>Run</span>
   `;
   button.title = "Run current block (Ctrl+Enter)";
 
@@ -113,6 +112,9 @@ export function setupEditorUI(): void {
   const runButton = createRunButton();
   document.body.appendChild(runButton);
 
+  const tapbeatButton = createTapBeatButton();
+  document.body.appendChild(tapbeatButton);
+
   // Create and add the curl interface
   const curlInterface = createCurlInterface();
   document.body.appendChild(curlInterface);
@@ -172,10 +174,9 @@ export function setupEditorUI(): void {
       color: #4ade80;
     }
     
-    .run-button {
+    .button {
       position: fixed;
       top: 16px;
-      right: 180px; /* Adjusted for larger Vim toggle */
       z-index: 1000;
       display: flex;
       align-items: center;
@@ -196,6 +197,12 @@ export function setupEditorUI(): void {
       min-height: 44px; /* Minimum touch target */
       box-sizing: border-box;
     }
+      .run-button {
+        right: 180px;
+      }
+      .tapbeat-button {
+        right: 240px;
+      }
     
     /* Touch-friendly button states */
     .run-button:hover,

@@ -5,8 +5,9 @@ import { renderLogic } from "./dsl/object3d-chain";
 import { curl } from "./compute/curl-noise";
 import { signalToNode } from "./signal-to-node";
 import * as THREE from "three/webgpu";
+import { computed, Signal } from "@preact/signals";
 
-const particleCount = 1000000;
+const particleCount = 100000;
 
 // Curl parameters that can be controlled via UI
 export const curlParams = {
@@ -14,6 +15,24 @@ export const curlParams = {
   elscale: 12,
   speed: 0.001,
 };
+
+const tickSignal = new Signal(0);
+const tapbeatSignal : Signal<number[]> = new Signal([]);
+const beatrampSignal = computed(() => {
+  const last = tapbeatSignal.value[tapbeatSignal.value.length - 1];
+  const avgTime = tapbeatSignal.value.length > 2
+   ? (last - tapbeatSignal.value[0]) / tapbeatSignal.value.length
+   : 500;
+
+  return (tickSignal.value - (last ?? 0)) / avgTime;
+});
+
+export const beatramp = signalToNode(beatrampSignal, 'float');
+
+const tick = () => {
+  tickSignal.value = performance.now();
+  requestAnimationFrame(tick);
+}
 
 export const create = (renderer) => {
   const particleBuffers = {
@@ -62,6 +81,7 @@ export const create = (renderer) => {
   };
 
   requestAnimationFrame(recompute)
+  requestAnimationFrame(tick)
 
 
   return {
@@ -69,8 +89,6 @@ export const create = (renderer) => {
     pointsMaterial: new THREE.SpriteNodeMaterial(),
   };
 };
-
-let ranonce = false;
 
 export const executeParticles = (_, __, doc, particles) => {
   console.log(THREE);
@@ -83,7 +101,8 @@ export const executeParticles = (_, __, doc, particles) => {
     curl,
     signalToNode,
     paletteNode,
-    hsvToRgb
+    hsvToRgb,
+    beatramp
   };
 
   try {
@@ -143,4 +162,23 @@ export function createCurlInterface(): HTMLElement {
   container.appendChild(createInput("Speed", "speed", "0.0001"));
 
   return container;
+}
+
+export function createTapBeatButton(): HTMLElement {
+  const button = document.createElement("button");
+
+  button.className = "tapbeat-button button";
+  button.innerHTML = `
+    <span>Beat</span>
+  `;
+
+  button.addEventListener("click", () => {
+    const now = performance.now();
+    const arr = tapbeatSignal.value.filter(v => now - v < 8000);
+    arr.push(now);
+    tapbeatSignal.value = arr
+  })
+
+
+  return button;
 }

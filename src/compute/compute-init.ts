@@ -130,8 +130,8 @@ export const computeUpdate = (nodes, buffers, count) => THREE.TSL.Fn(() => {
   const limit = uniform(vec3(4, 4, 2));
   const position = particle.add(velocity).toVar();
 
-  const forceMul = rand(particleIndex).mul(0.08).add(0.9).mul(0);
-  velocity.assign(mul(velocity, float(1).sub(forceMul).mul(0.04).add(0.95)));
+  const forceMul = rand(particleIndex).mul(0.08).add(0.9);
+  velocity.assign(mul(velocity, float(0.98)));
 
   if (nodes.force) {
     velocity.assign(add(velocity, nodes.force));
