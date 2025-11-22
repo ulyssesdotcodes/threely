@@ -7,25 +7,54 @@ import { signalToNode } from "./signal-to-node";
 import * as THREE from "three/webgpu";
 import { computed, Signal } from "@preact/signals";
 
-const particleCount = 100000;
+const particleCount = 400000;
 
-// Curl parameters that can be controlled via UI
-export const curlParams = {
+const CURL_PARAMS_STORAGE_KEY = "threely-curl-params";
+
+// Default curl parameters
+const defaultCurlParams = {
   timeMultiplier: 0.08,
   elscale: 12,
   speed: 0.001,
 };
 
+// Load curl parameters from localStorage or use defaults
+function loadCurlParams(): typeof defaultCurlParams {
+  try {
+    const stored = localStorage.getItem(CURL_PARAMS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...defaultCurlParams, ...parsed };
+    }
+  } catch (e) {
+    console.warn("Failed to load curl params from localStorage:", e);
+  }
+  return { ...defaultCurlParams };
+}
+
+// Save curl parameters to localStorage
+function saveCurlParams() {
+  try {
+    localStorage.setItem(CURL_PARAMS_STORAGE_KEY, JSON.stringify(curlParams));
+  } catch (e) {
+    console.warn("Failed to save curl params to localStorage:", e);
+  }
+}
+
+// Curl parameters that can be controlled via UI
+export const curlParams = loadCurlParams();
+
 const tickSignal = new Signal(0);
 const tapbeatSignal: Signal<number[]> = new Signal([]);
 const beatrampSignal = computed(() => {
   const last = tapbeatSignal.value[tapbeatSignal.value.length - 1];
+  const first = tapbeatSignal.value[0];
   const avgTime =
     tapbeatSignal.value.length > 2
-      ? (last - tapbeatSignal.value[0]) / tapbeatSignal.value.length
+      ? (last - first) / tapbeatSignal.value.length
       : 500;
 
-  return (tickSignal.value - (last ?? 0)) / avgTime;
+  return (tickSignal.value - (first ?? 0)) / avgTime;
 });
 
 const beatrampRef = signalToNode(beatrampSignal, "float");
@@ -169,6 +198,7 @@ export function createCurlInterface(): HTMLElement {
       const value = parseFloat(input.value);
       if (!isNaN(value)) {
         curlParams[paramKey] = value;
+        saveCurlParams();
       }
     });
 
