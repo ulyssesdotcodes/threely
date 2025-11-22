@@ -122,12 +122,12 @@ const bluepink = ["F2C6F2", "F8F0F0", "A6D1FF", "3988E1", "4C8600"].map(
 );
 const lime = ["FF4274", "DCD549", "ABDFAB", "437432", "033B45"].map(hexToRgb);
 const sky = [
-  "D6CEC0",
-  "EBC560",
-  "DE8A65",
-  "7A9AAA",
-  "B08850",
-  "654530",
+  "C9B8A0",
+  "E8B030",
+  "E06030",
+  "5090B0",
+  "C08020",
+  "704020",
   "FFFFFF",
 ].map(hexToRgb);
 

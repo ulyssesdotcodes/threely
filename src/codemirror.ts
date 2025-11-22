@@ -68,34 +68,37 @@ export function getCurrentEditorView(): EditorView | null {
   return currentEditorView;
 }
 
+let currentParticles: ReturnType<typeof createParticles> | null = null;
+
+export function getCurrentParticles() {
+  return currentParticles;
+}
+
 // Custom command for Ctrl-Enter
 const handleCtrlEnter =
   (particles) =>
-    (view: EditorView): boolean => {
-      const blockInfo = getBlockAtCursor(view);
+  (view: EditorView): boolean => {
+    const blockInfo = getBlockAtCursor(view);
 
-      if (blockInfo && blockInfo.block) {
-        const code = blockInfo.block.trim();
-        const fullDocument = view.state.doc.toJSON();
-        const beginIndex = fullDocument.findIndex((value) => value.includes("begin-eval"));
-        const codeDoc = fullDocument.slice(beginIndex + 1).join("\n");
-        console.log(beginIndex, codeDoc)
+    if (blockInfo && blockInfo.block) {
+      const code = blockInfo.block.trim();
+      const fullDocument = view.state.doc.toJSON();
+      const beginIndex = fullDocument.findIndex((value) =>
+        value.includes("begin-eval"),
+      );
+      const codeDoc = fullDocument.slice(beginIndex + 1).join("\n");
+      console.log(beginIndex, codeDoc);
 
-        try {
-          const result = executeParticles(
-            code,
-            undefined,
-            codeDoc,
-            particles,
-          );
-        } catch (error) {
-          console.error("Error executing DSL code:", error);
-        }
+      try {
+        const result = executeParticles(code, undefined, codeDoc, particles);
+      } catch (error) {
+        console.error("Error executing DSL code:", error);
       }
+    }
 
-      // Prevent the default new line behavior by returning true
-      return true;
-    };
+    // Prevent the default new line behavior by returning true
+    return true;
+  };
 
 // Function to get top-level expression at cursor position using Lezer parser
 export const getTopLevelExpressionAtCursor = (
@@ -175,91 +178,108 @@ export const getBlockAtCursor = (
   return getTopLevelExpressionAtCursor(view);
 };
 
-export const defaultContent = `
-const mySphere = mesh(sphere(), material()).translateX(1)
+export const defaultContent = `import * as THREE from "three/webgpu";
+import {TSL as t} from "three/webgpu";
+import {paletteNode, hsvToRgb} from "./compute/oscillare"
+import { beatramp } from "./particles"
 
-mySphere.rotateY(45).render("mySphere")
 
-mesh(sphere(), material()).translateX(frame().mult(0.02)).rotateY(45).render("mySphere")
+declare const nodes : Record<string, t.ShaderNodeObject<THREE.Node>>
 
-// Try pressing Ctrl+Enter on the line above!
-// This will create a sphere mesh named "mySphere", translate it, rotate it, and add it to the scene
-// Running it again will update the existing object instead of creating a new one!
-// Note: sphere(), box(), and cylinder() now create mock geometries that are applied during render!
+/** begin-eval */
 
-mesh(box(2, 1, 1), material({color: 0xff0000})).translateX(-3).render("redBox")
+const time = beatramp;
+nodes.size = t.float(0.01)
 
-mesh(cylinder(), material({color: 0x0000ff, wireframe: true})).translateX(3).render("blueCylinder")
+const palette = paletteNode("darkestred");
+const age = t.sub(time, nodes.birthTime);
+let paletteIndex = t.rand(t.instanceIndex);
+paletteIndex = paletteIndex.mul(0.3).add(nodes.position.y.sub(-2).div(4).mul(0.7));
+let hsv = palette.element(t.int(paletteIndex.clamp(0, 2).mul(palette.value.count)));
+hsv = t.vec3(hsv.x, hsv.y.add(hsv.y.oneMinus().mul(beatramp.mod(1))), hsv.z);
+nodes.color = hsvToRgb(hsv);
+// nodes.force = nodes.force.add(t.vec3(0.0001, 0, 0).mul(t.sin(time.mul(0.5)).add(t.float(0.15))));
 
-// Animated sphere using frame counter:
-mesh(sphere(0.5), material({color: 0x00ff00})).translateX(Math.sin(frame() * 0.01) * 2).render("animatedSphere")
+nodes.force= nodes.force.add(nodes.position.mul(-0.0001)).mul(t.vec3(1, 1, 2));
 
-// Using mock objects for quick property setting:
-applyMock(mesh(sphere(), material({color: 0xff0000})), mockUtils.position(2, 1, 0)).render("mockSphere")
 
-// Using presets for common configurations:
-applyMock(mesh(box(), material()), mockPresets.elevated(3)).render("elevatedBox")
+nodes.lifespan = t.float(99999999)
 
-// Custom geometry parameters with mock system:
-mesh(sphere(1.5, 16, 8), material({color: 0xff00ff})).render("customSphere")
 
-// Custom box with specific dimensions:
-mesh(box(3, 0.5, 0.5), material({color: 0x00ffff})).translateY(-2).render("customBox")
 
-// Custom cylinder with different top/bottom radius:
-mesh(cylinder(0.5, 1, 2), material({color: 0xffff00})).translateZ(-3).render("customCylinder")
-
-// Try modifying the values and re-running to see objects update:
-// mesh(sphere(0.5), material({color: 0xffffff})).translateY(2).rotateX(90).render("mySphere")
-// mesh(box(1, 3, 1), material({color: 0x00ff00})).translateX(-2).render("redBox")
-
-// Use clearAll() to remove all objects:
-// clearAll()
-
-// --- NEW: Compute Shader Particle System ---
-// Example of using the new compute functions for particle systems
-
-// First, declare variables that will be used in computeInit
-const particleBuffers = {
-  position: 'vec3',
-  velocity: 'vec3',
-  color: 'vec3',
-  birthTime: 'float',
-  lifespan: 'float'
-}
-const particleCount = 50
-const isInstanced = true
-// Initialize compute buffers and nodes for particle system
-const particleData = computeInit(
-  particleCount,    // Number of particles
-  particleBuffers,  // Buffer type definitions
-  isInstanced       // Use instanced rendering
-)
-
-// Create a sprite with points material from the computed nodes
-// Include the computeUpdate function in the nodes
-const nodesWithUpdate = {
-  ...(console.log("particle data", particleData), particleData).nodes,
-  computeUpdate: particleData.computeUpdate
+const sphere = {
+  position: (time) => t.vec3(0),
+  radius: (time) => t.vec3(t.sin(time.mul(2)).abs().mul(1.5).add(0.25)),
+  color: t.vec3(0, 0, 1)
 }
 
-const particleSprite = pointsFromNodes(
-  particleData.buffers,  // Buffers from computeInit
-  nodesWithUpdate,        // Nodes with computeUpdate function
-  particleCount
-)
+const sphere2 = {
+  position: (time) => t.vec3(t.sin(time.mul(2)).mul(2), 0, 0),
+  radius: (time) => t.float(0.75),
+  color: t.vec3(1, 0, 0)
+}
 
-// Render the particle system to the scene
-particleSprite.render("particleSystem")
+const sphere3 = {
+  position: (time) => t.vec3(0, t.sin(time), 0),
+  radius: (time) => t.float(1),
+  color: t.vec3(0, 1, 0)
+}
 
-// The particleSprite can now be added to the scene
-// particleSprite will contain a THREE.Sprite with PointsNodeMaterial
-// configured for compute shader particle rendering
+const applySphere = (sphere) => {
+    const prevFrame = time.sub(0.0166);
+    const r = sphere.radius(time);
+    const p = sphere.position(time);
+    const pprev = sphere.position(prevFrame);
+    const rprev = sphere.radius(prevFrame);
 
-// Note: These functions use THREE by default (can optionally pass a custom _lib parameter)
-// They are designed to work with THREE.js WebGPU renderer and TSL (Three.js Shading Language)
-// In a real implementation, you would also need frame update functions
-// to animate the particles over time.
+    const posNode = nodes.position.sub(p);
+    const surface = posNode.normalize().mul(r);
+    const diff = surface.sub(posNode);
+    const diffSq = diff.lengthSq()
+    const isInside = posNode
+        .length()
+        .lessThan(r);
+
+    const v = p.sub(pprev).add(posNode.normalize().mul(r.sub(rprev)));
+
+    const v1 = nodes.velocity.sub(v);
+    const N = posNode.normalize();
+
+    const v2 = v1.sub(t.vec3(2).mul(v1.dot(N)).mul(N));
+
+    // nodes.force = diffSq.lessThan(
+    //     t.float(16)
+    //   ).select(
+    //     isInside.select(
+    //         nodes.force.add(v1.dot(N)),
+    //         nodes.force
+    //         // t.float(0.0002).div(diffSq.add(1)).mul(diff.normalize()).add(nodes.force),
+    //     ),
+    //     nodes.force
+    // );
+
+    nodes.velocity =
+        isInside.select(
+            v2.mul(0.95),
+            nodes.velocity
+        );
+
+    nodes.position =
+        isInside.select(
+            surface.add(p),
+            nodes.position
+        )
+
+    nodes.color = t.mix(nodes.color, sphere.color, diffSq.mul(8).oneMinus().max(0));
+}
+
+
+// applySphere(sphere);
+applySphere(sphere2);
+applySphere(sphere3);
+
+nodes.color = nodes.color.mul(beatramp.mul(0.25).mod(1).oneMinus().add(0.2));
+
 `;
 
 // Extension to save content on document changes
@@ -365,6 +385,7 @@ export async function createEditorState(
   const initialContent = storedContent !== null ? storedContent : content;
 
   const particles = createParticles(renderer);
+  currentParticles = particles;
 
   function simpleWebSocketTransport(uri: string): Promise<Transport> {
     let handlers: ((value: string) => void)[] = [];
@@ -466,12 +487,10 @@ export async function createEditorState(
       checkConnection();
     });
   }
-  const transport = await simpleWebSocketTransport(
-    "ws://localhost:8081",
-  );
+  const transport = await simpleWebSocketTransport(process.env.LSP_BASE_URL!);
 
   let client = new LSPClient({
-    rootUri: "file:///home/ulysses/development/threely/src",
+    rootUri: process.env.LSP_BASE_FILE_URI!,
     extensions: [
       ...languageServerExtensions(),
       {
@@ -496,16 +515,16 @@ export async function createEditorState(
         typescript: true,
       }),
       EditorView.theme({
-        '.cm-activeLine' : {
-          backgroundColor: `${oneDarkColor.darkBackground}aa`
-        }
+        ".cm-activeLine": {
+          backgroundColor: `${oneDarkColor.darkBackground}aa`,
+        },
       }),
       oneDark,
       saveContentExtension,
       Prec.highest(
         keymap.of([{ key: "Ctrl-Enter", run: handleCtrlEnter(particles) }]),
       ),
-      client.plugin("file:///home/ulysses/development/threely/src/index.ts"),
+      client.plugin(`${process.env.LSP_BASE_FILE_URI}/index.ts`),
     ],
   });
 }

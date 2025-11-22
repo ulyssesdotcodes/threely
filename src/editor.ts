@@ -8,9 +8,13 @@ import {
   defaultContent,
   getCurrentEditorView,
   getBlockAtCursor,
+  getCurrentParticles,
 } from "./codemirror";
-import { executeDSL } from "./dsl";
-import { createCurlInterface, createTapBeatButton } from "./particles";
+import {
+  executeParticles,
+  createCurlInterface,
+  createTapBeatButton,
+} from "./particles";
 
 export function createVimToggle(): HTMLElement {
   const container = document.createElement("div");
@@ -54,16 +58,24 @@ export function createRunButton(): HTMLElement {
       return;
     }
 
+    const particles = getCurrentParticles();
+    if (!particles) {
+      console.warn("No particles available");
+      return;
+    }
+
     const blockInfo = getBlockAtCursor(view);
 
     if (blockInfo && blockInfo.block) {
       const code = blockInfo.block.trim();
+      const fullDocument = view.state.doc.toJSON();
+      const beginIndex = fullDocument.findIndex((value) =>
+        value.includes("begin-eval"),
+      );
+      const codeDoc = fullDocument.slice(beginIndex + 1).join("\n");
 
       try {
-        const result = executeDSL(code);
-        if (result) {
-        } else {
-        }
+        executeParticles(code, undefined, codeDoc, particles);
       } catch (error) {
         console.error("Error executing DSL code:", error);
       }

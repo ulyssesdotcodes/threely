@@ -17,22 +17,24 @@ export const curlParams = {
 };
 
 const tickSignal = new Signal(0);
-const tapbeatSignal : Signal<number[]> = new Signal([]);
+const tapbeatSignal: Signal<number[]> = new Signal([]);
 const beatrampSignal = computed(() => {
   const last = tapbeatSignal.value[tapbeatSignal.value.length - 1];
-  const avgTime = tapbeatSignal.value.length > 2
-   ? (last - tapbeatSignal.value[0]) / tapbeatSignal.value.length
-   : 500;
+  const avgTime =
+    tapbeatSignal.value.length > 2
+      ? (last - tapbeatSignal.value[0]) / tapbeatSignal.value.length
+      : 500;
 
   return (tickSignal.value - (last ?? 0)) / avgTime;
 });
 
-export const beatramp = signalToNode(beatrampSignal, 'float');
+const beatrampRef = signalToNode(beatrampSignal, "float");
+export const beatramp = THREE.TSL.float(beatrampRef);
 
 const tick = () => {
   tickSignal.value = performance.now();
   requestAnimationFrame(tick);
-}
+};
 
 export const create = (renderer) => {
   const particleBuffers = {
@@ -53,9 +55,9 @@ export const create = (renderer) => {
   const t = THREE.TSL;
 
   // Create ReferenceNodes for curl parameters
-  const timeMultiplierRef = t.reference('timeMultiplier', 'float', curlParams);
-  const elscaleRef = t.reference('elscale', 'float', curlParams);
-  const speedRef = t.reference('speed', 'float', curlParams);
+  const timeMultiplierRef = t.reference("timeMultiplier", "float", curlParams);
+  const elscaleRef = t.reference("elscale", "float", curlParams);
+  const speedRef = t.reference("speed", "float", curlParams);
 
   console.log("recreating force");
   const curlForce = curl({
@@ -64,14 +66,12 @@ export const create = (renderer) => {
     force: t.vec3(0),
     time: t.time.mul(timeMultiplierRef),
     speed: speedRef,
-    index: t.float(t.instanceIndex)
+    index: t.float(t.instanceIndex),
   });
 
   const curlUpdate = THREE.TSL.Fn(() => {
-    particles.buffers.velocity.element(t.instanceIndex).addAssign(
-      curlForce
-    );
-  })().compute(particleCount)
+    particles.buffers.velocity.element(t.instanceIndex).addAssign(curlForce);
+  })().compute(particleCount);
 
   particles.nodes.force = t.vec3(0);
 
@@ -80,9 +80,8 @@ export const create = (renderer) => {
     requestAnimationFrame(recompute);
   };
 
-  requestAnimationFrame(recompute)
-  requestAnimationFrame(tick)
-
+  requestAnimationFrame(recompute);
+  requestAnimationFrame(tick);
 
   return {
     ...particles,
@@ -91,9 +90,13 @@ export const create = (renderer) => {
 };
 
 export const executeParticles = (_, __, doc, particles) => {
-  console.log(THREE);
+  console.log("[executeParticles] Starting execution");
+  console.log("[executeParticles] doc:", doc);
+  console.log("[executeParticles] particles:", particles);
+  console.log("[executeParticles] THREE:", THREE);
 
   const newNodes = { ...particles.nodes };
+  console.log("[executeParticles] newNodes:", newNodes);
 
   const includes = {
     nodes: newNodes,
@@ -102,12 +105,22 @@ export const executeParticles = (_, __, doc, particles) => {
     signalToNode,
     paletteNode,
     hsvToRgb,
-    beatramp
+    beatramp,
   };
+  console.log("[executeParticles] includes:", includes);
 
   try {
-    new Function(...Object.keys(includes), doc)(...Object.values(includes));
+    console.log(
+      "[executeParticles] Creating function with keys:",
+      Object.keys(includes),
+    );
+    const fn = new Function(...Object.keys(includes), doc);
+    console.log("[executeParticles] Function created, executing...");
+    fn(...Object.values(includes));
+    console.log("[executeParticles] Function executed successfully");
+    console.log("[executeParticles] newNodes after execution:", newNodes);
 
+    console.log("[executeParticles] Calling renderLogic...");
     renderLogic(
       pointsFromNodes(
         particles.pointsMaterial,
@@ -117,8 +130,12 @@ export const executeParticles = (_, __, doc, particles) => {
       ),
       "particleSystem",
     );
+    console.log("[executeParticles] renderLogic completed");
   } catch (error) {
-    console.error("Error executing particle code:", error);
+    console.error("[executeParticles] Error executing particle code:", error);
+    console.error("[executeParticles] Error name:", error?.name);
+    console.error("[executeParticles] Error message:", error?.message);
+    console.error("[executeParticles] Error stack:", error?.stack);
     // Optionally display error to user or handle gracefully
     throw error; // Re-throw to allow caller to handle if needed
   }
@@ -129,7 +146,11 @@ export function createCurlInterface(): HTMLElement {
   container.className = "curl-interface-container";
 
   // Helper function to create a labeled input
-  const createInput = (label: string, paramKey: keyof typeof curlParams, step: string) => {
+  const createInput = (
+    label: string,
+    paramKey: keyof typeof curlParams,
+    step: string,
+  ) => {
     const wrapper = document.createElement("div");
     wrapper.className = "curl-input-wrapper";
 
@@ -174,11 +195,10 @@ export function createTapBeatButton(): HTMLElement {
 
   button.addEventListener("click", () => {
     const now = performance.now();
-    const arr = tapbeatSignal.value.filter(v => now - v < 8000);
+    const arr = tapbeatSignal.value.filter((v) => now - v < 8000);
     arr.push(now);
-    tapbeatSignal.value = arr
-  })
-
+    tapbeatSignal.value = arr;
+  });
 
   return button;
 }
