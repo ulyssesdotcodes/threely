@@ -1,6 +1,7 @@
 // Compute initialization functions - extracted from parser.ts
 import * as THREE from "three/webgpu";
 import { getDefaultRenderer } from "../dsl/context/dsl-context";
+import { beatramp } from "../particles";
 
 // Compute init function based on compute-example/compute-init.js
 export function computeInit(
@@ -120,7 +121,7 @@ export const computeUpdate = (nodes, buffers, count) => THREE.TSL.Fn(() => {
     fract,
     mix,
     clamp,
-    time,
+    time
   } = THREE.TSL;
 
   const particle = nodes.position;

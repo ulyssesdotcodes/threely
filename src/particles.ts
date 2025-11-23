@@ -5,9 +5,9 @@ import { renderLogic } from "./dsl/object3d-chain";
 import { curl } from "./compute/curl-noise";
 import { signalToNode } from "./signal-to-node";
 import * as THREE from "three/webgpu";
-import { computed, Signal } from "@preact/signals";
+import { computed, effect, Signal } from "@preact/signals";
 
-const particleCount = 400000;
+const particleCount = 100000;
 
 const CURL_PARAMS_STORAGE_KEY = "threely-curl-params";
 
@@ -46,16 +46,28 @@ export const curlParams = loadCurlParams();
 
 const tickSignal = new Signal(0);
 const tapbeatSignal: Signal<number[]> = new Signal([]);
-const beatrampSignal = computed(() => {
+const avgTimeSignal = computed(() => {
+  if(tapbeatSignal.value.length < 2) {
+    return [500, 0];
+  }
   const last = tapbeatSignal.value[tapbeatSignal.value.length - 1];
   const first = tapbeatSignal.value[0];
-  const avgTime =
-    tapbeatSignal.value.length > 2
-      ? (last - first) / tapbeatSignal.value.length
-      : 500;
+  return [(last - first) / (tapbeatSignal.value.length - 1)
+      , first];
 
-  return (tickSignal.value - (first ?? 0)) / avgTime;
 });
+
+const beatrampSignal = computed(() => {
+  const [avgTime, first] = avgTimeSignal.value;
+  const now = tickSignal.value;
+  const adjFirstTime = (first ?? 0) % (avgTime * 4);
+  console.log(avgTime);
+  return (now - adjFirstTime) / avgTime;
+})
+
+// effect(() => {
+//   console.log(beatrampSignal.value)
+// })
 
 const beatrampRef = signalToNode(beatrampSignal, "float");
 export const beatramp = THREE.TSL.float(beatrampRef);
@@ -225,7 +237,7 @@ export function createTapBeatButton(): HTMLElement {
 
   button.addEventListener("click", () => {
     const now = performance.now();
-    const arr = tapbeatSignal.value.filter((v) => now - v < 8000);
+    const arr = tapbeatSignal.value.filter((v) => now - v < 8000).slice(-8);
     arr.push(now);
     tapbeatSignal.value = arr;
   });

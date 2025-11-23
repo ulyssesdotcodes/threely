@@ -32,7 +32,7 @@ export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, comput
   pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
 
-  pointsMaterial.opacityNode = TSL.float(1);
+  pointsMaterial.opacityNode = nodes.opacity ?? TSL.float(1);
   // pointsMaterial.blending = THREE.AdditiveBlending;
 
   pointsMaterial.needsUpdate = true;
