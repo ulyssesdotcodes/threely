@@ -1,6 +1,8 @@
 // Three.js rendering logic for the background scene
 import * as THREE from "three/webgpu";
 import { setScene } from "./dsl";
+			import { bloom } from 'three/addons/tsl/display/BloomNode.js';
+
 
 // Function to initialize the background Three.js scene
 export async function initBackgroundScene(): Promise<THREE.WebGPURenderer> {
@@ -32,11 +34,20 @@ export async function initBackgroundScene(): Promise<THREE.WebGPURenderer> {
   // Position camera
   camera.position.z = 5;
 
+const postProcessing = new THREE.PostProcessing( renderer );
+const scenePass = THREE.TSL.pass( scene, camera );
+const scenePassColor = scenePass.getTextureNode( 'output' );
+const bloomPass = bloom( scenePassColor, 0.12, 0.0005, 0.9 );
+postProcessing.outputNode = scenePassColor.add( bloomPass );
+
+
+
   // Animation loop
   function animate() {
     requestAnimationFrame(animate);
 
-    renderer.render(scene, camera);
+    // renderer.render(scene, camera);
+    postProcessing.render();
   }
 
   // Handle window resize

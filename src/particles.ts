@@ -7,7 +7,7 @@ import { signalToNode } from "./signal-to-node";
 import * as THREE from "three/webgpu";
 import { computed, effect, Signal } from "@preact/signals";
 
-const particleCount = 100000;
+const particleCount = 400000;
 
 const CURL_PARAMS_STORAGE_KEY = "threely-curl-params";
 
@@ -61,7 +61,6 @@ const beatrampSignal = computed(() => {
   const [avgTime, first] = avgTimeSignal.value;
   const now = tickSignal.value;
   const adjFirstTime = (first ?? 0) % (avgTime * 4);
-  console.log(avgTime);
   return (now - adjFirstTime) / avgTime;
 })
 
@@ -77,7 +76,32 @@ const tick = () => {
   requestAnimationFrame(tick);
 };
 
-export const create = (renderer) => {
+export let loudness = THREE.TSL.float(0);
+
+const initAudio = async () => {
+
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+const audioContext = new AudioContext();
+const mediaStreamAudioSourceNode = audioContext.createMediaStreamSource(stream);
+const analyserNode = audioContext.createAnalyser();
+mediaStreamAudioSourceNode.connect(analyserNode);
+
+const pcmData = new Float32Array(analyserNode.fftSize);
+const loudnessSignal = computed(() => {
+    tickSignal.value;
+    analyserNode.getFloatTimeDomainData(pcmData);
+    let sumSquares = 0.0;
+    for (const amplitude of pcmData) { sumSquares += amplitude*amplitude; }
+    const output = Math.sqrt(sumSquares / pcmData.length);
+    return output;
+});
+const loudnessRef = signalToNode(loudnessSignal, "float");
+loudness = THREE.TSL.float(loudnessRef);
+}
+
+
+export const create = async (renderer) => {
+  await initAudio();
   const particleBuffers = {
     position: "vec3",
     velocity: "vec3",
@@ -87,7 +111,7 @@ export const create = (renderer) => {
   };
   const isInstanced = true;
   // Initialize compute buffers and nodes for particle system
-  const particles = computeInit(
+  const particles = await computeInit(
     renderer,
     particleCount, // Number of particles
     particleBuffers, // Buffer type definitions
@@ -147,6 +171,7 @@ export const executeParticles = (_, __, doc, particles) => {
     paletteNode,
     hsvToRgb,
     beatramp,
+    loudness
   };
   console.log("[executeParticles] includes:", includes);
 

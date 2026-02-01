@@ -68,7 +68,7 @@ export function getCurrentEditorView(): EditorView | null {
   return currentEditorView;
 }
 
-let currentParticles: ReturnType<typeof createParticles> | null = null;
+let currentParticles;
 
 export function getCurrentParticles() {
   return currentParticles;
@@ -384,7 +384,7 @@ export async function createEditorState(
   const storedContent = getStoredEditorContent();
   const initialContent = storedContent !== null ? storedContent : content;
 
-  const particles = createParticles(renderer);
+  const particles = await createParticles(renderer);
   currentParticles = particles;
 
   function simpleWebSocketTransport(uri: string): Promise<Transport> {

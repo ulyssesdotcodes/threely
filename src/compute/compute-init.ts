@@ -132,7 +132,7 @@ export const computeUpdate = (nodes, buffers, count) => THREE.TSL.Fn(() => {
   const position = particle.add(velocity).toVar();
 
   const forceMul = rand(particleIndex).mul(0.08).add(0.9);
-  velocity.assign(mul(velocity, float(0.98)));
+  velocity.assign(mul(velocity, float(0.995)));
 
   if (nodes.force) {
     velocity.assign(add(velocity, nodes.force));
@@ -141,7 +141,6 @@ export const computeUpdate = (nodes, buffers, count) => THREE.TSL.Fn(() => {
   const age = sub(time, nodes.birthTime);
   const isDead = age.greaterThanEqual(nodes.lifespan);
 
-  console.log("color", nodes.color)
   buffers.color.element(instanceIndex).assign(nodes.color);
 
   const randomAngle = rand(particleIndex.div(4)).mul(Math.PI * 2);
@@ -172,4 +171,8 @@ export const computeUpdate = (nodes, buffers, count) => THREE.TSL.Fn(() => {
   buffers.position.element(instanceIndex).assign(position);
   buffers.velocity.element(instanceIndex).assign(velocity);
   buffers.color.element(instanceIndex).assign(nodes.color);
+
+  console.log(nodes.renderPosition, nodes.position);
+
+  nodes.renderPosition = nodes.renderPosition ?? nodes.position;
 })().compute(count);

@@ -23,17 +23,18 @@ export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, comput
   }
 
   // Set material nodes
-  console.log(nodes.position, buffers.position);
-  pointsMaterial.positionNode = TSL.instancedBufferAttribute(
-    buffers.position.value,
-  );
+  console.log(nodes.renderPosition, buffers.position);
+  // pointsMaterial.positionNode = TSL.instancedBufferAttribute(
+  //   buffers.position.value,
+  // );
+  pointsMaterial.positionNode = nodes.renderPosition ?? nodes.position;
   console.log("pointsmat2", nodes.color, computeUpdate)
   pointsMaterial.colorNode = nodes.color ?? TSL.vec3(1);
   pointsMaterial.scaleNode = nodes.size ?? THREE.TSL.vec3(0.1);
 
 
   pointsMaterial.opacityNode = nodes.opacity ?? TSL.float(1);
-  // pointsMaterial.blending = THREE.AdditiveBlending;
+  pointsMaterial.blending = THREE.AdditiveBlending;
 
   pointsMaterial.needsUpdate = true;
 
@@ -55,7 +56,6 @@ export function pointsFromNodes(pointsMaterial, buffers: any, nodes: any, comput
 
     const recompute = () => {
       if (computeUpdate) {
-        console.log("recomputing");
         renderer.compute(computeUpdate);
       }
       animationId.id = requestAnimationFrame(recompute);

@@ -7,5 +7,6 @@
         "8443": {
             "protocol": "https"
         }
-    }
+    },
+    "idf.pythonInstallPath": "/usr/bin/python3"
 }
