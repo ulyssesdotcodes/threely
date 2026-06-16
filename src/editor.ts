@@ -62,15 +62,12 @@ export function createRunButton(): HTMLElement {
       const code = blockInfo.block.trim();
 
       try {
-        const result = executeDSL(
+        executeDSL(
           code,
           view.state.field(uuidRangeSetField, false) || RangeSet.empty,
           undefined,
           blockInfo.start,
         );
-        if (result) {
-        } else {
-        }
       } catch (error) {
         console.error("Error executing DSL code:", error);
       }

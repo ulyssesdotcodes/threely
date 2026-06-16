@@ -9,9 +9,6 @@ import {
   mockUtils,
   mockPresets,
 } from "../three/MockObject3D";
-// Import object registry from pure functions
-// import { getObjectRegistry } from './object3d-chain';
-// Use pure functions instead of Node-based chains
 import * as pureObj3d from "./pure-object3d-functions";
 import * as pureMath from "./pure-math-functions";
 import { convertASTToNodysseus } from "./direct-ast-to-nodysseus-converter";
